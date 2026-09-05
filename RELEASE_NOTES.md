@@ -1,6 +1,6 @@
-## ssh-client v0.0.5 (Beta)
+## ssh-client v0.0.6 (Beta)
 
-fix(test): dynamic semver assertion in updater test and cleanup compiler warnings
+ci: enable workflow dispatch and automated CI trigger in release bot
 
 ---
 
@@ -8,16 +8,16 @@ fix(test): dynamic semver assertion in updater test and cleanup compiler warning
 
 | Platform | Format | Package / Asset |
 |---|---|---|
-| Windows x64 | Single-File Installer | [ssh-client-setup-v0.0.5-windows-x64.exe](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.5/ssh-client-setup-v0.0.5-windows-x64.exe) |
-| Windows x64 | Portable ZIP Archive | [ssh-client-windows-x64.zip](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.5/ssh-client-windows-x64.zip) |
-| Linux x64 | Standalone Tarball | [ssh-client-linux-x64.tar.gz](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.5/ssh-client-linux-x64.tar.gz) |
-| Container (Docker) | GitHub Packages (GHCR) | `docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.5` |
+| Windows x64 | Single-File Installer | [ssh-client-setup-v0.0.6-windows-x64.exe](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.6/ssh-client-setup-v0.0.6-windows-x64.exe) |
+| Windows x64 | Portable ZIP Archive | [ssh-client-windows-x64.zip](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.6/ssh-client-windows-x64.zip) |
+| Linux x64 | Standalone Tarball | [ssh-client-linux-x64.tar.gz](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.6/ssh-client-linux-x64.tar.gz) |
+| Container (Docker) | GitHub Packages (GHCR) | `docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.6` |
 
 ---
 
-### Key Highlights in v0.0.5
+### Key Highlights in v0.0.6
 
-- **Update Notes**: fix(test): dynamic semver assertion in updater test and cleanup compiler warnings
+- **Update Notes**: ci: enable workflow dispatch and automated CI trigger in release bot
 - **Editorial Stark Dark UI**: Zero-emoji monochrome interface with high-contrast typography and real-time telemetry.
 - **Master Vault**: PBKDF2 with AES-256-GCM encryption.
 - **Integrated SFTP Explorer & Multi-Tab Terminal**: Remote directory explorer and embedded full-bleed xterm.js terminal.
