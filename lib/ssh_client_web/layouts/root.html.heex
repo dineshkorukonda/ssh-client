@@ -38,22 +38,36 @@
             return;
           }
 
+          let currentFontSize = 13;
+
           const term = new Terminal({
             cursorBlink: true,
-            fontSize: 13,
+            fontSize: currentFontSize,
             lineHeight: 1.25,
-            fontFamily: "'JetBrains Mono', 'Menlo', 'Consolas', monospace",
+            fontFamily: "'JetBrains Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
+            allowTransparency: true,
+            scrollback: 10000,
             theme: {
               background: '#050505',
               foreground: '#e4e4e7',
               cursor:     '#3b82f6',
+              cursorAccent: '#050505',
+              selectionBackground: 'rgba(59, 130, 246, 0.35)',
+              selectionForeground: '#ffffff',
               black:      '#050505',
-              brightBlack:'#27272a',
+              brightBlack:'#3f3f46',
               red:        '#ef4444',
+              brightRed:  '#f87171',
               blue:       '#3b82f6',
+              brightBlue: '#60a5fa',
               cyan:       '#06b6d4',
+              brightCyan: '#22d3ee',
               green:      '#22c55e',
+              brightGreen:'#4ade80',
               yellow:     '#eab308',
+              brightYellow:'#fde047',
+              magenta:    '#d946ef',
+              brightMagenta: '#f472b6',
               white:      '#e4e4e7',
               brightWhite:'#fafafa'
             }
@@ -63,7 +77,34 @@
           if (fitAddon) term.loadAddon(fitAddon);
 
           term.open(el);
-          if (fitAddon) fitAddon.fit();
+
+          // Sizing logic with FitAddon
+          const doFit = () => {
+            if (!fitAddon || !el.clientWidth || !el.clientHeight) return;
+            try {
+              fitAddon.fit();
+              if (term.cols > 0 && term.rows > 0) {
+                lv.pushEvent("resize", { cols: term.cols, rows: term.rows });
+              }
+            } catch(e) {
+              console.debug("fit error:", e);
+            }
+          };
+
+          // Initial multi-stage fit to ensure dimensions calculate after rendering
+          requestAnimationFrame(doFit);
+          setTimeout(doFit, 30);
+          setTimeout(doFit, 150);
+          setTimeout(doFit, 400);
+
+          // ResizeObserver for dynamic layout / split view / fullscreen changes
+          let resizeObserver = null;
+          if (window.ResizeObserver) {
+            resizeObserver = new ResizeObserver(() => {
+              requestAnimationFrame(doFit);
+            });
+            resizeObserver.observe(el);
+          }
 
           term.writeln('\x1b[1;34mssh-client\x1b[0m \x1b[2mv0.0.1\x1b[0m');
           term.writeln('\x1b[2mConnecting to ' + (el.dataset.serverId || 'server') + '...\x1b[0m');
@@ -71,27 +112,180 @@
 
           lv.pushEvent("terminal_ready", {});
 
+          // LiveView -> Terminal events
           this.handleEvent("terminal_output", ({ data }) => {
             term.write(data);
           });
 
+          this.handleEvent("terminal_paste", () => {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+              navigator.clipboard.readText().then(text => {
+                if (text) lv.pushEvent("terminal_data", { data: text });
+              }).catch(err => {
+                console.warn("Clipboard read error:", err);
+              });
+            }
+          });
+
+          this.handleEvent("terminal_insert_command", ({ command, execute }) => {
+            const data = execute ? (command + "\n") : command;
+            lv.pushEvent("terminal_data", { data: data });
+            term.focus();
+          });
+
+          this.handleEvent("terminal_clear", () => {
+            term.clear();
+          });
+
+          this.handleEvent("terminal_font_change", ({ delta }) => {
+            currentFontSize = Math.max(9, Math.min(24, currentFontSize + delta));
+            term.options.fontSize = currentFontSize;
+            requestAnimationFrame(doFit);
+          });
+
+          // Terminal -> LiveView data stream
           term.onData(function(data) {
             lv.pushEvent("terminal_data", { data: data });
           });
 
-          const onResize = () => {
-            if (fitAddon) {
-              fitAddon.fit();
-              lv.pushEvent("resize", { cols: term.cols, rows: term.rows });
+          // Auto-copy on text selection
+          term.onSelectionChange(() => {
+            const selection = term.getSelection();
+            if (selection && selection.trim().length > 0) {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(selection).catch(() => {});
+              }
             }
-          };
+          });
 
-          window.addEventListener('resize', onResize);
-          this.onResize = onResize;
+          // Keyboard copy & paste handlers
+          term.attachCustomKeyEventHandler((e) => {
+            // Ctrl+C / Cmd+C: Copy if selection exists, else send SIGINT
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C') && e.type === 'keydown') {
+              if (term.hasSelection()) {
+                const sel = term.getSelection();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(sel).catch(() => {});
+                }
+                return false; // Prevent xterm from sending ^C byte
+              }
+              return true; // No selection: send ^C to remote shell
+            }
+
+            // Ctrl+V / Cmd+V / Ctrl+Shift+V: Paste from clipboard
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V') && e.type === 'keydown') {
+              if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(text => {
+                  if (text) lv.pushEvent("terminal_data", { data: text });
+                }).catch(() => {});
+                return false;
+              }
+            }
+
+            // Ctrl+Plus / Ctrl+Minus: Font size scaling
+            if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+') && e.type === 'keydown') {
+              currentFontSize = Math.min(24, currentFontSize + 1);
+              term.options.fontSize = currentFontSize;
+              requestAnimationFrame(doFit);
+              return false;
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_') && e.type === 'keydown') {
+              currentFontSize = Math.max(9, currentFontSize - 1);
+              term.options.fontSize = currentFontSize;
+              requestAnimationFrame(doFit);
+              return false;
+            }
+
+            return true;
+          });
+
+          // Right click context menu
+          el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const existingMenu = document.getElementById('term-context-menu');
+            if (existingMenu) existingMenu.remove();
+
+            const menu = document.createElement('div');
+            menu.id = 'term-context-menu';
+            menu.className = 'fixed z-50 bg-[#111111] border border-[#27272a] rounded-lg shadow-2xl py-1 text-xs font-mono text-zinc-300 w-48 select-none backdrop-blur-md';
+            menu.style.left = `${Math.min(e.clientX, window.innerWidth - 200)}px`;
+            menu.style.top = `${Math.min(e.clientY, window.innerHeight - 200)}px`;
+
+            const hasSel = term.hasSelection();
+
+            menu.innerHTML = `
+              <div id="ctx-paste" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between">
+                <span>📋 Paste Clipboard</span>
+                <span class="text-[10px] text-zinc-500">Ctrl+V</span>
+              </div>
+              <div id="ctx-copy" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between ${hasSel ? '' : 'opacity-40 pointer-events-none'}">
+                <span>📄 Copy Selection</span>
+                <span class="text-[10px] text-zinc-500">Ctrl+C</span>
+              </div>
+              <div id="ctx-select-all" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between">
+                <span>🔍 Select All</span>
+                <span class="text-[10px] text-zinc-500">Ctrl+A</span>
+              </div>
+              <div class="h-[1px] bg-[#222] my-1"></div>
+              <div id="ctx-zsh" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between text-blue-400">
+                <span>🐚 Switch to Zsh</span>
+              </div>
+              <div id="ctx-clear" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between text-red-400">
+                <span>🧹 Clear Buffer</span>
+                <span class="text-[10px] text-zinc-500">Ctrl+L</span>
+              </div>
+            `;
+
+            document.body.appendChild(menu);
+
+            const removeMenu = () => {
+              if (menu.parentNode) menu.parentNode.removeChild(menu);
+              document.removeEventListener('click', removeMenu);
+            };
+            setTimeout(() => document.addEventListener('click', removeMenu), 10);
+
+            document.getElementById('ctx-paste')?.addEventListener('click', () => {
+              if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(text => {
+                  if (text) lv.pushEvent("terminal_data", { data: text });
+                });
+              }
+              term.focus();
+            });
+
+            document.getElementById('ctx-copy')?.addEventListener('click', () => {
+              const sel = term.getSelection();
+              if (sel && navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(sel);
+              }
+              term.focus();
+            });
+
+            document.getElementById('ctx-select-all')?.addEventListener('click', () => {
+              term.selectAll();
+            });
+
+            document.getElementById('ctx-zsh')?.addEventListener('click', () => {
+              lv.pushEvent("terminal_data", { data: "exec zsh -l\n" });
+              term.focus();
+            });
+
+            document.getElementById('ctx-clear')?.addEventListener('click', () => {
+              term.clear();
+              term.focus();
+            });
+          });
+
+          window.addEventListener('resize', doFit);
+          this.doFit = doFit;
+          this.resizeObserver = resizeObserver;
           this.term = term;
         },
         destroyed() {
-          if (this.onResize) window.removeEventListener('resize', this.onResize);
+          if (this.doFit) window.removeEventListener('resize', this.doFit);
+          if (this.resizeObserver) this.resizeObserver.disconnect();
+          const menu = document.getElementById('term-context-menu');
+          if (menu) menu.remove();
           if (this.term) this.term.dispose();
         }
       };
@@ -117,14 +311,29 @@
         height: 100%;
         margin: 0;
         padding: 0;
+        overflow: hidden;
       }
 
       code, pre, .mono {
         font-family: 'JetBrains Mono', monospace;
       }
 
+      /* xterm full container filling */
+      .xterm {
+        height: 100%;
+        width: 100%;
+        padding: 6px;
+      }
+      .xterm-viewport {
+        height: 100% !important;
+        background-color: transparent !important;
+      }
+      .xterm-screen {
+        height: 100% !important;
+      }
+
       /* Scrollbar */
-      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar { width: 4px; height: 4px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
     </style>

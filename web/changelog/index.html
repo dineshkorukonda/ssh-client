@@ -6,6 +6,10 @@
   <title>Changelog & Version History — ssh-client</title>
   <meta name="description" content="Complete version history, release notes, and commit audit log for ssh-client.">
 
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+
   <!-- daisyUI + Tailwind CSS -->
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -57,8 +61,8 @@
   <header class="sticky top-0 z-50 border-b border-neutral-800 bg-[#050505]/95 backdrop-blur-md">
     <div class="navbar max-w-5xl mx-auto px-6 h-16">
       <div class="flex-1">
-        <a href="../" class="text-base font-bold tracking-tight text-white flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+        <a href="../" class="text-base font-bold tracking-tight text-white flex items-center gap-2.5">
+          <img src="../assets/icon.png" alt="Logo" class="w-6 h-6 invert" />
           <span>ssh-client</span>
           <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1">v0.0.1</span>
         </a>
@@ -133,8 +137,24 @@
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
-                <strong class="text-white">Interactive xterm.js Terminal Bridge:</strong>
-                <p class="text-neutral-400 mt-0.5">Embedded xterm.js container streaming over Phoenix Channel (<code class="text-neutral-200">TerminalChannel</code>) to OTP <code class="text-neutral-200">PTYSession</code> with PTY resize notifications and bracketed paste mode.</p>
+                <strong class="text-white">Full-Bleed Responsive Terminal & Autocomplete:</strong>
+                <p class="text-neutral-400 mt-0.5">Embedded full-height xterm.js container streaming over Phoenix LiveView to OTP <code class="text-neutral-200">PTYSession</code> with dynamic <code class="text-neutral-200">ResizeObserver</code> auto-fit, built-in searchable command suggestions palette, and one-click execution.</p>
+              </div>
+            </li>
+
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Clipboard Engine & Context Menu:</strong>
+                <p class="text-neutral-400 mt-0.5">Added auto-copy on text selection, Ctrl+V / Ctrl+Shift+V clipboard integration, dedicated Paste button, and sleek right-click dark context menu.</p>
+              </div>
+            </li>
+
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Zsh Shell & Truecolor Support:</strong>
+                <p class="text-neutral-400 mt-0.5">Integrated 1-click remote Zsh login shell switcher (<code class="text-neutral-200">exec zsh -l</code>) with 256-color & truecolor terminal emulation.</p>
               </div>
             </li>
 
