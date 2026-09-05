@@ -3,7 +3,7 @@ version: 2.1
 executors:
   elixir-executor:
     docker:
-      - image: cimg/elixir:1.18
+      - image: elixir:1.18
     working_directory: ~/repo
     environment:
       MIX_ENV: test
