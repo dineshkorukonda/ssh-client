@@ -5,6 +5,8 @@ defmodule SSHClient.SFTP do
   and path operations.
   """
 
+  import Bitwise
+
   alias SSHClient.SSH.Connection
 
   @doc "Starts an SFTP channel process on an active SSH connection"
@@ -63,6 +65,8 @@ defmodule SSHClient.SFTP do
     end
   end
 
+  def list_dir(_, _), do: {:error, :not_connected}
+
   @doc "Reads contents of a remote text or binary file"
   def read_file(channel_pid, path) when is_pid(channel_pid) and is_binary(path) do
     path_cl = String.to_charlist(normalize_path(path))
@@ -71,6 +75,8 @@ defmodule SSHClient.SFTP do
       {:error, reason} -> {:error, {:read_file_failed, reason}}
     end
   end
+
+  def read_file(_, _), do: {:error, :not_connected}
 
   @doc "Writes binary data to a remote file"
   def write_file(channel_pid, path, data) when is_pid(channel_pid) and is_binary(path) and is_binary(data) do
@@ -81,8 +87,12 @@ defmodule SSHClient.SFTP do
     end
   end
 
+  def write_file(_, _, _), do: {:error, :not_connected}
+
   @doc "Uploads a local file to remote destination path with optional progress callback"
   def upload_file(channel_pid, local_path, remote_path, on_progress \\ nil)
+
+  def upload_file(channel_pid, local_path, remote_path, on_progress)
       when is_pid(channel_pid) and is_binary(local_path) and is_binary(remote_path) do
     case File.read(local_path) do
       {:ok, binary_data} ->
@@ -102,8 +112,12 @@ defmodule SSHClient.SFTP do
     end
   end
 
+  def upload_file(_, _, _, _), do: {:error, :not_connected}
+
   @doc "Downloads a remote file to a local destination path with optional progress callback"
   def download_file(channel_pid, remote_path, local_path, on_progress \\ nil)
+
+  def download_file(channel_pid, remote_path, local_path, on_progress)
       when is_pid(channel_pid) and is_binary(remote_path) and is_binary(local_path) do
     case read_file(channel_pid, remote_path) do
       {:ok, binary_data} ->
@@ -126,6 +140,8 @@ defmodule SSHClient.SFTP do
     end
   end
 
+  def download_file(_, _, _, _), do: {:error, :not_connected}
+
   @doc "Deletes a remote file"
   def delete_file(channel_pid, path) when is_pid(channel_pid) and is_binary(path) do
     path_cl = String.to_charlist(normalize_path(path))
@@ -134,6 +150,8 @@ defmodule SSHClient.SFTP do
       {:error, reason} -> {:error, {:delete_failed, reason}}
     end
   end
+
+  def delete_file(_, _), do: {:error, :not_connected}
 
   @doc "Deletes a remote directory"
   def delete_dir(channel_pid, path) when is_pid(channel_pid) and is_binary(path) do
@@ -144,6 +162,8 @@ defmodule SSHClient.SFTP do
     end
   end
 
+  def delete_dir(_, _), do: {:error, :not_connected}
+
   @doc "Creates a new remote directory"
   def make_dir(channel_pid, path) when is_pid(channel_pid) and is_binary(path) do
     path_cl = String.to_charlist(normalize_path(path))
@@ -153,8 +173,10 @@ defmodule SSHClient.SFTP do
     end
   end
 
+  def make_dir(_, _), do: {:error, :not_connected}
+
   @doc "Renames a remote file or folder"
-  def rename(channel_pid, old_path, new_path) when is_pid(channel_pid) do
+  def rename(channel_pid, old_path, new_path) when is_pid(channel_pid) and is_binary(old_path) and is_binary(new_path) do
     old_cl = String.to_charlist(normalize_path(old_path))
     new_cl = String.to_charlist(normalize_path(new_path))
     case :ssh_sftp.rename(channel_pid, old_cl, new_cl) do
@@ -162,6 +184,8 @@ defmodule SSHClient.SFTP do
       {:error, reason} -> {:error, {:rename_failed, reason}}
     end
   end
+
+  def rename(_, _, _), do: {:error, :not_connected}
 
   @doc "Formats bytes into human readable format"
   def format_size(bytes) when is_integer(bytes) do
@@ -194,14 +218,15 @@ defmodule SSHClient.SFTP do
     end
   end
 
-  defp normalize_path(path) do
+  def normalize_path(path) when is_binary(path) do
     path = String.trim(path)
     if path == "" or !String.starts_with?(path, "/"), do: "/" <> path, else: path
   end
+  def normalize_path(_), do: "/"
 
-  defp format_permissions(mode) when is_integer(mode) do
-    octal = Integer.to_string(Bitwise.band(mode, 0o777), 8)
+  def format_permissions(mode) when is_integer(mode) do
+    octal = Integer.to_string(band(mode, 0o777), 8)
     "0" <> octal
   end
-  defp format_permissions(_), do: "0644"
+  def format_permissions(_), do: "0644"
 end
