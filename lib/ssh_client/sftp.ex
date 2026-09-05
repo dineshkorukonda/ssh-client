@@ -3,7 +3,6 @@ defmodule SSHClient.SFTP do
   Erlang :ssh_sftp client wrapper for remote file operations over an active SSH connection.
   """
 
-  alias SSHClient.SSH
   alias SSHClient.SSH.Connection
 
   @doc "Starts an SFTP channel process on an active SSH connection"

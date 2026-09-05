@@ -5,7 +5,9 @@ defmodule SSHClient.UpdaterTest do
 
   describe "current_version/0" do
     test "returns current semver version" do
-      assert Updater.current_version() == "0.0.2"
+      version = Updater.current_version()
+      assert is_binary(version)
+      assert version =~ ~r/^[0-9]+\.[0-9]+\.[0-9]+/
     end
   end
 

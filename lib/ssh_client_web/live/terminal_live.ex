@@ -815,7 +815,7 @@ defmodule SSHClientWeb.TerminalLive do
   defp format_error_reason(:nxdomain), do: "Host domain name cannot be resolved (nxdomain)"
   defp format_error_reason(:key_exchange_failed), do: "Key exchange / host key verification failed"
   defp format_error_reason(:auth_failed), do: "Authentication failed - public key or password rejected"
-  defp format_error_reason('Host key not accepted'), do: "Host key not accepted"
+  defp format_error_reason(~c"Host key not accepted"), do: "Host key not accepted"
   defp format_error_reason(str) when is_binary(str), do: str
   defp format_error_reason(other), do: inspect(other)
 end
