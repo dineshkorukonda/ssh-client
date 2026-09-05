@@ -185,10 +185,6 @@ defmodule SSHClient.Vault do
 
   # Helpers
 
-  defp default_vault_path do
-    Path.join(Config.os_config_dir(), "vault.json")
-  end
-
   defp load_vault_file(state) do
     if File.exists?(state.vault_file) do
       try do
