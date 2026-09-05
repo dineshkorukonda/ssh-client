@@ -5,7 +5,7 @@ defmodule SSHClient.SFTP do
   and path operations.
   """
 
-  import Bitwise
+
 
   alias SSHClient.SSH.Connection
 
