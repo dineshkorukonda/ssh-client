@@ -261,8 +261,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: false
-          prerelease: true
-          name: "v0.0.1-beta: Initial Public Beta Release"
-          generate_release_notes: true
+          prerelease: false
+          make_latest: true
+          name: "v0.0.1 (Beta) - Initial Release"
+          body_path: ./RELEASE_NOTES.md
           files: |
             dist/*
