@@ -27,7 +27,20 @@ defmodule SSHClient.Vault do
   # Client API
 
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    name = Keyword.get(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: name)
+  end
+
+  @doc "Returns default vault file path in OS config directory"
+  def default_vault_path do
+    Path.join(Config.os_config_dir(), "vault.json")
+  end
+
+  @doc "Resets the vault state (useful for tests)"
+  def reset(server \\ __MODULE__, opts \\ []) do
+    GenServer.call(server, {:reset, opts})
+  rescue
+    _ -> :ok
   end
 
   @doc "Returns the current vault status: :uninitialized | :locked | :unlocked"
@@ -83,6 +96,14 @@ defmodule SSHClient.Vault do
   @impl true
   def handle_call(:status, _from, state) do
     {:reply, state.status, state}
+  end
+
+  @impl true
+  def handle_call({:reset, opts}, _from, state) do
+    if state.timer, do: Process.cancel_timer(state.timer)
+    vault_file = Keyword.get(opts, :vault_file, state.vault_file)
+    new_state = load_vault_file(%__MODULE__{vault_file: vault_file})
+    {:reply, :ok, new_state}
   end
 
   @impl true

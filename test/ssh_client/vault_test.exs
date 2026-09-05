@@ -8,18 +8,14 @@ defmodule SSHClient.VaultTest do
     File.rm_rf!("test/tmp")
     File.mkdir_p!("test/tmp")
 
-    if Process.whereis(Vault) do
-      # Start with clean state
-      GenServer.stop(Vault, :normal)
-    end
-
-    {:ok, pid} = Vault.start_link(vault_file: @test_vault_path)
+    Vault.reset(Vault, vault_file: @test_vault_path)
 
     on_exit(fn ->
       File.rm_rf!("test/tmp")
+      Vault.reset(Vault, vault_file: Vault.default_vault_path())
     end)
 
-    {:ok, vault_pid: pid}
+    :ok
   end
 
   test "vault lifecycle: uninitialized -> init -> lock -> unlock -> encrypt/decrypt" do
