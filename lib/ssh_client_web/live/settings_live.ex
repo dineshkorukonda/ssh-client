@@ -40,6 +40,12 @@ defmodule SSHClientWeb.SettingsLive do
         |> assign(:checking_update, false)
         |> assign(:update_info, nil)
         |> assign(:update_error, nil)
+        |> assign(:downloading_update, false)
+        |> assign(:download_progress, 0)
+        |> assign(:download_path, nil)
+        |> assign(:install_status, nil)
+        |> assign(:install_message, nil)
+        |> assign(:install_error, nil)
         |> assign(:import_candidates, [])
         |> assign(:import_status, nil)
 
@@ -49,7 +55,7 @@ defmodule SSHClientWeb.SettingsLive do
 
   @impl true
   def handle_event("check_update", _params, socket) do
-    socket = assign(socket, checking_update: true, update_error: nil)
+    socket = assign(socket, checking_update: true, update_error: nil, install_status: nil, install_error: nil)
 
     case Updater.check_update() do
       {:ok, info} ->
@@ -57,6 +63,52 @@ defmodule SSHClientWeb.SettingsLive do
 
       {:error, reason} ->
         {:noreply, assign(socket, checking_update: false, update_error: to_string(reason))}
+    end
+  end
+
+  def handle_event("start_in_app_update", params, socket) do
+    url =
+      params["url"] ||
+        (socket.assigns.update_info && socket.assigns.update_info.platform_asset &&
+           socket.assigns.update_info.platform_asset.browser_download_url)
+
+    name =
+      params["name"] ||
+        (socket.assigns.update_info && socket.assigns.update_info.platform_asset &&
+           socket.assigns.update_info.platform_asset.name)
+
+    if url && url != "" do
+      caller = self()
+
+      Task.start(fn ->
+        result = Updater.download_update(url, name, caller_pid: caller)
+        send(caller, {:update_download_complete, result})
+      end)
+
+      {:noreply,
+       assign(socket,
+         downloading_update: true,
+         download_progress: 10,
+         install_status: :downloading,
+         install_error: nil,
+         install_message: "Downloading update package..."
+       )}
+    else
+      {:noreply, assign(socket, install_error: "No download asset found for current operating system.")}
+    end
+  end
+
+  def handle_event("launch_installer", _params, socket) do
+    if path = socket.assigns.download_path do
+      case Updater.install_update(path) do
+        {:ok, _status, msg} ->
+          {:noreply, assign(socket, install_status: :installed, install_message: msg)}
+
+        {:error, reason} ->
+          {:noreply, assign(socket, install_error: to_string(reason))}
+      end
+    else
+      {:noreply, socket}
     end
   end
 
@@ -112,41 +164,82 @@ defmodule SSHClientWeb.SettingsLive do
   end
 
   @impl true
+  def handle_info({:update_download_progress, percent, _done, _total}, socket) do
+    {:noreply, assign(socket, download_progress: percent)}
+  end
+
+  def handle_info({:update_download_complete, {:ok, path}}, socket) do
+    case Updater.install_update(path) do
+      {:ok, _status, msg} ->
+        {:noreply,
+         assign(socket,
+           downloading_update: false,
+           download_progress: 100,
+           download_path: path,
+           install_status: :installed,
+           install_message: msg
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         assign(socket,
+           downloading_update: false,
+           download_progress: 100,
+           download_path: path,
+           install_status: :ready_to_install,
+           install_error: reason
+         )}
+    end
+  end
+
+  def handle_info({:update_download_complete, {:error, reason}}, socket) do
+    {:noreply,
+     assign(socket,
+       downloading_update: false,
+       install_status: nil,
+       install_error: "Download failed: #{reason}"
+     )}
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="flex h-full min-h-screen bg-[#050505]">
       <!-- Sidebar -->
-      <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col shrink-0">
-        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
-            <div>
-              <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-              <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
-            </div>
+      <aside class="w-64 border-r border-[#1f1f1f] bg-[#080808] flex flex-col justify-between shrink-0">
+        <div class="p-6">
+          <div class="flex items-center gap-2.5 mb-8">
+            <a href="/hosts" class="flex items-center gap-2.5">
+              <div class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-mono font-bold text-white text-xs">
+                &gt;_
+              </div>
+              <span class="font-bold text-white tracking-tight">ssh-client</span>
+              <span class="px-1.5 py-0.5 text-[9px] font-mono font-bold tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
+            </a>
           </div>
-          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
+
+          <nav class="space-y-1 font-medium text-xs">
+            <a
+              href="/hosts"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#111] transition-colors"
+            >
+              Hosts
+            </a>
+            <a
+              href="/logs"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#111] transition-colors"
+            >
+              Logs
+            </a>
+            <a
+              href="/settings"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-blue-600/10 text-blue-400 border border-blue-500/20"
+            >
+              Settings
+            </a>
+          </nav>
         </div>
-        <nav class="flex-1 px-3 py-4 space-y-0.5">
-          <a
-            href="/"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
-          >
-            Hosts
-          </a>
-          <a
-            href="/logs"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
-          >
-            Logs
-          </a>
-          <a
-            href="/settings"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-blue-600/10 text-blue-400 text-sm font-medium"
-          >
-            Settings
-          </a>
-        </nav>
+
         <div class="px-5 py-4 border-t border-[#1f1f1f] flex items-center justify-between">
           <span class="text-[11px] text-zinc-700">
             <%= @active_servers_count %> host<%= if @active_servers_count != 1, do: "s" %>
@@ -171,7 +264,7 @@ defmodule SSHClientWeb.SettingsLive do
           <div class="flex items-center gap-2">
             <button
               phx-click="check_update"
-              disabled={@checking_update}
+              disabled={@checking_update or @downloading_update}
               class="h-8 px-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1.5"
             >
               <%= if @checking_update do %>
@@ -188,48 +281,103 @@ defmodule SSHClientWeb.SettingsLive do
         <div class="p-8 max-w-4xl space-y-6">
           <!-- Update Status Card (if checked) -->
           <%= if @update_info do %>
-            <div class={["p-5 rounded-2xl border transition-all",
+            <div class={["p-6 rounded-2xl border transition-all",
               if(@update_info.update_available?, do: "bg-blue-950/20 border-blue-500/40", else: "bg-[#0a0a0a] border-[#1f1f1f]")]}>
-              <div class="flex items-start justify-between">
-                <div>
+              <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div class="space-y-1">
                   <div class="flex items-center gap-2.5">
-                    <span class={["w-2 h-2 rounded-full", if(@update_info.update_available?, do: "bg-blue-400 animate-pulse", else: "bg-emerald-400")]}></span>
-                    <h3 class="text-sm font-semibold text-white">
+                    <span class={["w-2.5 h-2.5 rounded-full", if(@update_info.update_available?, do: "bg-blue-400 animate-pulse", else: "bg-emerald-400")]}></span>
+                    <h3 class="text-base font-semibold text-white">
                       <%= if @update_info.update_available? do %>
-                        Update Available: <%= @update_info.tag_name %>
+                        New Version Available: <%= @update_info.tag_name %>
                       <% else %>
                         ssh-client is up to date (v<%= @version %>)
                       <% end %>
                     </h3>
                   </div>
-                  <p class="text-xs text-zinc-500 mt-1 font-mono">
-                    Current: v<%= @version %> &bull; Latest: <%= @update_info.tag_name %>
+                  <p class="text-xs text-zinc-400 font-mono">
+                    Current installed: v<%= @version %> &bull; Latest release: <%= @update_info.tag_name %>
                   </p>
                 </div>
+
                 <%= if @update_info.update_available? do %>
-                  <a
-                    href={@update_info.release_url}
-                    target="_blank"
-                    class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1"
-                  >
-                    Download Update &rarr;
-                  </a>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <%= if @downloading_update do %>
+                      <div class="px-4 py-2 bg-blue-600/30 border border-blue-500/40 rounded-xl text-xs font-mono text-blue-300 flex items-center gap-2">
+                        <span class="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
+                        Downloading (<%= @download_progress %>%)
+                      </div>
+                    <% else %>
+                      <button
+                        phx-click="start_in_app_update"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl transition-all shadow-lg shadow-blue-900/30 inline-flex items-center gap-1.5"
+                      >
+                        Download &amp; Install Update
+                      </button>
+                      <a
+                        href={@update_info.release_url}
+                        target="_blank"
+                        class="px-3 py-2 bg-[#141414] hover:bg-[#1f1f1f] border border-[#262626] text-zinc-300 text-xs font-medium rounded-xl transition-colors"
+                      >
+                        GitHub Release ↗
+                      </a>
+                    <% end %>
+                  </div>
                 <% end %>
               </div>
 
+              <!-- Live Download Progress Bar -->
+              <%= if @downloading_update do %>
+                <div class="mt-4 pt-4 border-t border-blue-500/20 space-y-2">
+                  <div class="flex justify-between text-xs font-mono text-blue-300">
+                    <span>Downloading update payload...</span>
+                    <span><%= @download_progress %>%</span>
+                  </div>
+                  <div class="w-full h-2 bg-[#111] rounded-full overflow-hidden border border-blue-500/30">
+                    <div class="h-full bg-blue-500 transition-all duration-300 rounded-full" style={"width: #{@download_progress}%"}></div>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- Installation Success/Status message -->
+              <%= if @install_status == :installed do %>
+                <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex items-center justify-between gap-3">
+                  <div>
+                    <span class="font-semibold block text-emerald-200">Update Ready:</span>
+                    <%= @install_message %>
+                  </div>
+                  <%= if @download_path do %>
+                    <button
+                      phx-click="launch_installer"
+                      class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg shrink-0 transition-colors"
+                    >
+                      Run Installer
+                    </button>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <%= if @install_error do %>
+                <div class="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono">
+                  <%= @install_error %>
+                </div>
+              <% end %>
+
+              <!-- Manual download options -->
               <%= if @update_info.update_available? and @update_info.assets != [] do %>
                 <div class="mt-4 pt-4 border-t border-[#1f1f1f] space-y-2">
-                  <span class="text-[11px] text-zinc-500 uppercase tracking-wider block">Installer Downloads</span>
+                  <span class="text-[11px] text-zinc-500 uppercase tracking-wider block font-mono">Platform Packages</span>
                   <div class="flex flex-wrap gap-2">
                     <%= for asset <- @update_info.assets do %>
-                      <a
-                        href={asset.browser_download_url}
-                        target="_blank"
-                        class="px-3 py-1 bg-[#111] hover:bg-[#1a1a1a] border border-[#222] text-xs text-zinc-300 font-mono rounded-lg transition-colors inline-flex items-center gap-1.5"
+                      <button
+                        phx-click="start_in_app_update"
+                        phx-value-url={asset.browser_download_url}
+                        phx-value-name={asset.name}
+                        class="px-3 py-1.5 bg-[#111] hover:bg-[#1a1a1a] border border-[#222] hover:border-zinc-700 text-xs text-zinc-300 font-mono rounded-lg transition-colors inline-flex items-center gap-2 text-left"
                       >
-                        <span><%= asset.name %></span>
+                        <span class="text-white font-medium"><%= asset.name %></span>
                         <span class="text-zinc-600 text-[10px]">(<%= format_bytes(asset.size) %>)</span>
-                      </a>
+                      </button>
                     <% end %>
                   </div>
                 </div>

@@ -1,6 +1,6 @@
-## ssh-client v0.0.1 (Beta)
+## ssh-client v0.0.2 (Beta)
 
-Initial Beta release of ssh-client — an OTP-based, lightweight, high-performance SSH client and server manager with full-bleed LiveView terminal GUI for Windows and Linux.
+Beta release v0.0.2 delivers an integrated in-app self-updater with live download progress streaming and automatic installer launching, packages missing Erlang/OTP `:inets` and `:ssl` runtime modules in the release distribution, and includes multi-tier fallback HTTP fetchers for reliable update checks.
 
 ---
 
@@ -8,23 +8,20 @@ Initial Beta release of ssh-client — an OTP-based, lightweight, high-performan
 
 | Platform | Format | Package / Asset |
 |---|---|---|
-| Windows x64 | Single-File Installer | [ssh-client-setup-v0.0.1-windows-x64.exe](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.1/ssh-client-setup-v0.0.1-windows-x64.exe) |
-| Windows x64 | Portable ZIP Archive | [ssh-client-windows-x64.zip](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.1/ssh-client-windows-x64.zip) |
-| Linux x64 | Standalone Tarball | [ssh-client-linux-x64.tar.gz](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.1/ssh-client-linux-x64.tar.gz) |
-| Container (Docker) | GitHub Packages (GHCR) | `docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.1-beta` |
+| Windows x64 | Single-File Installer | [ssh-client-setup-v0.0.2-windows-x64.exe](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.2/ssh-client-setup-v0.0.2-windows-x64.exe) |
+| Windows x64 | Portable ZIP Archive | [ssh-client-windows-x64.zip](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.2/ssh-client-windows-x64.zip) |
+| Linux x64 | Standalone Tarball | [ssh-client-linux-x64.tar.gz](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.2/ssh-client-linux-x64.tar.gz) |
+| Container (Docker) | GitHub Packages (GHCR) | `docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.2` |
 
 ---
 
-### Core Capabilities
+### Key Highlights in v0.0.2
 
-- Responsive Full-Bleed Terminal: High-performance xterm.js terminal integration with PTY streaming, bracketed paste mode, dynamic viewport resizing, and instant font adjustments.
-- Command Autocomplete Palette: Fast fuzzy search across pre-built shell command categories (Zsh, System, Docker, Services, Network, Files) with one-click direct execution.
-- Master Vault Encryption: Encrypted local credential store protecting passphrases, SSH keys, and server records.
-- Native SFTP Explorer: Full directory tree browser, file uploads, file downloads, and remote file manipulation.
-- OS Credential Store Integration: Windows Credential Manager and Linux libsecret backends with secure in-memory passphrase caching.
-- SSH Config Importer: Seamless import from ~/.ssh/config with deduplication and custom fallback rules.
-- Real-Time Service Control & Logs: Active daemon monitoring with background backoff, live log tailing, and systemd / Docker / PM2 service management.
-- Editorial Stark UI: Minimalist, high-contrast dark aesthetic designed for developer focus without emoji clutter.
+- **In-App Self-Updater**: Integrated 1-click update flow inside Settings and navigation. Downloads release payload in the background with live progress tracking and triggers installer execution on Windows or tarball extraction on Linux.
+- **Runtime Application Inclusions**: Bundled `:inets`, `:ssl`, `:crypto`, and `:public_key` applications into OTP release ERTS payload, eliminating `:inets.start/0 is undefined` errors in standalone releases.
+- **Multi-Engine Update Fallback**: Multi-tier HTTP fetcher using `:httpc` primary, `curl` secondary, and PowerShell `Invoke-RestMethod` tertiary to guarantee update checks succeed in all operating environments.
+- **Master Vault & Native SFTP Explorer**: Zero-plain-text storage with PBKDF2 (100k iterations) AES-256-GCM vault and high-performance remote SFTP file browser with inline text editor.
+- **Editorial Stark Dark UI**: Zero-emoji monochrome interface with high-contrast typography, Beta header badge, and responsive gauges.
 
 ---
 
@@ -34,3 +31,4 @@ Initial Beta release of ssh-client — an OTP-based, lightweight, high-performan
 - Documentation: https://ssh-client.dineshkorukonda.online
 - Installation: https://ssh-client.dineshkorukonda.online/install
 - Changelog: https://ssh-client.dineshkorukonda.online/changelog
+

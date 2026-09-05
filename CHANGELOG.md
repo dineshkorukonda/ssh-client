@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-09-06
+
+### Added
+- **In-App Self-Updater**: Full in-app update management within `SettingsLive` and navigation. Downloads release payload in the background with live progress tracking (`0% -> 100%`) and automatically executes the Windows Setup installer (`.exe`) or opens the release directory.
+- **Multi-Engine Update Fallback**: Added secondary (`curl`) and tertiary (PowerShell `Invoke-RestMethod`) fetchers to `SSHClient.Updater` to ensure update checks succeed across all execution environments.
+- **Platform Asset Auto-Detection**: Automatically determines optimal platform release asset (`.exe` for Windows, `.tar.gz` for Linux) for single-click updates.
+
+### Fixed
+- **Release ERTS Application Packaging**: Included `:inets`, `:ssl`, `:crypto`, `:public_key`, and `:runtime_tools` in `mix.exs` `extra_applications` and release definition, resolving `:inets.start/0 is undefined (module :inets is not available)` in standalone releases.
+- **Update Parsing Resiliency**: Added defensive decoding with `:json` and `Jason` fallback for GitHub Releases payload.
+
+---
+
 ## [0.0.1] - 2026-09-05
 
 ### Added

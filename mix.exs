@@ -4,7 +4,7 @@ defmodule SSHClient.MixProject do
   def project do
     [
       app: :ssh_client,
-      version: "0.0.1",
+      version: "0.0.2",
       elixir: "~> 1.18 or ~> 1.19 or ~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -14,7 +14,13 @@ defmodule SSHClient.MixProject do
       releases: [
         ssh_client: [
           include_executables_for: [:unix, :windows],
-          applications: [runtime_tools: :permanent]
+          applications: [
+            runtime_tools: :permanent,
+            inets: :permanent,
+            ssl: :permanent,
+            crypto: :permanent,
+            public_key: :permanent
+          ]
         ]
       ]
     ]
@@ -23,7 +29,7 @@ defmodule SSHClient.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :ssh],
+      extra_applications: [:logger, :ssh, :inets, :ssl, :crypto, :public_key, :runtime_tools],
       mod: {SSHClient.Application, []}
     ]
   end
