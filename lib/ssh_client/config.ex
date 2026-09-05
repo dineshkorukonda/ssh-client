@@ -75,6 +75,14 @@ defmodule SSHClient.Config do
   end
 
   @doc """
+  Loads the default configuration file from the OS-specific path.
+  """
+  @spec load_config() :: {:ok, t()} | {:error, String.t()}
+  def load_config do
+    load_file(default_config_path())
+  end
+
+  @doc """
   Saves a Config struct or list of servers to a JSON or YAML file path.
   Creates parent directories if necessary.
   """

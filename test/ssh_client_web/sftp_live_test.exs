@@ -114,7 +114,7 @@ defmodule SSHClientWeb.SFTPLiveTest do
       }
 
       # Prior to the fix, this raised KeyError on nil.user
-      rendered = Phoenix.LiveView.rendered_to_string(SFTPLive.render(assigns))
+      rendered = render_to_string(SFTPLive.render(assigns))
 
       assert is_binary(rendered)
       assert rendered =~ "henry"
@@ -174,7 +174,7 @@ defmodule SSHClientWeb.SFTPLiveTest do
         delete_path: nil
       }
 
-      rendered = Phoenix.LiveView.rendered_to_string(SFTPLive.render(assigns))
+      rendered = render_to_string(SFTPLive.render(assigns))
 
       assert is_binary(rendered)
       assert rendered =~ "prod-1"
@@ -182,5 +182,9 @@ defmodule SSHClientWeb.SFTPLiveTest do
       assert rendered =~ "test.txt"
       assert rendered =~ "app.tar.gz"
     end
+  end
+
+  defp render_to_string(rendered) do
+    Phoenix.HTML.Safe.to_iodata(rendered) |> IO.iodata_to_binary()
   end
 end
