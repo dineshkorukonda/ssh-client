@@ -4,6 +4,8 @@ defmodule SSHClient.LocalFS do
   Provides structured directory listings, navigation, and file transfers for Windows and Linux.
   """
 
+  import Bitwise
+
   @doc "Returns the default starting local directory (User Home or Current Working Dir)"
   def default_path do
     case System.user_home() do

@@ -10,7 +10,9 @@ defmodule SSHClientWeb.SFTPLive do
 
   alias SSHClient.ActivityLog
   alias SSHClient.Config
+  alias SSHClient.Config.Server
   alias SSHClient.LocalFS
+  alias SSHClient.ServerManager
   alias SSHClient.SFTP
   alias SSHClient.SSH
   alias SSHClient.Vault
@@ -84,13 +86,13 @@ defmodule SSHClientWeb.SFTPLive do
     server = socket.assigns.server
 
     if is_nil(server) do
-      {:noreply, assign(socket, remote_loading: false, error: "Server #{socket.assigns.server_id} not found.")}
+      {:noreply, assign(socket, remote_loading: false, error: "Host '#{socket.assigns.server_id}' not found in configuration.")}
     else
       case SSH.connect(server) do
         {:ok, conn} ->
           case SFTP.start_channel(conn) do
             {:ok, sftp_pid} ->
-              start_path = if server.user == "root", do: "/root", else: "/home/#{server.user}"
+              start_path = if server.user == "root", do: "/root", else: "/home/#{server.user || "user"}"
               socket =
                 socket
                 |> assign(conn: conn, sftp_pid: sftp_pid, remote_path: start_path)
@@ -399,6 +401,10 @@ defmodule SSHClientWeb.SFTPLive do
     end
   end
 
+  def handle_event("clear_error", _params, socket) do
+    {:noreply, assign(socket, :error, nil)}
+  end
+
   def handle_event("toggle_theme", _params, socket) do
     new_theme = if socket.assigns.theme == "dark", do: "light", else: "dark"
     {:noreply, socket |> assign(:theme, new_theme) |> push_event("toggle_theme", %{theme: new_theme})}
@@ -459,6 +465,20 @@ defmodule SSHClientWeb.SFTPLive do
           </a>
         </div>
       </header>
+
+      <!-- Global Error Notification Banner -->
+      <%= if @error do %>
+        <div class="bg-red-950/90 border-b border-red-800 px-4 py-2.5 flex items-center justify-between text-xs font-mono text-red-200 z-30 shrink-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+            <span class="font-bold text-red-400 shrink-0">Notice:</span>
+            <span class="truncate"><%= @error %></span>
+          </div>
+          <button phx-click="clear_error" class="text-red-400 hover:text-white font-bold px-2 py-0.5 rounded hover:bg-red-900/50 shrink-0" title="Dismiss">
+            &times;
+          </button>
+        </div>
+      <% end %>
 
       <!-- Main Dual-Pane Workspace -->
       <div class="flex-1 flex min-h-0 bg-[var(--app-bg)] relative">
@@ -596,7 +616,7 @@ defmodule SSHClientWeb.SFTPLive do
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2 font-mono text-xs font-semibold text-[var(--accent)]">
                 <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                <span>REMOTE SERVER (<%= @server.user %>@<%= @server.host %>)</span>
+                <span>REMOTE SERVER <%= if @server, do: "(#{@server.user}@#{@server.host})", else: "(#{@server_id})" %></span>
               </div>
               <div class="flex items-center gap-1">
                 <button
@@ -924,24 +944,52 @@ defmodule SSHClientWeb.SFTPLive do
      )}
   end
 
-  defp filter_entries(entries, ""), do: entries
-  defp filter_entries(entries, filter) do
+  def filter_entries(entries, ""), do: entries
+  def filter_entries(entries, filter) do
     q = String.downcase(filter)
     Enum.filter(entries, fn e -> String.contains?(String.downcase(e.name), q) end)
   end
 
-  defp format_mtime({{year, month, day}, {hour, minute, _sec}}) do
+  def format_mtime({{year, month, day}, {hour, minute, _sec}}) do
     "#{year}-#{pad(month)}-#{pad(day)} #{pad(hour)}:#{pad(minute)}"
   end
-  defp format_mtime(_), do: "-"
+  def format_mtime(_), do: "-"
 
-  defp pad(n) when n < 10, do: "0#{n}"
-  defp pad(n), do: "#{n}"
+  def pad(n) when n < 10, do: "0#{n}"
+  def pad(n), do: "#{n}"
 
-  defp resolve_server_struct(id) do
+  def resolve_server_struct(server_id) do
+    try do
+      case ServerManager.get_server(server_id) do
+        {:ok, snapshot} when is_map(snapshot) ->
+          %Server{
+            id: snapshot.id,
+            name: snapshot.name || snapshot.id,
+            host: snapshot.host,
+            user: snapshot.user,
+            port: snapshot.port || 22,
+            proxy_jump: snapshot.proxy_jump
+          }
+
+        _ ->
+          resolve_server_from_config(server_id)
+      end
+    catch
+      _, _ ->
+        resolve_server_from_config(server_id)
+    end
+  end
+
+  defp resolve_server_from_config(id) do
     case Config.load_config() do
-      {:ok, cfg} -> Enum.find(cfg.servers, &(&1.id == id))
-      _ -> nil
+      {:ok, cfg} ->
+        Enum.find(cfg.servers, &(&1.id == id))
+
+      _ ->
+        case Config.load_file(Config.default_config_path()) do
+          {:ok, cfg} -> Enum.find(cfg.servers, &(&1.id == id))
+          _ -> nil
+        end
     end
   end
 end
