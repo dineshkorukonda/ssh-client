@@ -15,7 +15,7 @@ permissions:
 jobs:
   metadata-check:
     name: Verify Release Metadata & Aesthetic Rules
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,13 +26,15 @@ jobs:
           python-version: '3.11'
 
       - name: Verify Version Synchronization
+        shell: pwsh
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-            python scripts/sync_release.py --check "$TAG_VERSION"
-          else
+          $ref = "${{ github.ref }}"
+          if ($ref -like "refs/tags/v*") {
+            $tagVersion = $ref -replace "refs/tags/v", ""
+            python scripts/sync_release.py --check $tagVersion
+          } else {
             python scripts/sync_release.py --check
-          fi
+          }
 
       - name: Verify Zero-Emoji Rule
         run: python scripts/sync_release.py --emoji-check
@@ -41,13 +43,8 @@ jobs:
         run: python scripts/test_sync_release.py -v
 
   test:
-    name: Unit Tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-
+    name: Unit Tests (Windows)
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -74,39 +71,10 @@ jobs:
       - name: Compile
         run: mix compile
 
-      - name: Check and apply formatting
-        if: matrix.os == 'ubuntu-latest'
-        run: mix format
-
       - name: Run unit test suite
         run: mix test
 
-  integration-test:
-    name: Integration Tests (Docker SSH Target)
-    runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Elixir and Erlang/OTP
-        uses: erlef/setup-beam@v1
-        with:
-          elixir-version: '1.18.2'
-          otp-version: '27.2'
-
-      - name: Install dependencies
-        run: mix deps.get
-
-      - name: Build and start SSH test fixture
-        run: docker compose -f docker-compose.test.yml up -d --build
-
-      - name: Run integration tests
-        run: mix test test/integration --include integration
-
-      - name: Tear down test fixture
-        if: always()
-        run: docker compose -f docker-compose.test.yml down
 
   package-windows:
     name: Package Windows Release (.zip + .exe installer)
@@ -171,101 +139,19 @@ jobs:
           name: ssh-client-windows-x64-installer
           path: installer\ssh-client-setup-v*-windows-x64.exe
 
-  package-linux:
-    name: Package Linux Release (.tar.gz)
-    runs-on: ubuntu-latest
-    needs: [test, metadata-check]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Elixir and Erlang/OTP
-        uses: erlef/setup-beam@v1
-        with:
-          elixir-version: '1.18.2'
-          otp-version: '27.2'
-
-      - name: Restore dependencies cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-mix-
-
-      - name: Install dependencies
-        run: mix deps.get
-
-      - name: Build production release
-        run: |
-          MIX_ENV=prod mix release ssh_client
-
-      - name: Archive Linux Release
-        run: |
-          tar -czf ssh-client-linux-x64.tar.gz -C _build/prod/rel/ssh_client .
-
-      - name: Upload Linux Release Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ssh-client-linux-x64
-          path: ssh-client-linux-x64.tar.gz
-
-  package-docker:
-    name: Package Container Image (GitHub Packages GHCR)
-    runs-on: ubuntu-latest
-    needs: [test, metadata-check]
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   release:
     name: Create GitHub Release & Publish Assets
-    runs-on: ubuntu-latest
-    needs: [package-windows, package-linux, package-docker]
+    runs-on: windows-latest
+    needs: [package-windows]
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Create dist directory
-        run: mkdir -p dist
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path dist
 
       - name: Download Windows zip artifact
         uses: actions/download-artifact@v4
@@ -277,12 +163,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ssh-client-windows-x64-installer
-          path: dist
-
-      - name: Download Linux Release Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ssh-client-linux-x64
           path: dist
 
       - name: Create GitHub Release

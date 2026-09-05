@@ -92,9 +92,11 @@ defmodule SSHClient.InitSystem do
 
   def detect(session, server_id) do
     runner = fn cmd ->
-      if Code.ensure_loaded?(SSHClient.SSH) and
-           function_exported?(SSHClient.SSH, :exec, 2) do
-        apply(SSHClient.SSH, :exec, [session, cmd])
+      ssh_module = Application.get_env(:ssh_client, :ssh_client, SSHClient.SSH)
+
+      if Code.ensure_loaded?(ssh_module) and
+           function_exported?(ssh_module, :exec, 2) do
+        apply(ssh_module, :exec, [session, cmd])
       else
         {:error, :no_ssh_runner_available}
       end

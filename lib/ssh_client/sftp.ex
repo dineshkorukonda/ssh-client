@@ -7,6 +7,7 @@ defmodule SSHClient.SFTP do
 
   import Bitwise
 
+
   alias SSHClient.SSH.Connection
 
   @doc "Starts an SFTP channel process on an active SSH connection"
