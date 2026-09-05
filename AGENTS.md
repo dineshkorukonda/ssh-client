@@ -18,7 +18,15 @@ This document governs the coding, testing, release, and style rules for `ssh-cli
   - Multi-platform container image to GitHub Packages (`ghcr.io/dineshkorukonda/ssh-client:0.0.x` and `:latest`)
 - All releases created via GitHub Actions or CLI must be flagged with `make_latest: true` (or `--latest=true`) so they appear directly on the GitHub repository homepage under Releases.
 
-## 2. Strict Aesthetic Rules: No Emojis
+## 2. Pull Request, CI & Release Bot Monitoring Rules
+- Every change must go through a dedicated feature or bugfix branch and a GitHub Pull Request.
+- Before and after merging PRs:
+  1. **Monitor PR Checks**: Verify that all CI checks pass on the PR branch (`gh pr checks <number>`).
+  2. **Branch Management**: Do NOT delete branches prematurely. Retain branch context until CI and release workflows have fully succeeded.
+  3. **Monitor Post-Merge Release Bot**: Immediately after merging to `main`, check the automated `Release Bot` and `CI` workflow runs (`gh run list`, `gh run view <id>`). Verify that auto-bump, tagging, and asset build jobs complete successfully. If any failure occurs, diagnose and resolve it immediately.
+- Run `python scripts/sync_release.py --check`, `python scripts/sync_release.py --emoji-check`, and `python scripts/test_sync_release.py` before submitting any PR.
+
+## 3. Strict Aesthetic Rules: No Emojis
 - Do not use emojis anywhere in this project:
   - No emojis in code, variable names, or comments
   - No emojis in UI buttons, tabs, notifications, or LiveView templates
@@ -26,8 +34,11 @@ This document governs the coding, testing, release, and style rules for `ssh-cli
   - No emojis in `RELEASE_NOTES.md`, `CHANGELOG.md`, `README.md`, or the landing website
 - Adhere strictly to the editorial stark dark aesthetic (monochrome, precise typography, subtle red/blue accents).
 
-## 3. Architecture & Code Style
+## 4. Testing & Code Quality Matrix
+- Maintain a complete testing matrix for all features and fixes:
+  1. **Unit Tests**: Test pure business logic, helpers, formatting, parsers, and data structures.
+  2. **Smoke & Route Tests**: Test all LiveViews, routes, and layout mounts with standard callback assertions.
+  3. **Regression Tests**: Every resolved bug must have a dedicated regression test reproducing and preventing the failure mode.
+  4. **Integration Tests**: Test end-to-end SSH/SFTP connections, worker supervisors, and process lifecycles.
 - Follow Elixir/OTP and Phoenix LiveView best practices.
-- Favor small, focused modules with explicit pattern matching and error handling.
-- Use native credential storage (Windows Credential Manager / Linux libsecret) with Master Vault encryption for sensitive data.
-- Run tests (`mix test`) and verify formatting (`mix format`) before submitting commits.
+- Favor small, focused modules with explicit pattern matching and defensive error handling (no unhandled nil dereferences).
