@@ -106,7 +106,7 @@
       </h1>
 
       <p class="text-sm sm:text-base text-neutral-400 max-w-2xl leading-relaxed font-normal">
-        Built on Erlang/OTP transport, OS credential stores, xterm.js terminal emulation, and zero telemetry. Completely functional in air-gapped environments without external accounts.
+        Built on Erlang/OTP transport, OS credential stores, dual-pane SFTP file management, multi-theme engine, xterm.js terminal emulation, and zero telemetry. Completely functional in air-gapped environments without external accounts.
       </p>
 
       <div class="flex flex-wrap items-center gap-4 pt-2 text-xs">
@@ -116,9 +116,9 @@
         <a href="changelog/" class="btn btn-sm bg-transparent border border-neutral-700 text-neutral-200 hover:border-white hover:bg-neutral-900 px-5 font-medium">
           View Changelog
         </a>
-        <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.2" target="_blank" rel="noreferrer"
-           class="btn btn-sm btn-ghost text-neutral-400 hover:text-red-400 font-mono">
-          GitHub Release v0.0.2 ↗
+        <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.8" target="_blank" rel="noreferrer"
+           class="btn btn-sm btn-ghost text-neutral-400 hover:text-red-400 font-mono app-latest-release">
+          GitHub Release v0.0.8 ↗
         </a>
       </div>
     </section>
@@ -154,9 +154,9 @@ Active: active (running) since Thu 2026-09-03 04:12:00 UTC; 2 days ago
 
       <div class="space-y-4">
         <div>
-          <p class="text-sm text-neutral-400 mb-2">1. Download and run the Windows installer:</p>
+          <p class="text-sm text-neutral-400 mb-2">1. Download and run the Windows single-file installer or extract portable ZIP:</p>
           <div class="cmd-block">
-            <pre>ssh-client-setup-v0.0.2-windows-x64.exe</pre>
+            <pre>ssh-client-setup-v0.0.8-windows-x64.exe</pre>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
         </div>
@@ -194,7 +194,7 @@ Active: active (running) since Thu 2026-09-03 04:12:00 UTC; 2 days ago
           <div class="font-mono text-xs text-red-500 font-semibold">01 / TRANSPORT</div>
           <h3 class="font-bold text-white text-base">Erlang Native :ssh Engine</h3>
           <p class="text-xs text-neutral-400 leading-relaxed font-normal">
-            Eliminates reliance on external <code class="text-neutral-300 font-mono">ssh</code> binaries or OpenSSH-for-Windows. Connects directly via OTP <code class="text-neutral-300 font-mono">:ssh_connection</code> in BEAM memory.
+            Eliminates reliance on external <code class="text-neutral-300 font-mono">ssh</code> binaries or OpenSSH-for-Windows. Connects directly via OTP <code class="text-neutral-300 font-mono">:ssh_connection</code> and <code class="text-neutral-300 font-mono">:ssh_sftp</code> in BEAM memory.
           </p>
         </div>
 
@@ -234,13 +234,23 @@ Active: active (running) since Thu 2026-09-03 04:12:00 UTC; 2 days ago
           </thead>
           <tbody class="divide-y divide-neutral-800/60 font-mono text-neutral-300">
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Master Vault</td>
-              <td class="py-3 px-4 text-neutral-400">PBKDF2 (100k rounds) + AES-256-GCM client-side vault encryption with automatic session lock</td>
+              <td class="py-3 px-4 font-semibold text-white">Dual-Pane SFTP Explorer</td>
+              <td class="py-3 px-4 text-neutral-400">Side-by-side Local vs Remote filesystem browser with HTML5 drag-and-drop transfers, path breadcrumbs, search filters, and modal editor</td>
               <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">SFTP Remote Explorer</td>
-              <td class="py-3 px-4 text-neutral-400">Native remote file manager over OTP :ssh_sftp with inline editor, breadcrumbs, and directory actions</td>
+              <td class="py-3 px-4 font-semibold text-white">Seamless In-Place Auto-Updater</td>
+              <td class="py-3 px-4 text-neutral-400">Background payload staging with 1-click atomic restart hot-swapping — zero installer wizards required on update</td>
+              <td class="py-3 px-4 text-neutral-300">Windows 10/11, Linux x64</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-white">Multi-Theme Engine</td>
+              <td class="py-3 px-4 text-neutral-400">Editorial Stark Carbon Dark and Crisp High-Contrast Light themes with localStorage persistence and instant topbar toggle</td>
+              <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-semibold text-white">Master Vault</td>
+              <td class="py-3 px-4 text-neutral-400">PBKDF2 (100k rounds) + AES-256-GCM client-side vault encryption with automatic session lock</td>
               <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
             </tr>
             <tr>
@@ -254,7 +264,7 @@ Active: active (running) since Thu 2026-09-03 04:12:00 UTC; 2 days ago
               <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Clipboard & Shortcuts</td>
+              <td class="py-3 px-4 font-semibold text-white">Clipboard &amp; Shortcuts</td>
               <td class="py-3 px-4 text-neutral-400">Auto-copy on text selection, Ctrl+V clipboard stream, custom right-click context menu, and clear buffer shortcuts</td>
               <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
             </tr>
@@ -282,13 +292,17 @@ Active: active (running) since Thu 2026-09-03 04:12:00 UTC; 2 days ago
     <section class="border border-neutral-800 bg-[#0c0c0c] p-8 rounded-lg space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 class="text-lg font-bold text-white">Download v0.0.2</h3>
+          <h3 class="text-lg font-bold text-white">Download v0.0.8</h3>
           <p class="text-xs text-neutral-500 font-mono mt-1">Beta release. Precompiled for Windows x64 and Linux x64.</p>
         </div>
-        <div class="flex gap-3 text-xs font-semibold">
+        <div class="flex flex-wrap gap-3 text-xs font-semibold">
           <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.8/ssh-client-setup-v0.0.8-windows-x64.exe"
              class="btn btn-sm bg-red-600 hover:bg-red-700 border-none text-white font-mono">
             Windows (.exe)
+          </a>
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.8/ssh-client-windows-x64.zip"
+             class="btn btn-sm bg-neutral-900 border border-neutral-700 hover:border-red-600 text-white font-mono">
+            Windows (.zip)
           </a>
           <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.8/ssh-client-linux-x64.tar.gz"
              class="btn btn-sm bg-neutral-900 border border-neutral-700 hover:border-red-600 text-white font-mono">
@@ -305,7 +319,7 @@ Active: active (running) since Thu 2026-09-03 04:12:00 UTC; 2 days ago
     <div class="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
       <p>ssh-client &bull; MIT License &bull; Offline &amp; Zero Telemetry</p>
       <div class="flex gap-6">
-        <a href="install/" class="hover:text-red-500 transition-colors">Install & FAQs</a>
+        <a href="install/" class="hover:text-red-500 transition-colors">Install &amp; FAQs</a>
         <a href="changelog/" class="hover:text-red-500 transition-colors">Changelog</a>
         <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="hover:text-white transition-colors">GitHub</a>
       </div>
