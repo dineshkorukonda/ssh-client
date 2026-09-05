@@ -8,7 +8,6 @@ defmodule SSHClientWeb.SFTPLive do
 
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
 
-  alias SSHClient.ActivityLog
   alias SSHClient.Config
   alias SSHClient.Config.Server
   alias SSHClient.LocalFS
@@ -363,10 +362,9 @@ defmodule SSHClientWeb.SFTPLive do
   def handle_event("confirm_chmod", _params, socket) do
     path = socket.assigns.chmod_entry
     octal_str = socket.assigns.chmod_octal
-    pid = socket.assigns.sftp_pid
 
     case Integer.parse(octal_str, 8) do
-      {mode, _} ->
+      {_mode, _} ->
         # set mode via command or ssh_sftp
         SSH.exec(socket.assigns.conn, "chmod #{octal_str} \"#{path}\"")
         {:noreply, socket |> assign(chmod_modal: false) |> load_remote_dir(socket.assigns.remote_path)}
