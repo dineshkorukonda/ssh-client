@@ -90,7 +90,7 @@
         <a href="../" class="text-base font-bold tracking-tight text-white flex items-center gap-2.5">
           <img src="../assets/icon.png" alt="Logo" class="w-6 h-6 rounded" />
           <span>ssh-client</span>
-          <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1 app-version-badge">v0.0.8</span>
+          <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1 app-version-badge">v0.0.9</span>
         </a>
       </div>
       <div class="flex-none gap-2 font-medium text-xs">
@@ -141,7 +141,7 @@
 ssh-client-setup-v0.0.8-windows-x64.exe
 
 # Alternatively (PowerShell) — manual zip extract:
-Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.8/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
+Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.9/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
 Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPDATA\Programs\ssh-client" -Force
 & "$env:LOCALAPPDATA\Programs\ssh-client\bin\ssh_client.bat" start</pre>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
@@ -165,7 +165,7 @@ Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPD
 
           <div class="cmd-block">
             <pre># Download release tarball (v0.0.8)
-curl -sSL -O https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.8/ssh-client-linux-x64.tar.gz
+curl -sSL -O https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.9/ssh-client-linux-x64.tar.gz
 
 # Unpack into target destination
 sudo mkdir -p /opt/ssh-client && sudo tar -xzf ssh-client-linux-x64.tar.gz -C /opt/ssh-client
