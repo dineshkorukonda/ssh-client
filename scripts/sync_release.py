@@ -92,9 +92,11 @@ def extract_versions():
     if os.path.exists(FILES["web_index"]):
         with open(FILES["web_index"], "r", encoding="utf-8") as f:
             content = f.read()
-            m = re.search(r'class="[^"]*app-version-badge[^"]*"[^>]*>v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)<', content)
+            m = re.search(r'class="[^"]*app-version-badge[^"]*"[^>]*>\s*v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)\s*<', content)
             if not m:
-                m = re.search(r'>v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)<', content)
+                m = re.search(r'class="[^"]*font-mono text-\[10px\][^"]*"[^>]*>\s*v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)\s*<', content)
+            if not m:
+                m = re.search(r'>\s*v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)\s*<', content)
             if m:
                 versions["web/index.html"] = m.group(1)
 
@@ -313,38 +315,117 @@ def bump_version(new_version, notes=None):
             with open(wpath, "r", encoding="utf-8") as f:
                 w_content = f.read()
 
-            # Replace navbar and hero version badges
+            # Replace navbar version badge
             w_content = re.sub(
-                r'(class="[^"]*app-version-badge[^"]*"[^>]*>)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(</span>)',
+                r'(class="[^"]*app-version-badge[^"]*"[^>]*>\s*)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(\s*</span>)',
                 rf'\g<1>v{new_version}\g<2>',
                 w_content,
             )
             w_content = re.sub(
-                r'(class="[^"]*app-latest-release[^"]*"[^>]*>)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(</span>)',
+                r'(<span[^>]*class="[^"]*font-mono text-\[10px\][^"]*"[^>]*>\s*)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(\s*</span>)',
                 rf'\g<1>v{new_version}\g<2>',
                 w_content,
             )
-            # Replace download URLs
-            w_content = re.sub(
-                r'/releases/download/v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*/ssh-client-setup-v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*-windows-x64\.exe',
-                f'/releases/download/v{new_version}/ssh-client-setup-v{new_version}-windows-x64.exe',
-                w_content,
-            )
-            w_content = re.sub(
-                r'/releases/download/v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*/ssh-client-windows-x64\.zip',
-                f'/releases/download/v{new_version}/ssh-client-windows-x64.zip',
-                w_content,
-            )
-            w_content = re.sub(
-                r'/releases/download/v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*/ssh-client-linux-x64\.tar\.gz',
-                f'/releases/download/v{new_version}/ssh-client-linux-x64.tar.gz',
-                w_content,
-            )
-            w_content = re.sub(
-                r'docker pull ghcr\.io/dineshkorukonda/ssh-client:[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*',
-                f'docker pull ghcr.io/dineshkorukonda/ssh-client:{new_version}',
-                w_content,
-            )
+
+            if "changelog" in wpath:
+                # Update changelog HTML files with new release card
+                if f"<!-- Version v{new_version} -->" not in w_content:
+                    w_content = re.sub(
+                        r'\n\s*<span class="font-mono text-\[10px\] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded app-latest-release">latest release</span>',
+                        '',
+                        w_content,
+                    )
+                    changelog_card = f"""    <!-- Version v{new_version} -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-xl font-bold text-white">v{new_version}</span>
+          <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded app-latest-release">latest release</span>
+        </div>
+        <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
+          <span>Released: {today}</span>
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v{new_version}" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+            GitHub Release ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-6 font-mono text-xs">
+        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+          <ul class="space-y-3 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Updates & Improvements:</strong>
+                <p class="text-neutral-400 mt-0.5">{notes or 'Maintenance updates, bug fixes, and performance improvements.'}</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+"""
+                    version_marker = re.search(r'    <!-- Version v[0-9]+\.[0-9]+\.[0-9]+', w_content)
+                    if version_marker:
+                        idx = version_marker.start()
+                        w_content = w_content[:idx] + changelog_card + w_content[idx:]
+            else:
+                # Replace hero badges & release links
+                w_content = re.sub(
+                    r'(class="[^"]*app-latest-release[^"]*"[^>]*>\s*)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(\s*</span>)',
+                    rf'\g<1>v{new_version}\g<2>',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*',
+                    f'/releases/tag/v{new_version}',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'GitHub Release\s+v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*',
+                    f'GitHub Release v{new_version}',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'Download\s+v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*',
+                    f'Download v{new_version}',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'#\s*Download\s+release\s+tarball\s+\(v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*\)',
+                    f'# Download release tarball (v{new_version})',
+                    w_content,
+                )
+
+                # Replace download filenames & URLs
+                w_content = re.sub(
+                    r'ssh-client-setup-v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*-windows-x64\.exe',
+                    f'ssh-client-setup-v{new_version}-windows-x64.exe',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'/releases/download/v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*/ssh-client-setup-v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*-windows-x64\.exe',
+                    f'/releases/download/v{new_version}/ssh-client-setup-v{new_version}-windows-x64.exe',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'/releases/download/v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*/ssh-client-windows-x64\.zip',
+                    f'/releases/download/v{new_version}/ssh-client-windows-x64.zip',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'/releases/download/v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*/ssh-client-linux-x64\.tar\.gz',
+                    f'/releases/download/v{new_version}/ssh-client-linux-x64.tar.gz',
+                    w_content,
+                )
+                w_content = re.sub(
+                    r'docker pull ghcr\.io/dineshkorukonda/ssh-client:[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*',
+                    f'docker pull ghcr.io/dineshkorukonda/ssh-client:{new_version}',
+                    w_content,
+                )
+
             with open(wpath, "w", encoding="utf-8") as f:
                 f.write(w_content)
             print(f"  Updated {wpath}")
