@@ -90,7 +90,7 @@
         <a href="index.html" class="text-base font-bold tracking-tight text-white flex items-center gap-2.5">
           <img src="assets/icon.png" alt="Logo" class="w-6 h-6 rounded" />
           <span>ssh-client</span>
-          <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1">v0.0.8</span>
+          <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1 app-version-badge">v0.0.8</span>
         </a>
       </div>
       <div class="flex-none gap-2 font-medium text-xs">
@@ -138,7 +138,7 @@
             <pre># Recommended: download and run the .exe installer
 # It installs to Program Files, creates a Start Menu shortcut,
 # and opens your browser to http://localhost:4000 automatically.
-ssh-client-setup-v0.0.2-windows-x64.exe
+ssh-client-setup-v0.0.8-windows-x64.exe
 
 # Alternatively (PowerShell) — manual zip extract:
 Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.8/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
@@ -164,7 +164,7 @@ Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPD
           </p>
 
           <div class="cmd-block">
-            <pre># Download release tarball (v0.0.2)
+            <pre># Download release tarball (v0.0.8)
 curl -sSL -O https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.8/ssh-client-linux-x64.tar.gz
 
 # Unpack into target destination
@@ -237,6 +237,57 @@ MIX_ENV=prod mix release ssh_client</pre>
         <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
           <input type="checkbox" /> 
           <div class="collapse-title font-semibold text-white text-sm">
+            How does the zero-wizard in-place auto-updater work?
+          </div>
+          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+            <p>
+              The built-in updater (<code class="text-white">SSHClient.Updater</code>) queries the GitHub Releases API for newer semver tags. When triggered:
+            </p>
+            <ul class="list-disc list-inside space-y-1 text-neutral-300">
+              <li>It streams portable ZIP/tarball assets directly to a temporary staging workspace.</li>
+              <li>It validates directory structure, unzips runtime binaries, and stages the replacement release tree.</li>
+              <li>An atomic file replacement hot-swaps the application code and invokes <code class="text-red-400">:init.restart()</code> for a seamless in-process restart.</li>
+              <li>No setup wizard dialogs, UAC re-prompts, or manual installer downloads are necessary.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
+          <input type="checkbox" /> 
+          <div class="collapse-title font-semibold text-white text-sm">
+            How does the Dual-Pane SFTP Explorer and drag-and-drop file transfer work?
+          </div>
+          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+            <p>
+              The SFTP explorer displays side-by-side local and remote filesystem panes with interactive breadcrumbs, permission badges, and instant folder navigation over OTP <code class="text-red-400">:ssh_sftp</code> channels.
+            </p>
+            <p>
+              The HTML5 drag-and-drop bridge allows you to drag files directly from your desktop file manager or between the parallel panes to initiate binary file transfers with real-time transfer progress indicators and conflict prompts.
+            </p>
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
+          <input type="checkbox" /> 
+          <div class="collapse-title font-semibold text-white text-sm">
+            How do I toggle themes or customize the visual appearance?
+          </div>
+          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+            <p>
+              <code class="text-white">ssh-client</code> includes a zero-flash theme engine supporting Editorial Stark Dark and Crisp Light / Obsidian high-contrast modes.
+            </p>
+            <p>
+              You can toggle themes via the top navigation bar or settings menu. Your theme selection is synchronized across open windows and persisted in local storage.
+            </p>
+          </div>
+        </div>
+
+        <!-- FAQ 5 -->
+        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
+          <input type="checkbox" /> 
+          <div class="collapse-title font-semibold text-white text-sm">
             How does ssh-client handle private key passphrases without persisting them?
           </div>
           <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
@@ -249,7 +300,7 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
         </div>
 
-        <!-- FAQ 3 -->
+        <!-- FAQ 6 -->
         <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
           <input type="checkbox" /> 
           <div class="collapse-title font-semibold text-white text-sm">
@@ -265,7 +316,7 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
         </div>
 
-        <!-- FAQ 4 -->
+        <!-- FAQ 7 -->
         <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
           <input type="checkbox" /> 
           <div class="collapse-title font-semibold text-white text-sm">
@@ -282,40 +333,7 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
         </div>
 
-        <!-- FAQ 5 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
-            Can I run ssh-client in a web browser without the desktop window?
-          </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
-            <p>
-              Yes. The desktop shell is powered by Phoenix LiveView inside an <code class="text-white">elixir-desktop</code> container. If launched headless with <code class="text-neutral-300">mix phx.server</code> or within a server environment, you can point any modern web browser to <code class="text-red-400">http://localhost:4000</code> to access the full UI and xterm.js terminal bridge.
-            </p>
-          </div>
-        </div>
-
-        <!-- FAQ 6 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
-            Where are imported SSH configurations and host metadata stored?
-          </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
-            <p>
-              Configurations resolve via Erlang's standard <code class="text-neutral-300">:filename.basedir/3</code>:
-            </p>
-            <ul class="list-disc list-inside space-y-1 text-neutral-300">
-              <li><strong>Windows:</strong> <code class="text-red-400">%APPDATA%\ssh-client\servers.json</code></li>
-              <li><strong>Linux:</strong> <code class="text-red-400">~/.config/ssh-client/servers.json</code></li>
-            </ul>
-            <p>
-              This file contains only connection metadata (host aliases, IP addresses, ports, auth methods). No private keys, passwords, or secret material are ever persisted in this file.
-            </p>
-          </div>
-        </div>
-
-        <!-- FAQ 7 -->
+        <!-- FAQ 8 -->
         <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
           <input type="checkbox" /> 
           <div class="collapse-title font-semibold text-white text-sm">
@@ -331,15 +349,35 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
         </div>
 
-        <!-- FAQ 8 -->
+        <!-- FAQ 9 -->
         <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
           <input type="checkbox" /> 
           <div class="collapse-title font-semibold text-white text-sm">
-            Does the SFTP file explorer support inline editing and file operations?
+            Can I run ssh-client in a web browser without the desktop window?
           </div>
           <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
             <p>
-              Yes. The built-in SFTP Explorer operates directly over OTP <code class="text-red-400">:ssh_sftp</code> channels. It provides directory tree navigation, breadcrumb path jumping, permission inspection, inline text/config editing, and directory management without spawning external SFTP clients.
+              Yes. The desktop shell is powered by Phoenix LiveView inside an <code class="text-white">elixir-desktop</code> container. If launched headless with <code class="text-neutral-300">mix phx.server</code> or within a server environment, you can point any modern web browser to <code class="text-red-400">http://localhost:4000</code> to access the full UI and xterm.js terminal bridge.
+            </p>
+          </div>
+        </div>
+
+        <!-- FAQ 10 -->
+        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
+          <input type="checkbox" /> 
+          <div class="collapse-title font-semibold text-white text-sm">
+            Where are imported SSH configurations and host metadata stored?
+          </div>
+          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+            <p>
+              Configurations resolve via Erlang's standard <code class="text-neutral-300">:filename.basedir/3</code>:
+            </p>
+            <ul class="list-disc list-inside space-y-1 text-neutral-300">
+              <li><strong>Windows:</strong> <code class="text-red-400">%APPDATA%\ssh-client\servers.json</code></li>
+              <li><strong>Linux:</strong> <code class="text-red-400">~/.config/ssh-client/servers.json</code></li>
+            </ul>
+            <p>
+              This file contains only connection metadata (host aliases, IP addresses, ports, auth methods). No private keys, passwords, or secret material are ever persisted in this file.
             </p>
           </div>
         </div>

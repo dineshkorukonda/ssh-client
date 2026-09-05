@@ -92,7 +92,9 @@ def extract_versions():
     if os.path.exists(FILES["web_index"]):
         with open(FILES["web_index"], "r", encoding="utf-8") as f:
             content = f.read()
-            m = re.search(r'>v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)<', content)
+            m = re.search(r'class="[^"]*app-version-badge[^"]*"[^>]*>v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)<', content)
+            if not m:
+                m = re.search(r'>v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)<', content)
             if m:
                 versions["web/index.html"] = m.group(1)
 
@@ -308,12 +310,15 @@ def bump_version(new_version, notes=None):
     ]
     for wpath in web_files:
         if os.path.exists(wpath):
-            with open(wpath, "r", encoding="utf-8") as f:
-                w_content = f.read()
-            # Replace version badge
+            # Replace navbar and hero version badges
             w_content = re.sub(
-                r'>v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*<',
-                f'>v{new_version}<',
+                r'(class="[^"]*app-version-badge[^"]*"[^>]*>)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(</span>)',
+                rf'\g<1>v{new_version}\g<2>',
+                w_content,
+            )
+            w_content = re.sub(
+                r'(class="[^"]*app-latest-release[^"]*"[^>]*>)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(</span>)',
+                rf'\g<1>v{new_version}\g<2>',
                 w_content,
             )
             # Replace download URLs

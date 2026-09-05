@@ -89,12 +89,190 @@
       </p>
     </section>
 
-    <!-- Version v0.0.3 -->
+    <!-- Version v0.0.8 -->
     <section class="space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.8</span>
-          <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded">latest release</span>
+          <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded app-latest-release">latest release</span>
+        </div>
+        <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
+          <span>Released: 2026-09-05</span>
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.8" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+            GitHub Release ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-6 font-mono text-xs">
+        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Seamless In-Place Auto-Updater</h2>
+          <ul class="space-y-3 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Zero-Wizard Background Staging:</strong>
+                <p class="text-neutral-400 mt-0.5">Downloads portable ZIP (<code class="text-neutral-200">ssh-client-windows-x64.zip</code>) or tarball (<code class="text-neutral-200">ssh-client-linux-x64.tar.gz</code>) into user staging cache (<code class="text-neutral-200">~/.ssh-client/staging/</code>) and unpacks payload in the background without interrupting work.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Atomic Hot-Swap Restart:</strong>
+                <p class="text-neutral-400 mt-0.5">One-click <strong class="text-emerald-400">[Restart &amp; Apply Update]</strong> in Settings spawns a detached helper script, terminates BEAM processes cleanly to release Windows file locks, swaps release files, and relaunches the app in under 2 seconds.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-white select-none font-bold">~</span>
+              <div>
+                <strong class="text-white">Silent Inno Setup Execution:</strong>
+                <p class="text-neutral-400 mt-0.5">Installer fallback passes silent flags (<code class="text-neutral-200">/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS</code>) to suppress interactive wizards on update.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Version v0.0.7 -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-xl font-bold text-white">v0.0.7</span>
+        </div>
+        <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
+          <span>Released: 2026-09-05</span>
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.7" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+            GitHub Release ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-6 font-mono text-xs">
+        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Dual-Pane SFTP Explorer &amp; Multi-Theme Engine</h2>
+          <ul class="space-y-3 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Dual-Pane Parallel File Explorer:</strong>
+                <p class="text-neutral-400 mt-0.5">Side-by-side filesystem explorer with Local filesystem on the left pane and Remote SFTP on the right pane, featuring independent directory breadcrumbs, search filters, and file action buttons.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">HTML5 Drag &amp; Drop Transfers:</strong>
+                <p class="text-neutral-400 mt-0.5">Interactive drag-and-drop between panes and from the desktop OS. Streams uploads and downloads directly over OTP <code class="text-neutral-200">:ssh_sftp</code> with live progress dock telemetry.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Global Multi-Theme Engine:</strong>
+                <p class="text-neutral-400 mt-0.5">Added Stark Carbon Dark and Crisp High-Contrast Light themes with client <code class="text-neutral-200">localStorage</code> persistence and topbar quick-toggle.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Version v0.0.6 -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-xl font-bold text-white">v0.0.6</span>
+        </div>
+        <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
+          <span>Released: 2026-09-05</span>
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.6" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+            GitHub Release ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-6 font-mono text-xs">
+        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">CI Automation &amp; Release Dispatch</h2>
+          <ul class="space-y-3 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Automated Release Pipeline Trigger:</strong>
+                <p class="text-neutral-400 mt-0.5">Added automated workflow dispatch from Release Bot to CI pipeline, ensuring instant multi-platform builds upon PR merge.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Version v0.0.5 -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-xl font-bold text-white">v0.0.5</span>
+        </div>
+        <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
+          <span>Released: 2026-09-05</span>
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.5" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+            GitHub Release ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-6 font-mono text-xs">
+        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Test Suite Hardening &amp; Compiler Cleanups</h2>
+          <ul class="space-y-3 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <span class="text-white select-none font-bold">~</span>
+              <div>
+                <strong class="text-white">Dynamic Semantic Version Test Assertions:</strong>
+                <p class="text-neutral-400 mt-0.5">Replaced hardcoded version matchers in <code class="text-neutral-200">UpdaterTest</code> with semver pattern validation to maintain CI stability across version bumps.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Version v0.0.4 -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-xl font-bold text-white">v0.0.4</span>
+        </div>
+        <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
+          <span>Released: 2026-09-05</span>
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.4" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+            GitHub Release ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-6 font-mono text-xs">
+        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Automated GitHub Release Bot</h2>
+          <ul class="space-y-3 text-neutral-300">
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Release Bot GitHub Action:</strong>
+                <p class="text-neutral-400 mt-0.5">Implemented <code class="text-neutral-200">.github/workflows/release-bot.yml</code> to calculate next semvers from PR titles, sync all 6 version files, create git tags, and trigger release packaging.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Version v0.0.3 -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+        <div class="flex items-center gap-3">
+          <span class="text-xl font-bold text-white">v0.0.3</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
@@ -106,7 +284,7 @@
 
       <div class="space-y-6 font-mono text-xs">
         <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Dark Mode Icon & Routing Fixes</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Dark Mode Icon &amp; Routing Fixes</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
@@ -138,7 +316,7 @@
     <section class="space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
         <div class="flex items-center gap-3">
-          <span class="text-xl font-bold text-white">v0.0.8</span>
+          <span class="text-xl font-bold text-white">v0.0.2</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
@@ -150,13 +328,13 @@
 
       <div class="space-y-6 font-mono text-xs">
         <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">In-App Updater & Runtime Fixes</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">In-App Updater &amp; Runtime Fixes</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">In-App Self-Updater:</strong>
-                <p class="text-neutral-400 mt-0.5">Integrated 1-click update flow in settings and navigation with live download progress streaming (<code class="text-neutral-200">0% -> 100%</code>) and automatic Windows Setup installer (<code class="text-neutral-200">.exe</code>) execution.</p>
+                <p class="text-neutral-400 mt-0.5">Integrated 1-click update flow in settings and navigation with live download progress streaming (<code class="text-neutral-200">0% -&gt; 100%</code>) and automatic Windows Setup installer (<code class="text-neutral-200">.exe</code>) execution.</p>
               </div>
             </li>
             <li class="flex items-start gap-2">
@@ -182,7 +360,7 @@
     <section class="space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
         <div class="flex items-center gap-3">
-          <span class="text-xl font-bold text-white">v0.0.8</span>
+          <span class="text-xl font-bold text-white">v0.0.1</span>
           <span class="font-mono text-[10px] text-zinc-500 border border-neutral-800 px-2 py-0.5 rounded">initial beta</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
@@ -197,7 +375,7 @@
 
         <!-- Category: Added -->
         <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Added Features & Subsystems</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Added Features &amp; Subsystems</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
@@ -234,14 +412,6 @@
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
-                <strong class="text-white">Native Remote SFTP File Explorer:</strong>
-                <p class="text-neutral-400 mt-0.5">Built high-performance remote directory browser over OTP <code class="text-neutral-200">:ssh_sftp</code> (<code class="text-neutral-200">SFTPHostLive</code>) with directory breadcrumbs, inline text/config editor, remote file manipulation, and directory management.</p>
-              </div>
-            </li>
-
-            <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
-              <div>
                 <strong class="text-white">Multi-Tab Terminal Session Manager:</strong>
                 <p class="text-neutral-400 mt-0.5">Full-bleed xterm.js terminal supporting concurrent background PTY sessions, instant tab switching, terminal output preservation, and font scaling.</p>
               </div>
@@ -250,7 +420,7 @@
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
-                <strong class="text-white">Full-Bleed Responsive Terminal & Autocomplete:</strong>
+                <strong class="text-white">Full-Bleed Responsive Terminal &amp; Autocomplete:</strong>
                 <p class="text-neutral-400 mt-0.5">Embedded full-height xterm.js container streaming over Phoenix LiveView to OTP <code class="text-neutral-200">PTYSession</code> with dynamic <code class="text-neutral-200">ResizeObserver</code> auto-fit, built-in searchable command suggestions palette, and one-click execution.</p>
               </div>
             </li>
@@ -258,7 +428,7 @@
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
-                <strong class="text-white">Clipboard Engine & Context Menu:</strong>
+                <strong class="text-white">Clipboard Engine &amp; Context Menu:</strong>
                 <p class="text-neutral-400 mt-0.5">Added auto-copy on text selection, Ctrl+V / Ctrl+Shift+V clipboard integration, dedicated Paste button, and sleek right-click dark context menu.</p>
               </div>
             </li>
@@ -266,23 +436,15 @@
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
-                <strong class="text-white">Zsh Shell & Truecolor Support:</strong>
-                <p class="text-neutral-400 mt-0.5">Integrated 1-click remote Zsh login shell switcher (<code class="text-neutral-200">exec zsh -l</code>) with 256-color & truecolor terminal emulation.</p>
+                <strong class="text-white">Zsh Shell &amp; Truecolor Support:</strong>
+                <p class="text-neutral-400 mt-0.5">Integrated 1-click remote Zsh login shell switcher (<code class="text-neutral-200">exec zsh -l</code>) with 256-color &amp; truecolor terminal emulation.</p>
               </div>
             </li>
 
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
-                <strong class="text-white">Cross-Platform Desktop Window Shell:</strong>
-                <p class="text-neutral-400 mt-0.5">Integrated <code class="text-neutral-200">elixir-desktop</code> / <code class="text-neutral-200">SSHClient.Window</code> using WebView2 on Windows and WebKitGTK on Linux.</p>
-              </div>
-            </li>
-
-            <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
-              <div>
-                <strong class="text-white">Host Management & Importers:</strong>
+                <strong class="text-white">Host Management &amp; Importers:</strong>
                 <p class="text-neutral-400 mt-0.5">Added <code class="text-neutral-200">user@host:port</code> quick-add parser, automatic <code class="text-neutral-200">~/.ssh/config</code> deduplicated importer, and ranked in-memory fuzzy search.</p>
               </div>
             </li>
@@ -298,7 +460,7 @@
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
-                <strong class="text-white">Telemetry & Remote Operations:</strong>
+                <strong class="text-white">Telemetry &amp; Remote Operations:</strong>
                 <p class="text-neutral-400 mt-0.5">Focus-aware polling loop with idle backoff for CPU/RAM/disk metrics, remote service manager (systemd, Docker, PM2) with action confirmations, and journalctl log streamer.</p>
               </div>
             </li>
@@ -307,7 +469,7 @@
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Automated Packaging Pipeline:</strong>
-                <p class="text-neutral-400 mt-0.5">GitHub Actions matrix CI covering unit tests on Windows & Ubuntu, Docker OpenSSH target tests, and automated packaging of Windows x64 .zip and Linux x64 .tar.gz release assets on tag push.</p>
+                <p class="text-neutral-400 mt-0.5">GitHub Actions matrix CI covering unit tests on Windows &amp; Ubuntu, Docker OpenSSH target tests, and automated packaging of Windows x64 .zip and Linux x64 .tar.gz release assets on tag push.</p>
               </div>
             </li>
           </ul>
@@ -315,7 +477,7 @@
 
         <!-- Category: Fixed -->
         <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Bug Fixes & Hardening</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Bug Fixes &amp; Hardening</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-white select-none font-bold">~</span>
@@ -353,12 +515,12 @@
 
         <!-- Category: Changed -->
         <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Project Governance & Renaming</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Project Governance &amp; Renaming</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-neutral-500 select-none font-bold">&bull;</span>
               <div>
-                <strong class="text-white">Namespace & Project Rename:</strong>
+                <strong class="text-white">Namespace &amp; Project Rename:</strong>
                 <p class="text-neutral-400 mt-0.5">Renamed application to <code class="text-neutral-200">:ssh_client</code> and top-level modules to <code class="text-neutral-200">SSHClient.*</code>.</p>
               </div>
             </li>
@@ -378,7 +540,7 @@
     <!-- Prior History (v0.1.0) -->
     <section class="space-y-4 border-t border-neutral-800 pt-8">
       <div class="flex items-center gap-3">
-        <span class="text-base font-bold text-neutral-400">v0.0.8</span>
+        <span class="text-base font-bold text-neutral-400">v0.1.0</span>
         <span class="font-mono text-[10px] text-neutral-500 border border-neutral-800 px-2 py-0.5 rounded">historical origin</span>
       </div>
       <p class="text-xs text-neutral-500 leading-relaxed max-w-3xl font-normal">
@@ -391,10 +553,10 @@
   <!-- Footer -->
   <footer class="border-t border-neutral-800 bg-[#050505] py-10 mt-16 text-xs text-neutral-500 font-mono">
     <div class="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <p>ssh-client &bull; MIT License &bull; Offline & Zero Telemetry</p>
+      <p>ssh-client &bull; MIT License &bull; Offline &amp; Zero Telemetry</p>
       <div class="flex gap-6">
         <a href="index.html" class="hover:text-red-500 transition-colors">Overview</a>
-        <a href="install.html" class="hover:text-red-500 transition-colors">Install & FAQs</a>
+        <a href="install.html" class="hover:text-red-500 transition-colors">Install &amp; FAQs</a>
         <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="hover:text-white transition-colors">GitHub Repository</a>
       </div>
     </div>
