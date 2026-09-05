@@ -43,6 +43,7 @@ defmodule SSHClientWeb.SettingsLive do
         |> assign(:downloading_update, false)
         |> assign(:download_progress, 0)
         |> assign(:download_path, nil)
+        |> assign(:staged_dir, nil)
         |> assign(:install_status, nil)
         |> assign(:install_message, nil)
         |> assign(:install_error, nil)
@@ -81,8 +82,15 @@ defmodule SSHClientWeb.SettingsLive do
       caller = self()
 
       Task.start(fn ->
-        result = Updater.download_update(url, name, caller_pid: caller)
-        send(caller, {:update_download_complete, result})
+        ext = name |> Path.extname() |> String.downcase()
+
+        if ext in [".zip", ".gz", ".tgz", ".tar"] do
+          result = Updater.stage_in_place_update(url, name, caller_pid: caller)
+          send(caller, {:update_stage_complete, result})
+        else
+          result = Updater.download_update(url, name, caller_pid: caller)
+          send(caller, {:update_download_complete, result})
+        end
       end)
 
       {:noreply,
@@ -91,10 +99,22 @@ defmodule SSHClientWeb.SettingsLive do
          download_progress: 10,
          install_status: :downloading,
          install_error: nil,
-         install_message: "Downloading update package..."
+         install_message: "Downloading update package in background..."
        )}
     else
       {:noreply, assign(socket, install_error: "No download asset found for current operating system.")}
+    end
+  end
+
+  def handle_event("restart_and_apply", _params, socket) do
+    staged = socket.assigns[:staged_dir]
+
+    case Updater.apply_update_and_restart(staged) do
+      {:ok, :restarting, msg} ->
+        {:noreply, assign(socket, install_status: :restarting, install_message: msg)}
+
+      {:error, reason} ->
+        {:noreply, assign(socket, install_error: to_string(reason))}
     end
   end
 
@@ -168,8 +188,41 @@ defmodule SSHClientWeb.SettingsLive do
     {:noreply, assign(socket, download_progress: percent)}
   end
 
+  def handle_info({:update_stage_complete, {:ok, %{staged_dir: staged, archive_path: path}}}, socket) do
+    {:noreply,
+     assign(socket,
+       downloading_update: false,
+       download_progress: 100,
+       download_path: path,
+       staged_dir: staged,
+       install_status: :ready_to_restart,
+       install_message:
+         "Update payload staged and verified. Click 'Restart & Apply Update' to switch instantly."
+     )}
+  end
+
+  def handle_info({:update_stage_complete, {:error, reason}}, socket) do
+    {:noreply,
+     assign(socket,
+       downloading_update: false,
+       install_status: nil,
+       install_error: "Update staging failed: #{reason}"
+     )}
+  end
+
   def handle_info({:update_download_complete, {:ok, path}}, socket) do
     case Updater.install_update(path) do
+      {:ok, :ready_to_restart, msg} ->
+        {:noreply,
+         assign(socket,
+           downloading_update: false,
+           download_progress: 100,
+           download_path: path,
+           staged_dir: Path.join(Updater.staging_dir(), "unpacked"),
+           install_status: :ready_to_restart,
+           install_message: msg
+         )}
+
       {:ok, _status, msg} ->
         {:noreply,
          assign(socket,
@@ -340,7 +393,31 @@ defmodule SSHClientWeb.SettingsLive do
                 </div>
               <% end %>
 
-              <!-- Installation Success/Status message -->
+              <!-- Ready to Restart (Zero-Wizard In-Place Hot-Swap) -->
+              <%= if @install_status == :ready_to_restart do %>
+                <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span class="font-semibold block text-emerald-200">Update Ready:</span>
+                    <%= @install_message %>
+                  </div>
+                  <button
+                    phx-click="restart_and_apply"
+                    class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shrink-0 transition-all shadow-lg shadow-emerald-900/30"
+                  >
+                    Restart &amp; Apply Update
+                  </button>
+                </div>
+              <% end %>
+
+              <!-- Restarting State -->
+              <%= if @install_status == :restarting do %>
+                <div class="mt-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono flex items-center gap-2.5">
+                  <span class="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
+                  <span><%= @install_message %></span>
+                </div>
+              <% end %>
+
+              <!-- Installation Success/Status message (Installer Fallback) -->
               <%= if @install_status == :installed do %>
                 <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex items-center justify-between gap-3">
                   <div>

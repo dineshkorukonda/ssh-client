@@ -27,8 +27,24 @@ defmodule SSHClient.UpdaterTest do
     end
   end
 
+  describe "staging_dir/0" do
+    test "returns valid path" do
+      path = Updater.staging_dir()
+      assert is_binary(path)
+      assert String.ends_with?(path, "staging")
+    end
+  end
+
+  describe "app_root_dir/0" do
+    test "returns valid application root directory" do
+      path = Updater.app_root_dir()
+      assert is_binary(path)
+      assert File.exists?(path)
+    end
+  end
+
   describe "select_platform_asset/2" do
-    test "selects windows executable for windows platform" do
+    test "selects windows zip archive for windows platform" do
       assets = [
         %{name: "ssh-client-linux-x64.tar.gz", browser_download_url: "https://example.com/linux"},
         %{name: "ssh-client-setup-v0.0.1-windows-x64.exe", browser_download_url: "https://example.com/win_exe"},
@@ -36,7 +52,7 @@ defmodule SSHClient.UpdaterTest do
       ]
 
       asset = Updater.select_platform_asset(assets, :windows)
-      assert asset.name =~ ".exe"
+      assert asset.name =~ ".zip"
     end
 
     test "selects tarball for linux platform" do
