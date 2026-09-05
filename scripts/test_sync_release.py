@@ -45,7 +45,7 @@ class TestSyncRelease(unittest.TestCase):
 
             rel_notes_path = os.path.join(tmp_dir, "RELEASE_NOTES.md")
             with open(rel_notes_path, "w", encoding="utf-8") as f:
-                f.write('# Release Notes - v0.0.8\n\nSummary notes.\n')
+                f.write('## ssh-client v0.0.8 (Beta)\n\nSummary notes.\n')
 
             changelog_path = os.path.join(tmp_dir, "CHANGELOG.md")
             with open(changelog_path, "w", encoding="utf-8") as f:
@@ -53,7 +53,29 @@ class TestSyncRelease(unittest.TestCase):
 
             web_idx_path = os.path.join(tmp_dir, "index.html")
             with open(web_idx_path, "w", encoding="utf-8") as f:
-                f.write('<span class="app-version-badge">v0.0.8</span>\n<span class="app-latest-release">v0.0.8</span>\n<a href="/releases/download/v0.0.8/ssh-client-setup-v0.0.8-windows-x64.exe">Download</a>\n')
+                f.write(
+                    '<span class="font-mono text-[10px] text-neutral-500 border border-neutral-800 px-1.5 py-0.5 rounded ml-1">v0.0.8</span>\n'
+                    '<span class="app-latest-release">v0.0.8</span>\n'
+                    '<a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.8">GitHub Release v0.0.8 ↗</a>\n'
+                    '<pre>ssh-client-setup-v0.0.8-windows-x64.exe</pre>\n'
+                    '<h3>Download v0.0.8</h3>\n'
+                    '<a href="/releases/download/v0.0.8/ssh-client-setup-v0.0.8-windows-x64.exe">Download</a>\n'
+                    '<a href="/releases/download/v0.0.8/ssh-client-windows-x64.zip">Download Zip</a>\n'
+                    '<a href="/releases/download/v0.0.8/ssh-client-linux-x64.tar.gz">Download Tar</a>\n'
+                    '<code>docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.8</code>\n'
+                )
+
+            web_changelog_path = os.path.join(tmp_dir, "changelog.html")
+            with open(web_changelog_path, "w", encoding="utf-8") as f:
+                f.write(
+                    '<span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1">v0.0.8</span>\n'
+                    '    <!-- Version v0.0.8 -->\n'
+                    '    <section class="space-y-6">\n'
+                    '      <span class="text-xl font-bold text-white">v0.0.8</span>\n'
+                    '      <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded app-latest-release">latest release</span>\n'
+                    '      <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.8">GitHub Release ↗</a>\n'
+                    '    </section>\n'
+                )
 
             # Override FILES dict in sync_release
             orig_files = sync_release.FILES.copy()
@@ -66,7 +88,7 @@ class TestSyncRelease(unittest.TestCase):
                 "web_index": web_idx_path,
                 "web_install": os.path.join(tmp_dir, "install.html"),
                 "web_install_idx": os.path.join(tmp_dir, "install_idx.html"),
-                "web_changelog": os.path.join(tmp_dir, "changelog.html"),
+                "web_changelog": web_changelog_path,
                 "web_changelog_idx": os.path.join(tmp_dir, "changelog_idx.html"),
             }
 
@@ -92,8 +114,24 @@ class TestSyncRelease(unittest.TestCase):
 
                 with open(web_idx_path, "r", encoding="utf-8") as f:
                     content = f.read()
-                    self.assertIn('v0.0.9', content)
+                    self.assertIn('v0.0.9</span>', content)
+                    self.assertIn('GitHub Release v0.0.9 ↗', content)
+                    self.assertIn('releases/tag/v0.0.9', content)
+                    self.assertIn('Download v0.0.9', content)
                     self.assertIn('ssh-client-setup-v0.0.9-windows-x64.exe', content)
+                    self.assertIn('ssh-client-windows-x64.zip', content)
+                    self.assertIn('ssh-client-linux-x64.tar.gz', content)
+                    self.assertIn('docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.9', content)
+
+                with open(web_changelog_path, "r", encoding="utf-8") as f:
+                    cl_html = f.read()
+                    self.assertIn('<!-- Version v0.0.9 -->', cl_html)
+                    self.assertIn('<!-- Version v0.0.8 -->', cl_html)
+                    self.assertIn('releases/tag/v0.0.9', cl_html)
+                    self.assertIn('releases/tag/v0.0.8', cl_html)
+
+                # Verify check_sync succeeds
+                self.assertTrue(sync_release.check_sync("0.0.9"))
 
             finally:
                 sync_release.FILES = orig_files
