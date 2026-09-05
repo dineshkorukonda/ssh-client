@@ -28,6 +28,9 @@ jobs:
       - name: Verify Zero-Emoji Rule
         run: python scripts/sync_release.py --emoji-check
 
+      - name: Run Release Script Unit Tests
+        run: python scripts/test_sync_release.py -v
+
       - name: Check PR Title for Emojis
         run: |
           PR_TITLE="${{ github.event.pull_request.title }}"

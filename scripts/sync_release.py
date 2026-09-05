@@ -310,6 +310,9 @@ def bump_version(new_version, notes=None):
     ]
     for wpath in web_files:
         if os.path.exists(wpath):
+            with open(wpath, "r", encoding="utf-8") as f:
+                w_content = f.read()
+
             # Replace navbar and hero version badges
             w_content = re.sub(
                 r'(class="[^"]*app-version-badge[^"]*"[^>]*>)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(</span>)',

@@ -16,3 +16,5 @@
 # Runtime and editor files
 *.swp
 *~
+__pycache__/
+*.pyc
