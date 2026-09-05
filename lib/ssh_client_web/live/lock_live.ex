@@ -68,7 +68,7 @@ defmodule SSHClientWeb.LockLive do
         <!-- Brand Header -->
         <div class="flex flex-col items-center text-center space-y-2">
           <div class="flex items-center gap-2">
-            <img src="/images/icon.png" alt="Logo" class="w-8 h-8 rounded-md invert" />
+            <img src="/images/icon.png" alt="Logo" class="w-8 h-8 rounded-lg" />
             <span class="text-white font-bold text-base tracking-tight">ssh-client</span>
             <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
           </div>
