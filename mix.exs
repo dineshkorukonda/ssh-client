@@ -9,6 +9,8 @@ defmodule SSHClient.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      description: "OTP-based lightweight SSH client and server manager with full-bleed terminal GUI for Windows and Linux.",
+      package: package(),
       releases: [
         ssh_client: [
           include_executables_for: [:unix, :windows],
@@ -40,6 +42,18 @@ defmodule SSHClient.MixProject do
       {:jason, "~> 1.4"},
       {:plug, "~> 1.16"},
       {:floki, ">= 0.30.0", only: :test}
+    ]
+  end
+
+  defp package do
+    [
+      name: "ssh_client",
+      files: ~w(lib priv mix.exs README.md LICENSE),
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => "https://github.com/dineshkorukonda/ssh-client",
+        "Website" => "https://ssh-client.dineshkorukonda.online"
+      }
     ]
   end
 end
