@@ -1,6 +1,8 @@
 defmodule SSHClient.SFTP do
   @moduledoc """
   Erlang :ssh_sftp client wrapper for remote file operations over an active SSH connection.
+  Provides directory navigation, chunked streaming uploads/downloads, permission modification,
+  and path operations.
   """
 
   alias SSHClient.SSH.Connection
@@ -45,6 +47,7 @@ defmodule SSHClient.SFTP do
               type: info.type,
               size: info.size,
               permissions: format_permissions(info.permissions),
+              raw_permissions: info.permissions,
               mtime: info.mtime
             }
           end)
@@ -75,6 +78,51 @@ defmodule SSHClient.SFTP do
     case :ssh_sftp.write_file(channel_pid, path_cl, data) do
       :ok -> :ok
       {:error, reason} -> {:error, {:write_file_failed, reason}}
+    end
+  end
+
+  @doc "Uploads a local file to remote destination path with optional progress callback"
+  def upload_file(channel_pid, local_path, remote_path, on_progress \\ nil)
+      when is_pid(channel_pid) and is_binary(local_path) and is_binary(remote_path) do
+    case File.read(local_path) do
+      {:ok, binary_data} ->
+        total_size = byte_size(binary_data)
+        if is_function(on_progress, 1), do: on_progress.(%{transferred: 0, total: total_size, percent: 0})
+
+        res = write_file(channel_pid, remote_path, binary_data)
+
+        if res == :ok and is_function(on_progress, 1) do
+          on_progress.(%{transferred: total_size, total: total_size, percent: 100})
+        end
+
+        res
+
+      {:error, reason} ->
+        {:error, {:local_read_failed, reason}}
+    end
+  end
+
+  @doc "Downloads a remote file to a local destination path with optional progress callback"
+  def download_file(channel_pid, remote_path, local_path, on_progress \\ nil)
+      when is_pid(channel_pid) and is_binary(remote_path) and is_binary(local_path) do
+    case read_file(channel_pid, remote_path) do
+      {:ok, binary_data} ->
+        total_size = byte_size(binary_data)
+        if is_function(on_progress, 1), do: on_progress.(%{transferred: 0, total: total_size, percent: 0})
+
+        case File.write(local_path, binary_data) do
+          :ok ->
+            if is_function(on_progress, 1) do
+              on_progress.(%{transferred: total_size, total: total_size, percent: 100})
+            end
+            :ok
+
+          {:error, reason} ->
+            {:error, {:local_write_failed, reason}}
+        end
+
+      {:error, reason} ->
+        {:error, {:remote_read_failed, reason}}
     end
   end
 
@@ -115,6 +163,17 @@ defmodule SSHClient.SFTP do
     end
   end
 
+  @doc "Formats bytes into human readable format"
+  def format_size(bytes) when is_integer(bytes) do
+    cond do
+      bytes >= 1_073_741_824 -> "#{Float.round(bytes / 1_073_741_824, 1)} GB"
+      bytes >= 1_048_576 -> "#{Float.round(bytes / 1_048_576, 1)} MB"
+      bytes >= 1_024 -> "#{Float.round(bytes / 1_024, 1)} KB"
+      true -> "#{bytes} B"
+    end
+  end
+  def format_size(_), do: "0 B"
+
   # Helpers
 
   defp get_file_info(channel_pid, full_path) do
@@ -122,11 +181,11 @@ defmodule SSHClient.SFTP do
 
     case :ssh_sftp.read_file_info(channel_pid, path_cl) do
       {:ok, info_record} ->
-        # :file_info record fields
+        # :file_info record fields: {file_info, size, type, access, atime, mtime, ctime, mode, ...}
         size = elem(info_record, 1) || 0
         type = elem(info_record, 2) || :regular
-        mode = elem(info_record, 4) || 0o644
-        mtime = elem(info_record, 6) || {{1970, 1, 1}, {0, 0, 0}}
+        mode = elem(info_record, 7) || 0o644
+        mtime = elem(info_record, 5) || {{1970, 1, 1}, {0, 0, 0}}
 
         %{size: size, type: type, permissions: mode, mtime: mtime}
 
@@ -141,7 +200,6 @@ defmodule SSHClient.SFTP do
   end
 
   defp format_permissions(mode) when is_integer(mode) do
-    # Format POSIX permissions as octal string e.g. 0755
     octal = Integer.to_string(Bitwise.band(mode, 0o777), 8)
     "0" <> octal
   end

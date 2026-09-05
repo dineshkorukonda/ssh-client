@@ -28,6 +28,12 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
     <script>
+      // Apply theme before render to avoid flash
+      (function() {
+        const savedTheme = localStorage.getItem('ssh_client_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      })();
+
       window.TerminalHook = {
         mounted() {
           const el = this.el;
@@ -39,6 +45,7 @@
           }
 
           let currentFontSize = 13;
+          const isLight = document.documentElement.getAttribute('data-theme') === 'light';
 
           const term = new Terminal({
             cursorBlink: true,
@@ -47,18 +54,41 @@
             fontFamily: "'JetBrains Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
             allowTransparency: true,
             scrollback: 10000,
-            theme: {
+            theme: isLight ? {
+              background: '#ffffff',
+              foreground: '#0f172a',
+              cursor:     '#2563eb',
+              cursorAccent: '#ffffff',
+              selectionBackground: 'rgba(37, 99, 235, 0.25)',
+              selectionForeground: '#000000',
+              black:      '#0f172a',
+              brightBlack:'#475569',
+              red:        '#dc2626',
+              brightRed:  '#ef4444',
+              blue:       '#2563eb',
+              brightBlue: '#3b82f6',
+              cyan:       '#0891b2',
+              brightCyan: '#06b6d4',
+              green:      '#16a34a',
+              brightGreen:'#22c55e',
+              yellow:     '#ca8a04',
+              brightYellow:'#eab308',
+              magenta:    '#9333ea',
+              brightMagenta: '#a855f7',
+              white:      '#f8fafc',
+              brightWhite:'#ffffff'
+            } : {
               background: '#050505',
               foreground: '#e4e4e7',
-              cursor:     '#3b82f6',
+              cursor:     '#38bdf8',
               cursorAccent: '#050505',
-              selectionBackground: 'rgba(59, 130, 246, 0.35)',
+              selectionBackground: 'rgba(56, 189, 248, 0.35)',
               selectionForeground: '#ffffff',
               black:      '#050505',
               brightBlack:'#3f3f46',
               red:        '#ef4444',
               brightRed:  '#f87171',
-              blue:       '#3b82f6',
+              blue:       '#38bdf8',
               brightBlue: '#60a5fa',
               cyan:       '#06b6d4',
               brightCyan: '#22d3ee',
@@ -78,7 +108,6 @@
 
           term.open(el);
 
-          // Sizing logic with FitAddon
           const doFit = () => {
             if (!fitAddon || !el.clientWidth || !el.clientHeight) return;
             try {
@@ -91,13 +120,11 @@
             }
           };
 
-          // Initial multi-stage fit to ensure dimensions calculate after rendering
           requestAnimationFrame(doFit);
           setTimeout(doFit, 30);
           setTimeout(doFit, 150);
           setTimeout(doFit, 400);
 
-          // ResizeObserver for dynamic layout / split view / fullscreen changes
           let resizeObserver = null;
           if (window.ResizeObserver) {
             resizeObserver = new ResizeObserver(() => {
@@ -106,13 +133,12 @@
             resizeObserver.observe(el);
           }
 
-          term.writeln('\x1b[1;34mssh-client\x1b[0m \x1b[2mv0.0.1\x1b[0m');
+          term.writeln('\x1b[1;34mssh-client\x1b[0m');
           term.writeln('\x1b[2mConnecting to ' + (el.dataset.serverId || 'server') + '...\x1b[0m');
           term.writeln('');
 
           lv.pushEvent("terminal_ready", {});
 
-          // LiveView -> Terminal events
           this.handleEvent("terminal_output", ({ data }) => {
             term.write(data);
           });
@@ -143,12 +169,10 @@
             requestAnimationFrame(doFit);
           });
 
-          // Terminal -> LiveView data stream
           term.onData(function(data) {
             lv.pushEvent("terminal_data", { data: data });
           });
 
-          // Auto-copy on text selection
           term.onSelectionChange(() => {
             const selection = term.getSelection();
             if (selection && selection.trim().length > 0) {
@@ -158,21 +182,18 @@
             }
           });
 
-          // Keyboard copy & paste handlers
           term.attachCustomKeyEventHandler((e) => {
-            // Ctrl+C / Cmd+C: Copy if selection exists, else send SIGINT
             if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C') && e.type === 'keydown') {
               if (term.hasSelection()) {
                 const sel = term.getSelection();
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                   navigator.clipboard.writeText(sel).catch(() => {});
                 }
-                return false; // Prevent xterm from sending ^C byte
+                return false;
               }
-              return true; // No selection: send ^C to remote shell
+              return true;
             }
 
-            // Ctrl+V / Cmd+V / Ctrl+Shift+V: Paste from clipboard
             if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V') && e.type === 'keydown') {
               if (navigator.clipboard && navigator.clipboard.readText) {
                 navigator.clipboard.readText().then(text => {
@@ -182,7 +203,6 @@
               }
             }
 
-            // Ctrl+Plus / Ctrl+Minus: Font size scaling
             if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+') && e.type === 'keydown') {
               currentFontSize = Math.min(24, currentFontSize + 1);
               term.options.fontSize = currentFontSize;
@@ -199,83 +219,6 @@
             return true;
           });
 
-          // Right click context menu
-          el.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const existingMenu = document.getElementById('term-context-menu');
-            if (existingMenu) existingMenu.remove();
-
-            const menu = document.createElement('div');
-            menu.id = 'term-context-menu';
-            menu.className = 'fixed z-50 bg-[#111111] border border-[#27272a] rounded-lg shadow-2xl py-1 text-xs font-mono text-zinc-300 w-48 select-none backdrop-blur-md';
-            menu.style.left = `${Math.min(e.clientX, window.innerWidth - 200)}px`;
-            menu.style.top = `${Math.min(e.clientY, window.innerHeight - 200)}px`;
-
-            const hasSel = term.hasSelection();
-
-            menu.innerHTML = `
-              <div id="ctx-paste" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between">
-                <span>Paste Clipboard</span>
-                <span class="text-[10px] text-zinc-500">Ctrl+V</span>
-              </div>
-              <div id="ctx-copy" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between ${hasSel ? '' : 'opacity-40 pointer-events-none'}">
-                <span>Copy Selection</span>
-                <span class="text-[10px] text-zinc-500">Ctrl+C</span>
-              </div>
-              <div id="ctx-select-all" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between">
-                <span>Select All</span>
-                <span class="text-[10px] text-zinc-500">Ctrl+A</span>
-              </div>
-              <div class="h-[1px] bg-[#222] my-1"></div>
-              <div id="ctx-zsh" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between text-blue-400">
-                <span>Switch to Zsh</span>
-              </div>
-              <div id="ctx-clear" class="px-3 py-1.5 hover:bg-[#222] hover:text-white cursor-pointer flex items-center justify-between text-red-400">
-                <span>Clear Buffer</span>
-                <span class="text-[10px] text-zinc-500">Ctrl+L</span>
-              </div>
-            `;
-
-            document.body.appendChild(menu);
-
-            const removeMenu = () => {
-              if (menu.parentNode) menu.parentNode.removeChild(menu);
-              document.removeEventListener('click', removeMenu);
-            };
-            setTimeout(() => document.addEventListener('click', removeMenu), 10);
-
-            document.getElementById('ctx-paste')?.addEventListener('click', () => {
-              if (navigator.clipboard && navigator.clipboard.readText) {
-                navigator.clipboard.readText().then(text => {
-                  if (text) lv.pushEvent("terminal_data", { data: text });
-                });
-              }
-              term.focus();
-            });
-
-            document.getElementById('ctx-copy')?.addEventListener('click', () => {
-              const sel = term.getSelection();
-              if (sel && navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(sel);
-              }
-              term.focus();
-            });
-
-            document.getElementById('ctx-select-all')?.addEventListener('click', () => {
-              term.selectAll();
-            });
-
-            document.getElementById('ctx-zsh')?.addEventListener('click', () => {
-              lv.pushEvent("terminal_data", { data: "exec zsh -l\n" });
-              term.focus();
-            });
-
-            document.getElementById('ctx-clear')?.addEventListener('click', () => {
-              term.clear();
-              term.focus();
-            });
-          });
-
           window.addEventListener('resize', doFit);
           this.doFit = doFit;
           this.resizeObserver = resizeObserver;
@@ -284,24 +227,143 @@
         destroyed() {
           if (this.doFit) window.removeEventListener('resize', this.doFit);
           if (this.resizeObserver) this.resizeObserver.disconnect();
-          const menu = document.getElementById('term-context-menu');
-          if (menu) menu.remove();
           if (this.term) this.term.dispose();
+        }
+      };
+
+      // Dual-Pane Drag & Drop SFTP Hook
+      window.DualPaneSFTPHook = {
+        mounted() {
+          const lv = this;
+          const el = this.el;
+
+          el.addEventListener('dragstart', (e) => {
+            const target = e.target.closest('[data-drag-path]');
+            if (!target) return;
+            const path = target.getAttribute('data-drag-path');
+            const side = target.getAttribute('data-drag-side');
+            const name = target.getAttribute('data-drag-name');
+            const type = target.getAttribute('data-drag-type');
+
+            e.dataTransfer.setData('application/json', JSON.stringify({ path, side, name, type }));
+            e.dataTransfer.effectAllowed = 'copyMove';
+            target.classList.add('opacity-40');
+          });
+
+          el.addEventListener('dragend', (e) => {
+            const target = e.target.closest('[data-drag-path]');
+            if (target) target.classList.remove('opacity-40');
+            document.querySelectorAll('[data-drop-side]').forEach(node => {
+              node.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-500/10');
+            });
+          });
+
+          el.addEventListener('dragover', (e) => {
+            const dropZone = e.target.closest('[data-drop-side]');
+            if (!dropZone) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            dropZone.classList.add('ring-2', 'ring-blue-500', 'bg-blue-500/10');
+          });
+
+          el.addEventListener('dragleave', (e) => {
+            const dropZone = e.target.closest('[data-drop-side]');
+            if (dropZone && !dropZone.contains(e.relatedTarget)) {
+              dropZone.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-500/10');
+            }
+          });
+
+          el.addEventListener('drop', (e) => {
+            const dropZone = e.target.closest('[data-drop-side]');
+            if (!dropZone) return;
+            e.preventDefault();
+            dropZone.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-500/10');
+
+            try {
+              const raw = e.dataTransfer.getData('application/json');
+              if (!raw) return;
+              const item = JSON.parse(raw);
+              const targetSide = dropZone.getAttribute('data-drop-side');
+
+              if (item.side === 'local' && targetSide === 'remote') {
+                lv.pushEvent("drop_upload", { local_path: item.path, filename: item.name });
+              } else if (item.side === 'remote' && targetSide === 'local') {
+                lv.pushEvent("drop_download", { remote_path: item.path, filename: item.name });
+              }
+            } catch (err) {
+              console.error("Drop transfer error:", err);
+            }
+          });
+        }
+      };
+
+      // Universal Command Palette Hook
+      window.CommandPaletteHook = {
+        mounted() {
+          const lv = this;
+          const handler = (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+              e.preventDefault();
+              lv.pushEvent("toggle_command_palette", {});
+            }
+            if (e.key === 'Escape') {
+              lv.pushEvent("close_command_palette", {});
+            }
+          };
+          window.addEventListener('keydown', handler);
+          this.handler = handler;
+        },
+        destroyed() {
+          if (this.handler) window.removeEventListener('keydown', this.handler);
+        }
+      };
+
+      // Global Theme Hook
+      window.ThemeHook = {
+        mounted() {
+          this.handleEvent('toggle_theme', ({ theme }) => {
+            localStorage.setItem('ssh_client_theme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
+          });
         }
       };
     </script>
 
     <style>
-      :root {
+      /* Dark Theme (Default) */
+      [data-theme="dark"] {
         --app-bg: #050505;
         --sidebar-bg: #0a0a0a;
-        --panel-bg: #111111;
+        --panel-bg: #0e0e0e;
+        --card-bg: #121212;
         --border: #1f1f1f;
-        --accent: #2563eb;
-        --accent-hover: #3b82f6;
+        --border-subtle: #27272a;
         --text-primary: #f5f5f5;
-        --text-muted: #6b7280;
-        --text-dim: #374151;
+        --text-secondary: #a1a1aa;
+        --text-muted: #71717a;
+        --text-dim: #3f3f46;
+        --accent: #38bdf8;
+        --accent-bg: rgba(56, 189, 248, 0.1);
+        --accent-border: rgba(56, 189, 248, 0.25);
+        --hover-bg: rgba(255, 255, 255, 0.04);
+      }
+
+      /* High-Contrast Light Theme */
+      [data-theme="light"] {
+        --app-bg: #f8fafc;
+        --sidebar-bg: #ffffff;
+        --panel-bg: #ffffff;
+        --card-bg: #f1f5f9;
+        --border: #e2e8f0;
+        --border-subtle: #cbd5e1;
+        --text-primary: #0f172a;
+        --text-secondary: #334155;
+        --text-muted: #64748b;
+        --text-dim: #94a3b8;
+        --accent: #2563eb;
+        --accent-bg: rgba(37, 99, 235, 0.08);
+        --accent-border: rgba(37, 99, 235, 0.25);
+        --hover-bg: rgba(15, 23, 42, 0.04);
       }
 
       html, body {
@@ -318,7 +380,6 @@
         font-family: 'JetBrains Mono', monospace;
       }
 
-      /* xterm full container filling */
       .xterm {
         height: 100%;
         width: 100%;
@@ -332,13 +393,12 @@
         height: 100% !important;
       }
 
-      /* Scrollbar */
-      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
       ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+      ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
     </style>
   </head>
-  <body class="h-full bg-[#050505] text-[#f5f5f5]">
+  <body class="h-full bg-[var(--app-bg)] text-[var(--text-primary)]" phx-hook="ThemeHook" id="app-body">
     {@inner_content}
 
     <!-- Phoenix & LiveView JS client -->
@@ -348,9 +408,11 @@
       (function() {
         const csrfToken = document.querySelector("meta[name='csrf-token']") ? document.querySelector("meta[name='csrf-token']").getAttribute("content") : "";
         const hooks = {};
-        if (window.TerminalHook) {
-          hooks.TerminalHook = window.TerminalHook;
-        }
+        if (window.TerminalHook) hooks.TerminalHook = window.TerminalHook;
+        if (window.DualPaneSFTPHook) hooks.DualPaneSFTPHook = window.DualPaneSFTPHook;
+        if (window.CommandPaletteHook) hooks.CommandPaletteHook = window.CommandPaletteHook;
+        if (window.ThemeHook) hooks.ThemeHook = window.ThemeHook;
+
         window.liveSocketHooks = hooks;
 
         const Socket = (typeof Phoenix !== 'undefined') ? Phoenix.Socket : (window.Socket || null);
