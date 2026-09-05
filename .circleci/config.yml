@@ -53,11 +53,12 @@ jobs:
             - deps
             - _build
       - run:
-          name: "Check Code Formatting"
-          command: mix format --check-formatted
-      - run:
           name: "Compile Code with Warnings as Errors"
           command: mix compile --warnings-as-errors
+      - run:
+          name: "Check Code Formatting"
+          command: |
+            mix format --check-formatted || (echo "Formatting issues detected, applying fix..." && mix format && git diff --exit-code)
       - run:
           name: "Run Unit Tests"
           command: mix test
