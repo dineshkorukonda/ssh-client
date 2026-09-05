@@ -6,7 +6,10 @@ Enforces synchronization across all 6 version locations and guarantees zero emoj
 Usage:
   python scripts/sync_release.py --check [version]
   python scripts/sync_release.py --emoji-check
+  python scripts/sync_release.py --get-current
+  python scripts/sync_release.py --get-next [patch|minor|major]
   python scripts/sync_release.py <version> [--notes "Release summary"]
+  python scripts/sync_release.py --auto-bump "Commit message or PR title"
 """
 
 import sys
@@ -94,6 +97,31 @@ def extract_versions():
                 versions["web/index.html"] = m.group(1)
 
     return versions
+
+
+def get_current_version():
+    versions = extract_versions()
+    return versions.get("mix.exs", "0.0.1")
+
+
+def calculate_next_version(current=None, bump_type="patch"):
+    if not current:
+        current = get_current_version()
+
+    parts = current.split(".")
+    try:
+        major = int(parts[0])
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        patch = int(parts[2]) if len(parts) > 2 else 0
+    except ValueError:
+        return current + ".1"
+
+    if bump_type == "major":
+        return f"{major + 1}.0.0"
+    elif bump_type == "minor":
+        return f"{major}.{minor + 1}.0"
+    else:  # patch
+        return f"{major}.{minor}.{patch + 1}"
 
 
 def check_emoji_violations():
@@ -322,9 +350,21 @@ def main():
     parser.add_argument("version", nargs="?", help="New version to bump across repository (e.g. 0.0.3)")
     parser.add_argument("--check", nargs="?", const="", help="Check version synchronization across all files")
     parser.add_argument("--emoji-check", action="store_true", help="Audit repository for emoji violations")
+    parser.add_argument("--get-current", action="store_true", help="Print current repository version")
+    parser.add_argument("--get-next", nargs="?", const="patch", help="Calculate next version (patch|minor|major)")
+    parser.add_argument("--auto-bump", help="Automatically bump version using commit/PR message")
     parser.add_argument("--notes", help="Release notes summary for the version bump")
 
     args = parser.parse_args()
+
+    if args.get_current:
+        print(get_current_version())
+        sys.exit(0)
+
+    if args.get_next:
+        bump_t = args.get_next.lower() if args.get_next in ("patch", "minor", "major") else "patch"
+        print(calculate_next_version(bump_type=bump_t))
+        sys.exit(0)
 
     if args.emoji_check:
         print("Auditing repository for emoji violations...")
@@ -350,6 +390,36 @@ def main():
             for v in violations:
                 print(f"  {v}")
             sys.exit(1)
+        sys.exit(0)
+
+    if args.auto_bump:
+        msg = args.auto_bump.strip()
+        # Clean merge prefixes like "Merge pull request #123 from ... \n\n feat: something"
+        lines = [line.strip() for line in msg.splitlines() if line.strip()]
+        first_line = lines[0] if lines else "chore: updates"
+        for line in lines:
+            if not line.startswith("Merge pull request") and not line.startswith("Merge branch"):
+                first_line = line
+                break
+
+        # Determine bump type
+        bump_type = "patch"
+        if first_line.startswith("feat:") or first_line.startswith("feat("):
+            bump_type = "patch" # in 0.0.x beta lifecycle, features advance patch or minor
+        elif "BREAKING CHANGE" in msg:
+            bump_type = "minor"
+
+        next_ver = calculate_next_version(bump_type=bump_type)
+        print(f"Auto-bumping version to {next_ver} based on message: '{first_line}'")
+        bump_version(next_ver, first_line)
+        violations = check_emoji_violations()
+        if violations:
+            print(f"ERROR: Found {len(violations)} emoji violation(s):")
+            for v in violations:
+                print(f"  {v}")
+            sys.exit(1)
+        # Output next_ver to stdout for scripts/actions
+        print(f"NEW_VERSION={next_ver}")
         sys.exit(0)
 
     if args.version:

@@ -1,0 +1,78 @@
+name: Release Bot
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  pr-lint:
+    name: Lint PR Title & Aesthetics
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify Zero-Emoji Rule
+        run: python scripts/sync_release.py --emoji-check
+
+      - name: Check PR Title for Emojis
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          python -c "
+          import sys, re
+          title = sys.argv[1]
+          emoji_pattern = re.compile(r'[\U00010000-\U0010ffff]|[\u2600-\u26ff]|[\u2700-\u27bf]|[\u2300-\u23ff]')
+          if emoji_pattern.search(title):
+              print(f'ERROR: PR title contains emojis: {title}')
+              sys.exit(1)
+          print(f'PR title adheres to zero-emoji aesthetic: {title}')
+          " "$PR_TITLE"
+
+  auto-release:
+    name: Automated Release & Changelog Bot
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]') && !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Auto-Bump & Changelog Generator
+        id: bump
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          OUTPUT=$(python scripts/sync_release.py --auto-bump "$COMMIT_MSG")
+          echo "$OUTPUT"
+          NEW_VER=$(echo "$OUTPUT" | grep -o 'NEW_VERSION=[^ ]*' | cut -d= -f2)
+          echo "version=$NEW_VER" >> $GITHUB_OUTPUT
+
+      - name: Commit & Tag New Release
+        if: steps.bump.outputs.version != ''
+        run: |
+          NEW_VER="${{ steps.bump.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mix.exs windows/installer.iss lib/ssh_client/updater.ex RELEASE_NOTES.md CHANGELOG.md web/
+          git commit -m "chore(release): release v${NEW_VER} [skip ci]"
+          git push origin main
+          git tag "v${NEW_VER}"
+          git push origin "v${NEW_VER}"
