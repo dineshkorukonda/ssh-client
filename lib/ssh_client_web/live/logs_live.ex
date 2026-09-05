@@ -102,7 +102,7 @@ defmodule SSHClientWeb.LogsLive do
       <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col shrink-0">
         <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
+            <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-lg" />
             <div>
               <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
               <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
