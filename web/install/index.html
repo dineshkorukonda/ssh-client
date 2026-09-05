@@ -315,6 +315,35 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
         </div>
 
+        <!-- FAQ 7 -->
+        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
+          <input type="checkbox" /> 
+          <div class="collapse-title font-semibold text-white text-sm">
+            How does the Master Vault encryption protect sensitive credentials?
+          </div>
+          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+            <p>
+              The Master Vault (<code class="text-white">SSHClient.Vault</code>) employs PBKDF2 with 100,000 SHA-256 iterations to derive a 256-bit key from your master password. Credential payloads and private keys are encrypted locally using AES-256-GCM authenticated encryption.
+            </p>
+            <p>
+              The vault automatically re-locks after inactivity or upon user command, securing your secrets both at rest and in memory.
+            </p>
+          </div>
+        </div>
+
+        <!-- FAQ 8 -->
+        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
+          <input type="checkbox" /> 
+          <div class="collapse-title font-semibold text-white text-sm">
+            Does the SFTP file explorer support inline editing and file operations?
+          </div>
+          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+            <p>
+              Yes. The built-in SFTP Explorer operates directly over OTP <code class="text-red-400">:ssh_sftp</code> channels. It provides directory tree navigation, breadcrumb path jumping, permission inspection, inline text/config editing, and directory management without spawning external SFTP clients.
+            </p>
+          </div>
+        </div>
+
       </div>
     </section>
 

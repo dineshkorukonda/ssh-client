@@ -27,11 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remote service manager for `systemd` units, `Docker` containers, and `PM2` processes with confirmation dialogs.
   - Remote log tailing viewer for `journalctl` and system logs.
   - Cross-platform desktop notification router with fallback.
-- **TUI Parity**: Portable `ssh-client-tui` terminal user interface compatible with Windows Terminal and Linux consoles.
-- **Automated Packaging & Release**:
+- **Master Vault Encryption (`SSHClient.Vault`)**: PBKDF2 (100,000 iterations) and AES-256-GCM encrypted local storage for credentials, keys, and passphrases with auto-lock and master password flow.
+- **Native Remote SFTP Explorer (`SSHClient.SFTP` / `SFTPHostLive`)**: High-performance remote directory browser over OTP `:ssh_sftp` with directory breadcrumbs, inline text/config editor, file permissions, and directory creation/deletion.
+- **Multi-Tab Terminal Session Manager (`TerminalLive`)**: Full-bleed xterm.js terminal supporting concurrent background PTY sessions, instant tab switching, terminal output preservation, and font scaling.
+- **Command Autocomplete Palette**: Quick fuzzy-search command palette categorized for Zsh, Docker, System, Services, Network, and File utilities with direct one-click execution.
+- **Real-Time Infrastructure Metric Gauges**: CPU, Memory, and Disk progress gauges with responsive warning/critical threshold color transitions.
+- **Header Beta Badge & Editorial Stark UI**: Clean monochrome theme with high-contrast typography, Beta header badge, and strict zero-emoji interface compliance.
+- **Automated Packaging & Release Pipeline**:
   - CI test matrix across `windows-latest` and `ubuntu-latest` with Docker OpenSSH integration tests.
-  - Automated `mix release` packaging for Windows x64 (`.zip`) and Linux x64 (`.tar.gz`).
-  - Automated GitHub Releases on tag push (`v*`).
+  - Automated `mix release` packaging for Windows x64 (`.exe` single-file installer and `.zip` portable archive) and Linux x64 (`.tar.gz`).
+  - Automated container image publishing to GitHub Packages (`ghcr.io/dineshkorukonda/ssh-client`).
+  - Automated GitHub Releases on tag push with `make_latest: true`.
 - **Minimalist Web Landing Page**: Zero-build technical landing site in `/web` with terminal specs, architecture breakdown, install instructions, and changelog.
 
 ### Fixed

@@ -85,8 +85,8 @@ git commit -m "fix(monitoring): correct metric key extraction, add visual gauge 
 </div>
 ```
 
-- [ ] **Step 2: Replace all emojis in `TerminalLive` with clean SVG icons or monospace badges**
-Replace `📋`, `⚡`, `🐚`, `🧹`, `▶`, `🔄` with inline SVG icons or `[PASTE]`, `[CMD]`, `[ZSH]`, `[CLEAR]`, `[RUN]`.
+- [ ] **Step 2: Replace all legacy icons in `TerminalLive` with clean SVG icons or monospace badges**
+Replace legacy icon glyphs with inline SVG icons or `[PASTE]`, `[CMD]`, `[ZSH]`, `[CLEAR]`, `[RUN]`.
 
 - [ ] **Step 3: Audit and sanitize all LiveViews to guarantee zero Unicode emojis**
 Run verification search for emojis and verify clean rendering.

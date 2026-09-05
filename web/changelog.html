@@ -137,6 +137,30 @@
             <li class="flex items-start gap-2">
               <span class="text-red-500 select-none font-bold">+</span>
               <div>
+                <strong class="text-white">Master Vault Encryption:</strong>
+                <p class="text-neutral-400 mt-0.5">Implemented <code class="text-neutral-200">SSHClient.Vault</code> with PBKDF2 (100,000 iterations) key derivation and AES-256-GCM authenticated local encryption protecting passphrases, SSH keys, and host credentials with auto-lock timer and master password prompt.</p>
+              </div>
+            </li>
+
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Native Remote SFTP File Explorer:</strong>
+                <p class="text-neutral-400 mt-0.5">Built high-performance remote directory browser over OTP <code class="text-neutral-200">:ssh_sftp</code> (<code class="text-neutral-200">SFTPHostLive</code>) with directory breadcrumbs, inline text/config editor, remote file manipulation, and directory management.</p>
+              </div>
+            </li>
+
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
+                <strong class="text-white">Multi-Tab Terminal Session Manager:</strong>
+                <p class="text-neutral-400 mt-0.5">Full-bleed xterm.js terminal supporting concurrent background PTY sessions, instant tab switching, terminal output preservation, and font scaling.</p>
+              </div>
+            </li>
+
+            <li class="flex items-start gap-2">
+              <span class="text-red-500 select-none font-bold">+</span>
+              <div>
                 <strong class="text-white">Full-Bleed Responsive Terminal & Autocomplete:</strong>
                 <p class="text-neutral-400 mt-0.5">Embedded full-height xterm.js container streaming over Phoenix LiveView to OTP <code class="text-neutral-200">PTYSession</code> with dynamic <code class="text-neutral-200">ResizeObserver</code> auto-fit, built-in searchable command suggestions palette, and one-click execution.</p>
               </div>
