@@ -206,34 +206,35 @@ defmodule SSHClientWeb.SettingsLive do
     ~H"""
     <div class="flex h-full min-h-screen bg-[#050505]">
       <!-- Sidebar -->
-      <aside class="w-64 border-r border-[#1f1f1f] bg-[#080808] flex flex-col justify-between shrink-0">
-        <div class="p-6">
-          <div class="flex items-center gap-2.5 mb-8">
-            <a href="/hosts" class="flex items-center gap-2.5">
-              <div class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-mono font-bold text-white text-xs">
-                &gt;_
+      <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col justify-between shrink-0">
+        <div>
+          <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
+            <a href="/" class="flex items-center gap-3">
+              <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-lg" />
+              <div>
+                <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
+                <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
               </div>
-              <span class="font-bold text-white tracking-tight">ssh-client</span>
-              <span class="px-1.5 py-0.5 text-[9px] font-mono font-bold tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
             </a>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
           </div>
 
-          <nav class="space-y-1 font-medium text-xs">
+          <nav class="flex-1 px-3 py-4 space-y-0.5">
             <a
-              href="/hosts"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#111] transition-colors"
+              href="/"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
             >
               Hosts
             </a>
             <a
               href="/logs"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#111] transition-colors"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
             >
               Logs
             </a>
             <a
               href="/settings"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-blue-600/10 text-blue-400 border border-blue-500/20"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-blue-600/10 text-blue-400 text-sm font-medium"
             >
               Settings
             </a>
@@ -241,7 +242,7 @@ defmodule SSHClientWeb.SettingsLive do
         </div>
 
         <div class="px-5 py-4 border-t border-[#1f1f1f] flex items-center justify-between">
-          <span class="text-[11px] text-zinc-700">
+          <span class="text-[11px] text-zinc-700 font-mono">
             <%= @active_servers_count %> host<%= if @active_servers_count != 1, do: "s" %>
           </span>
           <button

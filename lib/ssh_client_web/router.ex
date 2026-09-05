@@ -18,6 +18,7 @@ defmodule SSHClientWeb.Router do
     pipe_through :browser
 
     live "/", HostLive, :index
+    live "/hosts", HostLive, :index
     live "/lock", LockLive, :index
     live "/terminal/:id", TerminalLive, :show
     live "/sftp/:id", SFTPLive, :show
