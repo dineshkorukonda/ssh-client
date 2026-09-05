@@ -34,6 +34,7 @@ defmodule SSHClient.Application do
       manager_child,
       SSHClient.TerminalSupervisor,
       SSHClient.PassphraseCache,
+      SSHClient.Vault,
       SSHClient.SocketAPI
     ]
 

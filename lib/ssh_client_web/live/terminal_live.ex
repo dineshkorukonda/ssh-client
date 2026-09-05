@@ -1,8 +1,8 @@
 defmodule SSHClientWeb.TerminalLive do
   @moduledoc """
-  Phoenix LiveView hosting the interactive xterm.js embedded terminal.
-  Supervises a PTYSession process, bridges bidirectional I/O, handles
-  window resize, and outputs real-time diagnostics.
+  Phoenix LiveView hosting the interactive xterm.js embedded terminal with
+  multi-tab session management, PTY supervisor integration, bidirectional I/O,
+  and quick command autocomplete.
   """
 
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
@@ -13,6 +13,7 @@ defmodule SSHClientWeb.TerminalLive do
   alias SSHClient.ServerManager
   alias SSHClient.SSH.PTYSession
   alias SSHClient.TerminalSupervisor
+  alias SSHClient.Vault
 
   @default_commands [
     # Zsh & Shell
@@ -58,37 +59,56 @@ defmodule SSHClientWeb.TerminalLive do
 
   @impl true
   def mount(%{"id" => server_id}, _session, socket) do
-    server = resolve_server_struct(server_id)
+    if not Vault.unlocked?() do
+      {:ok, push_navigate(socket, to: "/lock")}
+    else
+      server = resolve_server_struct(server_id)
 
-    socket =
-      socket
-      |> assign(:page_title, "Terminal — #{server_id}")
-      |> assign(:server_id, server_id)
-      |> assign(:server, server)
-      |> assign(:session_pid, nil)
-      |> assign(:connected, false)
-      |> assign(:error, nil)
-      |> assign(:cols, 80)
-      |> assign(:rows, 24)
-      |> assign(:show_commands, false)
-      |> assign(:command_search, "")
-      |> assign(:selected_category, "all")
-      |> assign(:all_commands, @default_commands)
+      initial_tab = %{
+        id: 1,
+        title: "Shell 1",
+        session_pid: nil,
+        connected: false,
+        error: nil
+      }
 
-    {:ok, socket}
+      socket =
+        socket
+        |> assign(:page_title, "Terminal — #{server_id}")
+        |> assign(:server_id, server_id)
+        |> assign(:server, server)
+        |> assign(:tabs, [initial_tab])
+        |> assign(:active_tab_id, 1)
+        |> assign(:next_tab_id, 2)
+        |> assign(:cols, 80)
+        |> assign(:rows, 24)
+        |> assign(:show_commands, false)
+        |> assign(:command_search, "")
+        |> assign(:selected_category, "all")
+        |> assign(:all_commands, @default_commands)
+
+      {:ok, socket}
+    end
   end
 
   @impl true
   def handle_event("terminal_ready", _params, socket) do
-    socket = start_terminal_session(socket)
+    tab = active_tab(socket)
+    socket =
+      if is_nil(tab.session_pid) do
+        start_tab_session(socket, tab.id)
+      else
+        socket
+      end
+
     {:noreply, socket}
   end
 
   def handle_event("terminal_data", %{"data" => data}, socket) when is_binary(data) do
-    pid = socket.assigns.session_pid
+    tab = active_tab(socket)
 
-    if pid && Process.alive?(pid) do
-      PTYSession.send_input(pid, data)
+    if tab && tab.session_pid && Process.alive?(tab.session_pid) do
+      PTYSession.send_input(tab.session_pid, data)
     end
 
     {:noreply, socket}
@@ -96,13 +116,100 @@ defmodule SSHClientWeb.TerminalLive do
 
   def handle_event("resize", %{"cols" => cols, "rows" => rows}, socket)
       when is_integer(cols) and is_integer(rows) do
-    pid = socket.assigns.session_pid
+    socket = assign(socket, cols: cols, rows: rows)
 
-    if pid && Process.alive?(pid) do
-      PTYSession.resize(pid, cols, rows)
+    Enum.each(socket.assigns.tabs, fn t ->
+      if t.session_pid && Process.alive?(t.session_pid) do
+        PTYSession.resize(t.session_pid, cols, rows)
+      end
+    end)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("switch_tab", %{"id" => id_str}, socket) do
+    tab_id =
+      case Integer.parse(to_string(id_str)) do
+        {id, ""} -> id
+        _ -> socket.assigns.active_tab_id
+      end
+
+    new_tab = Enum.find(socket.assigns.tabs, fn t -> t.id == tab_id end)
+
+    if new_tab do
+      socket =
+        socket
+        |> assign(:active_tab_id, tab_id)
+        |> push_event("terminal_clear", %{})
+        |> push_event("terminal_output", %{
+          data: "\r\n\x1b[1;34m[ssh-client]\x1b[0m Switched to \x1b[1;37m#{new_tab.title}\x1b[0m\r\n"
+        })
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
     end
+  end
 
-    {:noreply, assign(socket, cols: cols, rows: rows)}
+  def handle_event("new_tab", _params, socket) do
+    new_id = socket.assigns.next_tab_id
+    new_tab = %{
+      id: new_id,
+      title: "Shell #{new_id}",
+      session_pid: nil,
+      connected: false,
+      error: nil
+    }
+
+    socket =
+      socket
+      |> assign(:tabs, socket.assigns.tabs ++ [new_tab])
+      |> assign(:active_tab_id, new_id)
+      |> assign(:next_tab_id, new_id + 1)
+      |> push_event("terminal_clear", %{})
+      |> push_event("terminal_output", %{
+        data: "\r\n\x1b[1;34m[ssh-client]\x1b[0m Opening new session: \x1b[1;37m#{new_tab.title}\x1b[0m...\r\n"
+      })
+      |> start_tab_session(new_id)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("close_tab", %{"id" => id_str}, socket) do
+    tab_id =
+      case Integer.parse(to_string(id_str)) do
+        {id, ""} -> id
+        _ -> nil
+      end
+
+    if tab_id && length(socket.assigns.tabs) > 1 do
+      target_tab = Enum.find(socket.assigns.tabs, fn t -> t.id == tab_id end)
+      if target_tab && target_tab.session_pid && Process.alive?(target_tab.session_pid) do
+        PTYSession.close(target_tab.session_pid)
+      end
+
+      remaining = Enum.reject(socket.assigns.tabs, fn t -> t.id == tab_id end)
+      new_active =
+        if socket.assigns.active_tab_id == tab_id do
+          hd(remaining).id
+        else
+          socket.assigns.active_tab_id
+        end
+
+      active_struct = Enum.find(remaining, fn t -> t.id == new_active end)
+
+      socket =
+        socket
+        |> assign(tabs: remaining, active_tab_id: new_active)
+        |> push_event("terminal_clear", %{})
+        |> push_event("terminal_output", %{
+          data: "\r\n\x1b[1;34m[ssh-client]\x1b[0m Switched to \x1b[1;37m#{active_struct.title}\x1b[0m\r\n"
+        })
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("request_paste", _params, socket) do
@@ -122,40 +229,40 @@ defmodule SSHClientWeb.TerminalLive do
   end
 
   def handle_event("run_command", %{"cmd" => cmd}, socket) do
-    pid = socket.assigns.session_pid
+    tab = active_tab(socket)
 
-    if pid && Process.alive?(pid) do
-      PTYSession.send_input(pid, cmd <> "\n")
+    if tab && tab.session_pid && Process.alive?(tab.session_pid) do
+      PTYSession.send_input(tab.session_pid, cmd <> "\n")
     end
 
     {:noreply, push_event(socket, "terminal_insert_command", %{command: cmd, execute: true})}
   end
 
   def handle_event("insert_command", %{"cmd" => cmd}, socket) do
-    pid = socket.assigns.session_pid
+    tab = active_tab(socket)
 
-    if pid && Process.alive?(pid) do
-      PTYSession.send_input(pid, cmd)
+    if tab && tab.session_pid && Process.alive?(tab.session_pid) do
+      PTYSession.send_input(tab.session_pid, cmd)
     end
 
     {:noreply, push_event(socket, "terminal_insert_command", %{command: cmd, execute: false})}
   end
 
   def handle_event("switch_to_zsh", _params, socket) do
-    pid = socket.assigns.session_pid
+    tab = active_tab(socket)
 
-    if pid && Process.alive?(pid) do
-      PTYSession.send_input(pid, "exec zsh -l\n")
+    if tab && tab.session_pid && Process.alive?(tab.session_pid) do
+      PTYSession.send_input(tab.session_pid, "exec zsh -l\n")
     end
 
     {:noreply, socket}
   end
 
   def handle_event("clear_screen", _params, socket) do
-    pid = socket.assigns.session_pid
+    tab = active_tab(socket)
 
-    if pid && Process.alive?(pid) do
-      PTYSession.send_input(pid, "\x0c")
+    if tab && tab.session_pid && Process.alive?(tab.session_pid) do
+      PTYSession.send_input(tab.session_pid, "\x0c")
     end
 
     {:noreply, push_event(socket, "terminal_clear", %{})}
@@ -170,17 +277,19 @@ defmodule SSHClientWeb.TerminalLive do
   end
 
   def handle_event("reconnect", _params, socket) do
-    if pid = socket.assigns.session_pid do
-      if Process.alive?(pid), do: PTYSession.close(pid)
+    tab = active_tab(socket)
+
+    if tab && tab.session_pid && Process.alive?(tab.session_pid) do
+      PTYSession.close(tab.session_pid)
     end
 
     socket =
       socket
-      |> assign(session_pid: nil, connected: false, error: nil)
+      |> update_tab(tab.id, fn t -> %{t | session_pid: nil, connected: false, error: nil} end)
       |> push_event("terminal_output", %{
-        data: "\r\n\x1b[1;34m[ssh-client]\x1b[0m \x1b[2mReconnecting to #{socket.assigns.server_id}...\x1b[0m\r\n"
+        data: "\r\n\x1b[1;34m[ssh-client]\x1b[0m Reconnecting #{tab.title} to #{socket.assigns.server_id}...\r\n"
       })
-      |> start_terminal_session()
+      |> start_tab_session(tab.id)
 
     {:noreply, socket}
   end
@@ -194,18 +303,26 @@ defmodule SSHClientWeb.TerminalLive do
     ActivityLog.info(socket.assigns.server_id, "Interactive terminal shell ready")
 
     socket =
-      socket
-      |> assign(connected: true, session_pid: pid, error: nil)
-      |> push_event("terminal_output", %{
-        data: "\x1b[1;32m\u2713 Connected to #{socket.assigns.server_id}\x1b[0m\r\n\r\n"
-      })
+      update_tab_by_pid(socket, pid, fn t -> %{t | connected: true, error: nil} end)
 
-    {:noreply, socket}
+    tab = active_tab(socket)
+    if tab && tab.session_pid == pid do
+      {:noreply, push_event(socket, "terminal_output", %{
+        data: "\x1b[1;32mConnected to #{socket.assigns.server_id} (#{tab.title})\x1b[0m\r\n\r\n"
+      })}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
-  def handle_info({:pty_data, _pid, data}, socket) do
-    {:noreply, push_event(socket, "terminal_output", %{data: data})}
+  def handle_info({:pty_data, pid, data}, socket) do
+    tab = active_tab(socket)
+    if tab && tab.session_pid == pid do
+      {:noreply, push_event(socket, "terminal_output", %{data: data})}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -213,44 +330,57 @@ defmodule SSHClientWeb.TerminalLive do
     err_str = format_error_reason(reason)
     ActivityLog.error(socket.assigns.server_id, "PTY Error: #{err_str}", reason)
 
+    tab = active_tab(socket)
+    socket =
+      if tab do
+        update_tab(socket, tab.id, fn t -> %{t | connected: false, error: err_str} end)
+      else
+        socket
+      end
+
     ansi_msg =
       "\r\n\x1b[1;31m[SSH Connection Error]\x1b[0m #{err_str}\r\n" <>
-        "\x1b[2mCheck server host, port, credentials, or see the \x1b[1;34mLogs\x1b[0m\x1b[2m tab for full details.\x1b[0m\r\n"
+        "\x1b[2mCheck server host, port, credentials, or see the \x1b[1;34mLogs\x1b[0m\x1b[2m tab for details.\x1b[0m\r\n"
 
-    socket =
-      socket
-      |> assign(connected: false, error: err_str)
-      |> push_event("terminal_output", %{data: ansi_msg})
-
-    {:noreply, socket}
+    {:noreply, push_event(socket, "terminal_output", %{data: ansi_msg})}
   end
 
   @impl true
-  def handle_info({:pty_eof, _pid}, socket) do
-    {:noreply,
-     push_event(socket, "terminal_output", %{
-       data: "\r\n\x1b[2m[Remote shell sent EOF]\x1b[0m\r\n"
-     })}
+  def handle_info({:pty_eof, pid}, socket) do
+    tab = active_tab(socket)
+    if tab && tab.session_pid == pid do
+      {:noreply, push_event(socket, "terminal_output", %{
+        data: "\r\n\x1b[2m[Remote shell sent EOF]\x1b[0m\r\n"
+      })}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
-  def handle_info({:pty_exit, _pid, exit_code}, socket) do
-    {:noreply,
-     socket
-     |> assign(connected: false)
-     |> push_event("terminal_output", %{
-       data: "\r\n\x1b[2m[Process exited with status #{exit_code}]\x1b[0m\r\n"
-     })}
+  def handle_info({:pty_exit, pid, exit_code}, socket) do
+    socket = update_tab_by_pid(socket, pid, fn t -> %{t | connected: false} end)
+    tab = active_tab(socket)
+    if tab && tab.session_pid == pid do
+      {:noreply, push_event(socket, "terminal_output", %{
+        data: "\r\n\x1b[2m[Process exited with status #{exit_code}]\x1b[0m\r\n"
+      })}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
-  def handle_info({:pty_closed, _pid}, socket) do
-    {:noreply,
-     socket
-     |> assign(connected: false)
-     |> push_event("terminal_output", %{
-       data: "\r\n\x1b[2m[Connection closed by remote host]\x1b[0m\r\n"
-     })}
+  def handle_info({:pty_closed, pid}, socket) do
+    socket = update_tab_by_pid(socket, pid, fn t -> %{t | connected: false} end)
+    tab = active_tab(socket)
+    if tab && tab.session_pid == pid do
+      {:noreply, push_event(socket, "terminal_output", %{
+        data: "\r\n\x1b[2m[Connection closed by remote host]\x1b[0m\r\n"
+      })}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -260,11 +390,11 @@ defmodule SSHClientWeb.TerminalLive do
 
   @impl true
   def terminate(_reason, socket) do
-    if pid = socket.assigns[:session_pid] do
-      if Process.alive?(pid) do
-        PTYSession.close(pid)
+    Enum.each(socket.assigns.tabs, fn t ->
+      if t.session_pid && Process.alive?(t.session_pid) do
+        PTYSession.close(t.session_pid)
       end
-    end
+    end)
 
     :ok
   end
@@ -277,13 +407,15 @@ defmodule SSHClientWeb.TerminalLive do
   def render(assigns) do
     filtered_commands = filter_commands(assigns.all_commands, assigns.selected_category, assigns.command_search)
     assigns = assign(assigns, :filtered_commands, filtered_commands)
+    cur_tab = Enum.find(assigns.tabs, fn t -> t.id == assigns.active_tab_id end) || hd(assigns.tabs)
+    assigns = assign(assigns, :cur_tab, cur_tab)
 
     ~H"""
-    <div class="flex flex-col h-screen w-screen bg-[#050505] overflow-hidden select-none">
+    <div class="flex flex-col h-screen w-screen bg-[#050505] overflow-hidden select-none font-sans">
       <!-- Terminal topbar -->
       <div class="h-11 flex items-center justify-between px-3 bg-[#0a0a0a] border-b border-[#1f1f1f] shrink-0 z-20">
-        <!-- Left: Host back nav & Server ID -->
-        <div class="flex items-center gap-2.5 min-w-0">
+        <!-- Left: Host back nav, Server ID, BETA badge, Multi-tab bar -->
+        <div class="flex items-center gap-2 min-w-0">
           <a
             href="/"
             class="text-zinc-400 hover:text-white text-xs font-mono transition-colors inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#141414] hover:bg-[#202020] border border-[#27272a] shrink-0"
@@ -293,49 +425,90 @@ defmodule SSHClientWeb.TerminalLive do
           </a>
           <span class="text-zinc-700">|</span>
           <span class="text-white text-xs font-mono font-semibold truncate"><%= @server_id %></span>
-          <%= if @server do %>
-            <span class="text-zinc-500 text-[11px] font-mono hidden md:inline truncate"><%= @server.user %>@<%= @server.host %>:<%= @server.port || 22 %></span>
-          <% end %>
+          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
+
+          <!-- Multi-Tab workspace pills -->
+          <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-[#27272a]">
+            <%= for tab <- @tabs do %>
+              <div class={["flex items-center rounded font-mono text-xs overflow-hidden border transition-colors",
+                if(tab.id == @active_tab_id, do: "bg-[#18181b] border-blue-500/60 text-blue-400", else: "bg-[#0e0e10] border-[#222226] text-zinc-500 hover:text-zinc-300 hover:bg-[#141416]")]}>
+                <button
+                  phx-click="switch_tab"
+                  phx-value-id={tab.id}
+                  class="px-2 py-0.5 text-left flex items-center gap-1.5"
+                >
+                  <span class={["w-1.5 h-1.5 rounded-full", if(tab.connected, do: "bg-emerald-400", else: "bg-zinc-600")]}></span>
+                  <span><%= tab.title %></span>
+                </button>
+                <%= if length(@tabs) > 1 do %>
+                  <button
+                    phx-click="close_tab"
+                    phx-value-id={tab.id}
+                    class="px-1 py-0.5 text-zinc-600 hover:text-red-400 hover:bg-white/5 transition-colors"
+                    title="Close Tab"
+                  >
+                    &times;
+                  </button>
+                <% end %>
+              </div>
+            <% end %>
+            <button
+              phx-click="new_tab"
+              class="h-5 px-1.5 bg-[#121214] hover:bg-[#202020] border border-[#222226] hover:border-zinc-500 text-zinc-400 hover:text-white rounded text-[11px] font-mono transition-colors"
+              title="Open New Terminal Tab"
+            >
+              +
+            </button>
+          </div>
         </div>
 
         <!-- Center / Right: Quick Controls & Status -->
         <div class="flex items-center gap-2">
-          <!-- Connection badge -->
+          <!-- Connection badge for active tab -->
           <span class={["inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-full border shrink-0",
-            if(@connected, do: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", else: if(@error, do: "bg-red-500/10 text-red-400 border-red-500/20", else: "bg-blue-500/10 text-blue-400 border-blue-500/20"))]}>
+            if(@cur_tab.connected, do: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", else: if(@cur_tab.error, do: "bg-red-500/10 text-red-400 border-red-500/20", else: "bg-blue-500/10 text-blue-400 border-blue-500/20"))]}>
             <span class={["w-1.5 h-1.5 rounded-full",
-              if(@connected, do: "bg-emerald-400 animate-pulse", else: if(@error, do: "bg-red-400", else: "bg-blue-400 animate-ping"))]}></span>
-            <span class="hidden sm:inline"><%= if @connected, do: "connected", else: if(@error, do: "disconnected", else: "connecting...") %></span>
+              if(@cur_tab.connected, do: "bg-emerald-400 animate-pulse", else: if(@cur_tab.error, do: "bg-red-400", else: "bg-blue-400 animate-ping"))]}></span>
+            <span class="hidden md:inline"><%= if @cur_tab.connected, do: "connected", else: if(@cur_tab.error, do: "error", else: "connecting...") %></span>
           </span>
 
           <span class="text-zinc-600 text-[10px] font-mono hidden lg:inline"><%= @cols %>x<%= @rows %></span>
 
+          <!-- SFTP Quick Link -->
+          <a
+            href={"/sftp/#{@server_id}"}
+            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono inline-flex items-center"
+            title="Open SFTP File Explorer"
+          >
+            SFTP
+          </a>
+
           <!-- Quick Action: Paste -->
           <button
             phx-click="request_paste"
-            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono inline-flex items-center gap-1"
+            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono inline-flex items-center"
             title="Paste Clipboard (Ctrl+V)"
           >
-            <span>📋</span> <span class="hidden sm:inline">Paste</span>
+            Paste
           </button>
 
           <!-- Quick Action: Toggle Commands Drawer -->
           <button
             phx-click="toggle_commands"
-            class={["h-7 px-2.5 border text-xs rounded-md transition-colors font-mono inline-flex items-center gap-1.5",
+            class={["h-7 px-2.5 border text-xs rounded-md transition-colors font-mono inline-flex items-center",
               if(@show_commands, do: "bg-blue-600/20 border-blue-500 text-blue-300", else: "bg-[#141414] hover:bg-[#202020] border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white")]}
             title="Toggle Command Autocomplete & Suggestions"
           >
-            <span>⚡</span> <span class="hidden sm:inline">Commands</span>
+            Cmds
           </button>
 
           <!-- Quick Action: Switch to Zsh -->
           <button
             phx-click="switch_to_zsh"
-            class="h-7 px-2 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-blue-500/60 text-blue-400 hover:text-blue-300 text-xs rounded-md transition-colors font-mono inline-flex items-center gap-1"
+            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-blue-500/60 text-blue-400 hover:text-blue-300 text-xs rounded-md transition-colors font-mono inline-flex items-center"
             title="Switch remote shell to Zsh (exec zsh -l)"
           >
-            <span>🐚</span> <span class="hidden md:inline">Zsh</span>
+            Zsh
           </button>
 
           <!-- Quick Action: Clear Screen -->
@@ -344,7 +517,7 @@ defmodule SSHClientWeb.TerminalLive do
             class="h-7 px-2 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-400 hover:text-zinc-200 text-xs rounded-md transition-colors font-mono"
             title="Clear Terminal Screen (Ctrl+L)"
           >
-            🧹
+            Clear
           </button>
 
           <!-- Font Size Adjusters -->
@@ -369,10 +542,10 @@ defmodule SSHClientWeb.TerminalLive do
           <!-- Reconnect -->
           <button
             phx-click="reconnect"
-            class="h-7 px-2 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono"
+            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono"
             title="Reconnect Session"
           >
-            🔄
+            Reconnect
           </button>
 
           <!-- Logs -->
@@ -405,7 +578,7 @@ defmodule SSHClientWeb.TerminalLive do
             <!-- Header & Search Bar -->
             <div class="p-2.5 px-4 border-b border-[#1f1f1f] flex items-center justify-between gap-3 bg-[#111113]">
               <div class="flex items-center gap-2 flex-1 max-w-md">
-                <span class="text-zinc-500 text-xs">⚡</span>
+                <span class="text-zinc-500 text-xs font-mono">&gt;</span>
                 <input
                   type="text"
                   placeholder="Type to filter command suggestions or execute..."
@@ -432,42 +605,42 @@ defmodule SSHClientWeb.TerminalLive do
                   phx-value-cat="zsh"
                   class={["px-2 py-0.5 rounded transition-colors", if(@selected_category == "zsh", do: "bg-blue-600 text-white font-medium", else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]")]}
                 >
-                  🐚 Zsh
+                  Zsh
                 </button>
                 <button
                   phx-click="select_category"
                   phx-value-cat="sys"
                   class={["px-2 py-0.5 rounded transition-colors", if(@selected_category == "sys", do: "bg-blue-600 text-white font-medium", else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]")]}
                 >
-                  💻 System
+                  System
                 </button>
                 <button
                   phx-click="select_category"
                   phx-value-cat="docker"
                   class={["px-2 py-0.5 rounded transition-colors", if(@selected_category == "docker", do: "bg-blue-600 text-white font-medium", else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]")]}
                 >
-                  🐳 Docker
+                  Docker
                 </button>
                 <button
                   phx-click="select_category"
                   phx-value-cat="services"
                   class={["px-2 py-0.5 rounded transition-colors", if(@selected_category == "services", do: "bg-blue-600 text-white font-medium", else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]")]}
                 >
-                  ⚙️ Services
+                  Services
                 </button>
                 <button
                   phx-click="select_category"
                   phx-value-cat="net"
                   class={["px-2 py-0.5 rounded transition-colors", if(@selected_category == "net", do: "bg-blue-600 text-white font-medium", else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]")]}
                 >
-                  🌐 Network
+                  Network
                 </button>
                 <button
                   phx-click="select_category"
                   phx-value-cat="files"
                   class={["px-2 py-0.5 rounded transition-colors", if(@selected_category == "files", do: "bg-blue-600 text-white font-medium", else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]")]}
                 >
-                  📁 Files
+                  Files
                 </button>
               </div>
 
@@ -476,7 +649,7 @@ defmodule SSHClientWeb.TerminalLive do
                 phx-click="toggle_commands"
                 class="text-zinc-500 hover:text-zinc-200 text-xs px-2 py-1 rounded hover:bg-[#202020] transition-colors font-mono"
               >
-                ✕ Close
+                Close
               </button>
             </div>
 
@@ -507,10 +680,10 @@ defmodule SSHClientWeb.TerminalLive do
                     <button
                       phx-click="run_command"
                       phx-value-cmd={item.cmd}
-                      class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono font-medium transition-colors shadow-sm inline-flex items-center gap-1"
+                      class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono font-medium transition-colors shadow-sm inline-flex items-center"
                       title="Run immediately in terminal"
                     >
-                      ▶ Run
+                      Run
                     </button>
                   </div>
                 </div>
@@ -552,7 +725,29 @@ defmodule SSHClientWeb.TerminalLive do
     end)
   end
 
-  defp start_terminal_session(socket) do
+  defp active_tab(socket) do
+    Enum.find(socket.assigns.tabs, fn t -> t.id == socket.assigns.active_tab_id end) || hd(socket.assigns.tabs)
+  end
+
+  defp update_tab(socket, tab_id, fun) when is_function(fun, 1) do
+    new_tabs =
+      Enum.map(socket.assigns.tabs, fn t ->
+        if t.id == tab_id, do: fun.(t), else: t
+      end)
+
+    assign(socket, :tabs, new_tabs)
+  end
+
+  defp update_tab_by_pid(socket, pid, fun) when is_function(fun, 1) do
+    new_tabs =
+      Enum.map(socket.assigns.tabs, fn t ->
+        if t.session_pid == pid, do: fun.(t), else: t
+      end)
+
+    assign(socket, :tabs, new_tabs)
+  end
+
+  defp start_tab_session(socket, tab_id) do
     case socket.assigns.server do
       %Server{} = server ->
         opts = [
@@ -563,14 +758,14 @@ defmodule SSHClientWeb.TerminalLive do
 
         case TerminalSupervisor.start_session(server, opts) do
           {:ok, pid} ->
-            assign(socket, session_pid: pid, error: nil)
+            update_tab(socket, tab_id, fn t -> %{t | session_pid: pid, error: nil} end)
 
           {:error, reason} ->
-            err_str = "Failed to start terminal supervisor child: #{inspect(reason)}"
+            err_str = "Failed to start terminal session: #{inspect(reason)}"
             ActivityLog.error(socket.assigns.server_id, err_str, reason)
 
             socket
-            |> assign(connected: false, error: err_str)
+            |> update_tab(tab_id, fn t -> %{t | connected: false, error: err_str} end)
             |> push_event("terminal_output", %{
               data: "\r\n\x1b[1;31m[Error]\x1b[0m #{err_str}\r\n"
             })
@@ -581,7 +776,7 @@ defmodule SSHClientWeb.TerminalLive do
         ActivityLog.error(socket.assigns.server_id, err_str)
 
         socket
-        |> assign(connected: false, error: err_str)
+        |> update_tab(tab_id, fn t -> %{t | connected: false, error: err_str} end)
         |> push_event("terminal_output", %{
           data: "\r\n\x1b[1;31m[Configuration Error]\x1b[0m #{err_str}\r\n"
         })

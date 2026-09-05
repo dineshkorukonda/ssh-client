@@ -8,6 +8,7 @@ defmodule SSHClientWeb.HostLive do
 
   alias SSHClient.ServerManager
   alias SSHClient.ServerWorker
+  alias SSHClient.Vault
 
   @refresh_interval 5_000
 
@@ -17,23 +18,27 @@ defmodule SSHClientWeb.HostLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      :timer.send_interval(@refresh_interval, :refresh)
+    if not Vault.unlocked?() do
+      {:ok, push_navigate(socket, to: "/lock")}
+    else
+      if connected?(socket) do
+        :timer.send_interval(@refresh_interval, :refresh)
+      end
+
+      socket =
+        socket
+        |> assign(:page_title, "ssh-client")
+        |> assign(:filter, "")
+        |> assign(:add_modal, false)
+        |> assign(:new_name, "")
+        |> assign(:new_host, "")
+        |> assign(:new_user, "")
+        |> assign(:new_port, "22")
+        |> assign(:error, nil)
+        |> load_servers()
+
+      {:ok, socket}
     end
-
-    socket =
-      socket
-      |> assign(:page_title, "ssh-client")
-      |> assign(:filter, "")
-      |> assign(:add_modal, false)
-      |> assign(:new_name, "")
-      |> assign(:new_host, "")
-      |> assign(:new_user, "")
-      |> assign(:new_port, "22")
-      |> assign(:error, nil)
-      |> load_servers()
-
-    {:ok, socket}
   end
 
   # ---------------------------------------------------------------------------
@@ -129,6 +134,11 @@ defmodule SSHClientWeb.HostLive do
     end
   end
 
+  def handle_event("lock_vault", _params, socket) do
+    Vault.lock()
+    {:noreply, push_navigate(socket, to: "/lock")}
+  end
+
   # ---------------------------------------------------------------------------
   # Info
   # ---------------------------------------------------------------------------
@@ -151,12 +161,15 @@ defmodule SSHClientWeb.HostLive do
     <div class="flex h-full min-h-screen bg-[#050505]">
       <!-- Sidebar -->
       <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col shrink-0">
-        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center gap-3">
-          <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
-          <div>
-            <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-            <span class="block text-[10px] text-zinc-600 font-mono">v0.0.1</span>
+        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
+            <div>
+              <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
+              <span class="block text-[10px] text-zinc-600 font-mono">v0.0.1</span>
+            </div>
           </div>
+          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
         </div>
         <nav class="flex-1 px-3 py-4 space-y-0.5">
           <a
@@ -182,12 +195,21 @@ defmodule SSHClientWeb.HostLive do
           <span class="text-[11px] text-zinc-700">
             <%= length(@servers) %> host<%= if length(@servers) != 1, do: "s" %>
           </span>
-          <a
-            href="/settings"
-            class="text-[10px] text-blue-500 hover:text-blue-400 font-mono transition-colors"
-          >
-            Update
-          </a>
+          <div class="flex items-center gap-2.5">
+            <button
+              phx-click="lock_vault"
+              class="text-[10px] text-zinc-600 hover:text-zinc-400 font-mono transition-colors"
+              title="Lock Vault"
+            >
+              Lock
+            </button>
+            <a
+              href="/settings"
+              class="text-[10px] text-blue-500 hover:text-blue-400 font-mono transition-colors"
+            >
+              Update
+            </a>
+          </div>
         </div>
       </aside>
 
@@ -269,41 +291,66 @@ defmodule SSHClientWeb.HostLive do
                       </div>
                     </td>
                     <td class="px-6 py-3.5">
-                      <span class={["text-[13px] font-mono", metric_color(server.cpu_percent)]}>
-                        <%= format_pct(server.cpu_percent) %>
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <div class="w-14 h-1.5 bg-[#18181b] rounded-full overflow-hidden shrink-0">
+                          <div class={["h-full rounded-full transition-all duration-300", bar_color(server.cpu_percent)]} style={"width: #{min(100.0, max(0.0, server.cpu_percent))}%"}></div>
+                        </div>
+                        <span class={["text-[12px] font-mono font-medium", metric_color(server.cpu_percent)]}>
+                          <%= format_pct(server.cpu_percent) %>
+                        </span>
+                      </div>
                     </td>
                     <td class="px-6 py-3.5">
-                      <span class={["text-[13px] font-mono", metric_color(server.ram_percent)]}>
-                        <%= format_pct(server.ram_percent) %>
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <div class="w-14 h-1.5 bg-[#18181b] rounded-full overflow-hidden shrink-0">
+                          <div class={["h-full rounded-full transition-all duration-300", bar_color(server.ram_percent)]} style={"width: #{min(100.0, max(0.0, server.ram_percent))}%"}></div>
+                        </div>
+                        <span class={["text-[12px] font-mono font-medium", metric_color(server.ram_percent)]}>
+                          <%= format_pct(server.ram_percent) %>
+                        </span>
+                      </div>
                     </td>
                     <td class="px-6 py-3.5">
-                      <span class={["text-[13px] font-mono", metric_color(server.disk_percent)]}>
-                        <%= format_pct(server.disk_percent) %>
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <div class="w-14 h-1.5 bg-[#18181b] rounded-full overflow-hidden shrink-0">
+                          <div class={["h-full rounded-full transition-all duration-300", bar_color(server.disk_percent)]} style={"width: #{min(100.0, max(0.0, server.disk_percent))}%"}></div>
+                        </div>
+                        <span class={["text-[12px] font-mono font-medium", metric_color(server.disk_percent)]}>
+                          <%= format_pct(server.disk_percent) %>
+                        </span>
+                      </div>
                     </td>
                     <td class="px-6 py-3.5 text-right">
-                      <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          phx-click="poll_now"
-                          phx-value-id={server.id}
-                          class="px-2.5 py-1 bg-[#111] border border-[#1f1f1f] hover:border-zinc-600 text-zinc-400 text-xs rounded-md transition-colors"
-                        >
-                          Refresh
-                        </button>
+                      <div class="flex items-center justify-end gap-1.5">
                         <button
                           phx-click="connect"
                           phx-value-id={server.id}
-                          class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-md transition-colors"
+                          class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
+                          title="Open Interactive Terminal"
                         >
                           Terminal
+                        </button>
+                        <a
+                          href={"/sftp/#{server.id}"}
+                          class="px-2.5 py-1 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs font-mono rounded-md transition-colors inline-flex items-center"
+                          title="Open SFTP File Explorer"
+                        >
+                          SFTP
+                        </a>
+                        <button
+                          phx-click="poll_now"
+                          phx-value-id={server.id}
+                          class="px-2 py-1 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-400 hover:text-white text-xs font-mono rounded-md transition-colors"
+                          title="Refresh Server Metrics"
+                        >
+                          Refresh
                         </button>
                         <button
                           phx-click="remove_server"
                           phx-value-id={server.id}
                           data-confirm={"Are you sure you want to remove #{server.name}?"}
-                          class="px-2 py-1 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 text-xs rounded-md transition-colors"
+                          class="px-2 py-1 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs font-mono rounded-md transition-colors"
+                          title="Delete Host Configuration"
                         >
                           Delete
                         </button>
@@ -420,15 +467,39 @@ defmodule SSHClientWeb.HostLive do
     status = normalize_status(server[:status])
     metrics = server[:metrics] || %{}
 
+    cpu_val =
+      get_in(metrics, [:cpu, :used_percent]) ||
+      get_in(metrics, ["cpu", "used_percent"]) ||
+      Map.get(metrics, :cpu_percent, Map.get(metrics, "cpu_percent", 0.0))
+
+    ram_val =
+      get_in(metrics, [:memory, :used_percent]) ||
+      get_in(metrics, ["memory", "used_percent"]) ||
+      Map.get(metrics, :ram_percent, Map.get(metrics, "ram_percent", 0.0))
+
+    disk_val =
+      get_in(metrics, [:disk, :used_percent]) ||
+      get_in(metrics, ["disk", "used_percent"]) ||
+      Map.get(metrics, :disk_percent, Map.get(metrics, "disk_percent", 0.0))
+
+    load_1 =
+      get_in(metrics, [:cpu, :load_1]) ||
+      get_in(metrics, ["cpu", "load_1"]) ||
+      0.0
+
+    uptime_str = metrics[:uptime] || metrics["uptime"] || nil
+
     %{
       id: to_string(server[:id]),
       name: to_string(server[:name] || server[:id]),
       host: to_string(server[:host] || ""),
       status: status,
       last_error: server[:last_error],
-      cpu_percent: Map.get(metrics, :cpu_percent, Map.get(metrics, "cpu_percent", 0.0)) |> to_float(),
-      ram_percent: Map.get(metrics, :ram_percent, Map.get(metrics, "ram_percent", 0.0)) |> to_float(),
-      disk_percent: Map.get(metrics, :disk_percent, Map.get(metrics, "disk_percent", 0.0)) |> to_float()
+      cpu_percent: to_float(cpu_val),
+      ram_percent: to_float(ram_val),
+      disk_percent: to_float(disk_val),
+      load_1: to_float(load_1),
+      uptime: uptime_str
     }
   end
 
@@ -447,6 +518,10 @@ defmodule SSHClientWeb.HostLive do
   defp badge_class("degraded"), do: "bg-amber-500/10 text-amber-400 border border-amber-500/20"
   defp badge_class("reconnecting"), do: "bg-purple-500/10 text-purple-400 border border-purple-500/20"
   defp badge_class(_), do: "bg-zinc-800 text-zinc-500 border border-zinc-700/50"
+
+  defp bar_color(v) when v >= 90, do: "bg-red-500"
+  defp bar_color(v) when v >= 70, do: "bg-amber-500"
+  defp bar_color(_), do: "bg-emerald-500"
 
   defp metric_color(v) when v >= 90, do: "text-red-400"
   defp metric_color(v) when v >= 70, do: "text-amber-400"

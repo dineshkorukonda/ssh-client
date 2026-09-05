@@ -13,33 +13,38 @@ defmodule SSHClientWeb.SettingsLive do
   alias SSHClient.SSH.ConfigImporter
   alias SSHClient.SSH.HostKeyVerifier
   alias SSHClient.Updater
+  alias SSHClient.Vault
 
   @impl true
   def mount(_params, _session, socket) do
-    config_path = Config.default_config_path()
-    known_hosts_path = HostKeyVerifier.known_hosts_path()
-    known_hosts_entries = HostKeyVerifier.load_known_hosts()
-    discovered_keys = Auth.resolve_identities()
-    active_servers = list_active_servers()
+    if not Vault.unlocked?() do
+      {:ok, push_navigate(socket, to: "/lock")}
+    else
+      config_path = Config.default_config_path()
+      known_hosts_path = HostKeyVerifier.known_hosts_path()
+      known_hosts_entries = HostKeyVerifier.load_known_hosts()
+      discovered_keys = Auth.resolve_identities()
+      active_servers = list_active_servers()
 
-    socket =
-      socket
-      |> assign(:page_title, "Settings — ssh-client")
-      |> assign(:current_tab, :general)
-      |> assign(:config_path, config_path)
-      |> assign(:known_hosts_path, known_hosts_path)
-      |> assign(:known_hosts_count, length(known_hosts_entries))
-      |> assign(:discovered_keys, discovered_keys)
-      |> assign(:active_servers_count, length(active_servers))
-      |> assign(:version, Updater.current_version())
-      |> assign(:platform, detect_platform())
-      |> assign(:checking_update, false)
-      |> assign(:update_info, nil)
-      |> assign(:update_error, nil)
-      |> assign(:import_candidates, [])
-      |> assign(:import_status, nil)
+      socket =
+        socket
+        |> assign(:page_title, "Settings — ssh-client")
+        |> assign(:current_tab, :general)
+        |> assign(:config_path, config_path)
+        |> assign(:known_hosts_path, known_hosts_path)
+        |> assign(:known_hosts_count, length(known_hosts_entries))
+        |> assign(:discovered_keys, discovered_keys)
+        |> assign(:active_servers_count, length(active_servers))
+        |> assign(:version, Updater.current_version())
+        |> assign(:platform, detect_platform())
+        |> assign(:checking_update, false)
+        |> assign(:update_info, nil)
+        |> assign(:update_error, nil)
+        |> assign(:import_candidates, [])
+        |> assign(:import_status, nil)
 
-    {:ok, socket}
+      {:ok, socket}
+    end
   end
 
   @impl true
@@ -101,18 +106,26 @@ defmodule SSHClientWeb.SettingsLive do
      |> assign(:active_servers_count, length(active))}
   end
 
+  def handle_event("lock_vault", _params, socket) do
+    Vault.lock()
+    {:noreply, push_navigate(socket, to: "/lock")}
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
     <div class="flex h-full min-h-screen bg-[#050505]">
       <!-- Sidebar -->
       <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col shrink-0">
-        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center gap-3">
-          <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
-          <div>
-            <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-            <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
+        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
+            <div>
+              <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
+              <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
+            </div>
           </div>
+          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
         </div>
         <nav class="flex-1 px-3 py-4 space-y-0.5">
           <a
@@ -134,10 +147,17 @@ defmodule SSHClientWeb.SettingsLive do
             Settings
           </a>
         </nav>
-        <div class="px-5 py-4 border-t border-[#1f1f1f]">
+        <div class="px-5 py-4 border-t border-[#1f1f1f] flex items-center justify-between">
           <span class="text-[11px] text-zinc-700">
-            <%= @active_servers_count %> host<%= if @active_servers_count != 1, do: "s" %> configured
+            <%= @active_servers_count %> host<%= if @active_servers_count != 1, do: "s" %>
           </span>
+          <button
+            phx-click="lock_vault"
+            class="text-[10px] text-zinc-600 hover:text-zinc-400 font-mono transition-colors"
+            title="Lock Vault"
+          >
+            Lock
+          </button>
         </div>
       </aside>
 

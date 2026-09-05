@@ -8,28 +8,33 @@ defmodule SSHClientWeb.LogsLive do
 
   alias SSHClient.ActivityLog
   alias SSHClient.ServerManager
+  alias SSHClient.Vault
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      ActivityLog.subscribe()
+    if not Vault.unlocked?() do
+      {:ok, push_navigate(socket, to: "/lock")}
+    else
+      if connected?(socket) do
+        ActivityLog.subscribe()
+      end
+
+      servers = list_server_ids()
+      logs = ActivityLog.list_logs(limit: 200)
+
+      socket =
+        socket
+        |> assign(:page_title, "Activity Logs — ssh-client")
+        |> assign(:servers, servers)
+        |> assign(:selected_server, "all")
+        |> assign(:selected_level, "all")
+        |> assign(:search_query, "")
+        |> assign(:logs, logs)
+        |> assign(:selected_entry, nil)
+        |> assign(:version, "0.0.1")
+
+      {:ok, socket}
     end
-
-    servers = list_server_ids()
-    logs = ActivityLog.list_logs(limit: 200)
-
-    socket =
-      socket
-      |> assign(:page_title, "Activity Logs — ssh-client")
-      |> assign(:servers, servers)
-      |> assign(:selected_server, "all")
-      |> assign(:selected_level, "all")
-      |> assign(:search_query, "")
-      |> assign(:logs, logs)
-      |> assign(:selected_entry, nil)
-      |> assign(:version, "0.0.1")
-
-    {:ok, socket}
   end
 
   @impl true
@@ -64,6 +69,11 @@ defmodule SSHClientWeb.LogsLive do
     {:noreply, assign(socket, :selected_entry, nil)}
   end
 
+  def handle_event("lock_vault", _params, socket) do
+    Vault.lock()
+    {:noreply, push_navigate(socket, to: "/lock")}
+  end
+
   @impl true
   def handle_info({:new_log_entry, entry}, socket) do
     new_logs = [entry | Enum.take(socket.assigns.logs, 199)]
@@ -90,12 +100,15 @@ defmodule SSHClientWeb.LogsLive do
     <div class="flex h-full min-h-screen bg-[#050505]">
       <!-- Sidebar -->
       <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col shrink-0">
-        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center gap-3">
-          <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
-          <div>
-            <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-            <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
+        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md invert" />
+            <div>
+              <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
+              <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
+            </div>
           </div>
+          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
         </div>
         <nav class="flex-1 px-3 py-4 space-y-0.5">
           <a
@@ -117,10 +130,17 @@ defmodule SSHClientWeb.LogsLive do
             Settings
           </a>
         </nav>
-        <div class="px-5 py-4 border-t border-[#1f1f1f]">
+        <div class="px-5 py-4 border-t border-[#1f1f1f] flex items-center justify-between">
           <span class="text-[11px] text-zinc-700 font-mono">
-            <%= length(@logs) %> events recorded
+            <%= length(@logs) %> events
           </span>
+          <button
+            phx-click="lock_vault"
+            class="text-[10px] text-zinc-600 hover:text-zinc-400 font-mono transition-colors"
+            title="Lock Vault"
+          >
+            Lock
+          </button>
         </div>
       </aside>
 
