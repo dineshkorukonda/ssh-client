@@ -6,6 +6,7 @@ defmodule SSHClientWeb.HostLive do
 
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
 
+  alias SSHClient.Keychain
   alias SSHClient.ServerManager
   alias SSHClient.ServerWorker
   alias SSHClient.Vault
@@ -36,7 +37,18 @@ defmodule SSHClientWeb.HostLive do
         |> assign(:new_name, "")
         |> assign(:new_host, "")
         |> assign(:new_user, "")
+        |> assign(:new_users, "")
+        |> assign(:new_auth_method, "key")
         |> assign(:new_port, "22")
+        |> assign(:connect_modal, false)
+        |> assign(:connect_server, nil)
+        |> assign(:connect_user, "")
+        |> assign(:connect_users, [])
+        |> assign(:connect_auth_method, :key)
+        |> assign(:connect_password, "")
+        |> assign(:connect_remember, true)
+        |> assign(:has_saved_password, false)
+        |> assign(:custom_user, "")
         |> assign(:error, nil)
         |> load_servers()
 
@@ -79,7 +91,124 @@ defmodule SSHClientWeb.HostLive do
   end
 
   def handle_event("connect", %{"id" => id}, socket) do
-    {:noreply, push_navigate(socket, to: "/terminal/#{id}")}
+    case Enum.find(socket.assigns.servers, &(&1.id == id)) do
+      nil ->
+        {:noreply, push_navigate(socket, to: "/terminal/#{id}")}
+
+      server ->
+        users = server.users || []
+
+        if length(users) > 1 or server.default_auth_method == :password do
+          handle_event("open_connect_modal", %{"id" => id}, socket)
+        else
+          user_param = if server.user, do: "?user=#{URI.encode_www_form(server.user)}", else: ""
+          {:noreply, push_navigate(socket, to: "/terminal/#{id}#{user_param}")}
+        end
+    end
+  end
+
+  def handle_event("open_connect_modal", %{"id" => id}, socket) do
+    case Enum.find(socket.assigns.servers, &(&1.id == id)) do
+      nil ->
+        {:noreply, socket}
+
+      server ->
+        users =
+          case server.users do
+            list when is_list(list) and list != [] -> list
+            _ -> if server.user, do: [server.user], else: []
+          end
+
+        primary_user = server.user || List.first(users) || ""
+        auth_method = server.default_auth_method || :key
+
+        has_saved_pwd =
+          if primary_user != "" do
+            match?({:ok, secret} when is_binary(secret) and secret != "", Keychain.retrieve("#{primary_user}@#{server.id}"))
+          else
+            false
+          end
+
+        socket =
+          socket
+          |> assign(:connect_modal, true)
+          |> assign(:connect_server, server)
+          |> assign(:connect_user, primary_user)
+          |> assign(:connect_users, users)
+          |> assign(:connect_auth_method, auth_method)
+          |> assign(:connect_password, "")
+          |> assign(:connect_remember, true)
+          |> assign(:has_saved_password, has_saved_pwd)
+          |> assign(:custom_user, "")
+
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_connect_modal", _params, socket) do
+    {:noreply, assign(socket, connect_modal: false, connect_server: nil, error: nil)}
+  end
+
+  def handle_event("select_connect_user", %{"user" => user}, socket) do
+    server = socket.assigns.connect_server
+
+    has_saved_pwd =
+      if server && user != "" and user != "custom" do
+        match?({:ok, secret} when is_binary(secret) and secret != "", Keychain.retrieve("#{user}@#{server.id}"))
+      else
+        false
+      end
+
+    socket =
+      socket
+      |> assign(:connect_user, user)
+      |> assign(:has_saved_password, has_saved_pwd)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("set_connect_auth_method", %{"method" => method}, socket) do
+    auth_atom = if method in ["password", :password], do: :password, else: :key
+    {:noreply, assign(socket, :connect_auth_method, auth_atom)}
+  end
+
+  def handle_event("submit_connect", params, socket) do
+    server = socket.assigns.connect_server
+
+    user =
+      case params["user"] do
+        "custom" -> String.trim(params["custom_user"] || "")
+        u when is_binary(u) and u != "" -> String.trim(u)
+        _ -> socket.assigns.connect_user
+      end
+
+    user = if user == "", do: (server && server.user) || "root", else: user
+
+    auth_method = if params["auth_method"] in ["password", :password], do: :password, else: :key
+    password = params["password"] || ""
+    remember = params["remember"] in ["true", true, "on"]
+    action = params["action"] || "terminal"
+
+    if server do
+      if auth_method == :password and password != "" do
+        if remember do
+          Keychain.store("#{user}@#{server.id}", password)
+        else
+          Keychain.store("#{user}@#{server.id}", password, backend: :memory)
+        end
+      end
+
+      path =
+        if action == "sftp" do
+          "/sftp/#{server.id}?user=#{URI.encode_www_form(user)}"
+        else
+          "/terminal/#{server.id}?user=#{URI.encode_www_form(user)}&auth=#{auth_method}"
+        end
+
+      {:noreply, socket |> assign(:connect_modal, false) |> push_navigate(to: path)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("open_add_modal", _params, socket) do
@@ -94,6 +223,9 @@ defmodule SSHClientWeb.HostLive do
     name = String.trim(params["name"] || "")
     host = String.trim(params["host"] || "")
     user = String.trim(params["user"] || "")
+    extra_users = String.trim(params["users"] || "")
+    auth_method = if params["auth_method"] in ["password", :password], do: "password", else: "key"
+
     port =
       case Integer.parse(params["port"] || "22") do
         {p, ""} when p in 1..65535 -> p
@@ -103,11 +235,19 @@ defmodule SSHClientWeb.HostLive do
     if name == "" or host == "" or user == "" do
       {:noreply, assign(socket, :error, "Name, host, and user are required.")}
     else
+      parsed_users =
+        [user | String.split(extra_users, ",", trim: true)]
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.uniq()
+
       config = %{
         "id" => String.downcase(String.replace(name, ~r/\s+/, "-")),
         "name" => name,
         "host" => host,
         "user" => user,
+        "users" => parsed_users,
+        "default_auth_method" => auth_method,
         "port" => port
       }
 
@@ -276,8 +416,27 @@ defmodule SSHClientWeb.HostLive do
                     <td class="px-6 py-3.5 font-medium text-white">
                       <%= server.name %>
                     </td>
-                    <td class="px-6 py-3.5 text-zinc-500 font-mono text-[13px]">
-                      <%= server.host %>
+                    <td class="px-6 py-3.5 font-mono text-[13px]">
+                      <div class="text-zinc-300"><%= server.host %></div>
+                      <div class="text-[11px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+                        <span><%= server.user %></span>
+                        <%= if length(server.users || []) > 1 do %>
+                          <button
+                            type="button"
+                            phx-click="open_connect_modal"
+                            phx-value-id={server.id}
+                            class="text-[10px] px-1.5 py-0.5 bg-[#18181b] hover:bg-[#27272a] text-zinc-400 hover:text-zinc-200 border border-[#27272a] rounded transition-colors"
+                            title="Multiple accounts configured - click to select"
+                          >
+                            +<%= length(server.users) - 1 %> users
+                          </button>
+                        <% end %>
+                        <%= if server.default_auth_method == :password do %>
+                          <span class="text-[10px] px-1 py-0.2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded font-mono" title="Password Authentication">
+                            pwd
+                          </span>
+                        <% end %>
+                      </div>
                     </td>
                     <td class="px-6 py-3.5">
                       <div class="flex items-center gap-1.5">
@@ -326,12 +485,12 @@ defmodule SSHClientWeb.HostLive do
                     <td class="px-6 py-3.5 text-right">
                       <div class="flex items-center justify-end gap-1.5">
                         <button
-                          phx-click="connect"
+                          phx-click="open_connect_modal"
                           phx-value-id={server.id}
                           class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
-                          title="Open Interactive Terminal"
+                          title="Connect (Select account and auth method)"
                         >
-                          Terminal
+                          Connect
                         </button>
                         <a
                           href={"/sftp/#{server.id}"}
@@ -426,6 +585,25 @@ defmodule SSHClientWeb.HostLive do
                 />
               </div>
             </div>
+            <div>
+              <label class="block text-[11px] text-zinc-600 uppercase tracking-wider mb-1.5">Additional Users (optional, comma-separated)</label>
+              <input
+                type="text"
+                name="users"
+                placeholder="root, deploy, developer"
+                class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] text-zinc-600 uppercase tracking-wider mb-1.5">Default Authentication</label>
+              <select
+                name="auth_method"
+                class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 focus:outline-none font-mono"
+              >
+                <option value="key">SSH Key</option>
+                <option value="password">Password</option>
+              </select>
+            </div>
             <div class="flex gap-2 pt-1">
               <button
                 type="button"
@@ -439,6 +617,153 @@ defmodule SSHClientWeb.HostLive do
                 class="flex-1 h-9 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
               >
                 Add Host
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Connect Modal (Multi-User & Password Auth) -->
+    <%= if @connect_modal and @connect_server do %>
+      <div class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-semibold text-white">Connect to <%= @connect_server.name %></h2>
+              <p class="text-[11px] text-zinc-500 font-mono mt-0.5"><%= @connect_server.host %>:<%= @connect_server.port %></p>
+            </div>
+            <button phx-click="close_connect_modal" class="text-zinc-600 hover:text-zinc-400 transition-colors text-lg leading-none">&times;</button>
+          </div>
+
+          <form phx-submit="submit_connect" class="space-y-4">
+            <!-- Target User Selection -->
+            <div>
+              <label class="block text-[11px] text-zinc-500 uppercase tracking-wider mb-2 font-mono">User Account</label>
+              <div class="flex flex-wrap gap-1.5 mb-2">
+                <%= for u <- @connect_users do %>
+                  <button
+                    type="button"
+                    phx-click="select_connect_user"
+                    phx-value-user={u}
+                    class={["px-2.5 py-1 text-xs font-mono rounded-md border transition-colors",
+                      if(@connect_user == u, do: "bg-blue-600/20 border-blue-500/50 text-blue-400 font-semibold", else: "bg-[#141414] border-[#222] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700")]}
+                  >
+                    <%= u %>
+                  </button>
+                <% end %>
+                <button
+                  type="button"
+                  phx-click="select_connect_user"
+                  phx-value-user="custom"
+                  class={["px-2.5 py-1 text-xs font-mono rounded-md border transition-colors",
+                    if(@connect_user == "custom", do: "bg-blue-600/20 border-blue-500/50 text-blue-400 font-semibold", else: "bg-[#141414] border-[#222] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700")]}
+                >
+                  + Other
+                </button>
+              </div>
+
+              <input type="hidden" name="user" value={@connect_user} />
+
+              <%= if @connect_user == "custom" do %>
+                <input
+                  type="text"
+                  name="custom_user"
+                  placeholder="Enter username (e.g. deploy)"
+                  required
+                  class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
+                />
+              <% end %>
+            </div>
+
+            <!-- Authentication Method Tabs -->
+            <div>
+              <label class="block text-[11px] text-zinc-500 uppercase tracking-wider mb-1.5 font-mono">Authentication</label>
+              <div class="grid grid-cols-2 gap-2 p-1 bg-[#111] border border-[#1f1f1f] rounded-lg">
+                <button
+                  type="button"
+                  phx-click="set_connect_auth_method"
+                  phx-value-method="key"
+                  class={["py-1 text-xs font-mono rounded transition-colors text-center",
+                    if(@connect_auth_method == :key, do: "bg-[#1f1f1f] text-white font-medium", else: "text-zinc-500 hover:text-zinc-300")]}
+                >
+                  SSH Key
+                </button>
+                <button
+                  type="button"
+                  phx-click="set_connect_auth_method"
+                  phx-value-method="password"
+                  class={["py-1 text-xs font-mono rounded transition-colors text-center",
+                    if(@connect_auth_method == :password, do: "bg-[#1f1f1f] text-white font-medium", else: "text-zinc-500 hover:text-zinc-300")]}
+                >
+                  Password
+                </button>
+              </div>
+              <input type="hidden" name="auth_method" value={to_string(@connect_auth_method)} />
+            </div>
+
+            <!-- Password Input (if Password auth selected) -->
+            <%= if @connect_auth_method == :password do %>
+              <div class="space-y-2">
+                <%= if @has_saved_password do %>
+                  <div class="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-xs font-mono flex items-center justify-between">
+                    <span>Saved password available in Credential Manager</span>
+                  </div>
+                <% end %>
+
+                <div>
+                  <label class="block text-[11px] text-zinc-500 uppercase tracking-wider mb-1 font-mono">
+                    <%= if @has_saved_password, do: "Override Password (optional)", else: "Server Password" %>
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={@connect_password}
+                    placeholder={if @has_saved_password, do: "Leave empty to use saved password", else: "Enter server password"}
+                    class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div class="flex items-center gap-2 pt-0.5">
+                  <input
+                    type="checkbox"
+                    id="remember_keychain"
+                    name="remember"
+                    value="true"
+                    checked={@connect_remember}
+                    class="rounded border-[#27272a] bg-[#111] text-blue-600 focus:ring-0 focus:ring-offset-0"
+                  />
+                  <label for="remember_keychain" class="text-xs text-zinc-400 select-none cursor-pointer">
+                    Remember password in OS Keychain / Credential Manager
+                  </label>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Submit Actions: Terminal vs SFTP -->
+            <div class="flex gap-2 pt-2">
+              <button
+                type="submit"
+                name="action"
+                value="terminal"
+                class="flex-1 h-9 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-mono font-medium transition-colors"
+              >
+                Launch Terminal
+              </button>
+              <button
+                type="submit"
+                name="action"
+                value="sftp"
+                class="px-4 h-9 bg-[#141414] hover:bg-[#1f1f1f] border border-[#27272a] hover:border-zinc-500 text-zinc-200 rounded-lg text-xs font-mono transition-colors"
+              >
+                Open SFTP
+              </button>
+              <button
+                type="button"
+                phx-click="close_connect_modal"
+                class="px-3 h-9 bg-transparent hover:bg-white/5 text-zinc-500 hover:text-zinc-300 rounded-lg text-xs font-mono transition-colors"
+              >
+                Cancel
               </button>
             </div>
           </form>
@@ -492,10 +817,27 @@ defmodule SSHClientWeb.HostLive do
 
     uptime_str = metrics[:uptime] || metrics["uptime"] || nil
 
+    raw_users = server[:users] || []
+    raw_user = server[:user]
+
+    users =
+      cond do
+        is_list(raw_users) and raw_users != [] -> Enum.map(raw_users, &to_string/1)
+        raw_user && to_string(raw_user) != "" -> [to_string(raw_user)]
+        true -> []
+      end
+
+    primary_user = if raw_user && to_string(raw_user) != "", do: to_string(raw_user), else: List.first(users)
+    auth_method = server[:default_auth_method] || server[:auth_method] || :key
+
     %{
       id: to_string(server[:id]),
       name: to_string(server[:name] || server[:id]),
       host: to_string(server[:host] || ""),
+      user: primary_user,
+      users: users,
+      default_auth_method: auth_method,
+      port: server[:port] || 22,
       status: status,
       last_error: server[:last_error],
       cpu_percent: to_float(cpu_val),
