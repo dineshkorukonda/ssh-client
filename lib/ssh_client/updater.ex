@@ -298,7 +298,7 @@ defmodule SSHClient.Updater do
 
     echo === ssh-client update started: %date% %time% === > "#{win_log}"
 
-    :: 1. Pause cleanly without using non-interactive timeout command
+    :: 1. Pause cleanly using ping delay
     ping -n 3 127.0.0.1 >nul 2>&1
 
     :: 2. Forcefully terminate running instances and child daemons to release file locks
