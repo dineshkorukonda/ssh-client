@@ -42,6 +42,12 @@ defmodule SSHClientWeb.HostLiveTest do
     assert HostLive.fuzzy_score(server, "zzznomatch") == 0
   end
 
+  defp build_socket(assigns) do
+    %Phoenix.LiveView.Socket{
+      assigns: Map.put(assigns, :__changed__, %{})
+    }
+  end
+
   describe "connect modal event handlers" do
     test "open_connect_modal assigns server, users, and auth method" do
       server = %{
@@ -54,8 +60,8 @@ defmodule SSHClientWeb.HostLiveTest do
         default_auth_method: :password
       }
 
-      socket = %Phoenix.LiveView.Socket{
-        assigns: %{
+      socket =
+        build_socket(%{
           servers: [server],
           connect_modal: false,
           connect_server: nil,
@@ -66,8 +72,7 @@ defmodule SSHClientWeb.HostLiveTest do
           connect_remember: true,
           has_saved_password: false,
           custom_user: ""
-        }
-      }
+        })
 
       assert {:noreply, updated} = HostLive.handle_event("open_connect_modal", %{"id" => "srv-multi"}, socket)
       assert updated.assigns.connect_modal == true
@@ -77,25 +82,37 @@ defmodule SSHClientWeb.HostLiveTest do
       assert updated.assigns.connect_auth_method == :password
     end
 
+    test "close_connect_modal resets modal state" do
+      socket =
+        build_socket(%{
+          connect_modal: true,
+          connect_server: %{id: "srv-multi"},
+          error: "some error"
+        })
+
+      assert {:noreply, updated} = HostLive.handle_event("close_connect_modal", %{}, socket)
+      assert updated.assigns.connect_modal == false
+      assert updated.assigns.connect_server == nil
+      assert updated.assigns.error == nil
+    end
+
     test "select_connect_user switches target user" do
-      socket = %Phoenix.LiveView.Socket{
-        assigns: %{
+      socket =
+        build_socket(%{
           connect_server: %{id: "srv-multi"},
           connect_user: "ubuntu",
           has_saved_password: false
-        }
-      }
+        })
 
       assert {:noreply, updated} = HostLive.handle_event("select_connect_user", %{"user" => "root"}, socket)
       assert updated.assigns.connect_user == "root"
     end
 
     test "set_connect_auth_method switches auth method" do
-      socket = %Phoenix.LiveView.Socket{
-        assigns: %{
+      socket =
+        build_socket(%{
           connect_auth_method: :key
-        }
-      }
+        })
 
       assert {:noreply, updated} = HostLive.handle_event("set_connect_auth_method", %{"method" => "password"}, socket)
       assert updated.assigns.connect_auth_method == :password
