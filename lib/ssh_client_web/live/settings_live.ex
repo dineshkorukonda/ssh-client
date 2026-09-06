@@ -9,7 +9,7 @@ defmodule SSHClientWeb.SettingsLive do
 
   alias SSHClient.Config
   alias SSHClient.ServerManager
-
+  alias SSHClient.SSH.Auth
   alias SSHClient.SSH.ConfigImporter
   alias SSHClient.SSH.HostKeyVerifier
   alias SSHClient.Updater
