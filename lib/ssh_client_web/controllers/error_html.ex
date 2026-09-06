@@ -1,7 +1,7 @@
 defmodule SSHClientWeb.ErrorHTML do
   use Phoenix.Component
 
-  def render("404.html", _assigns) do
+  def render("404.html", assigns) do
     ~H"""
     <!DOCTYPE html>
     <html lang="en" class="h-full">
@@ -26,7 +26,7 @@ defmodule SSHClientWeb.ErrorHTML do
     """
   end
 
-  def render("500.html", _assigns) do
+  def render("500.html", assigns) do
     ~H"""
     <!DOCTYPE html>
     <html lang="en" class="h-full">
