@@ -2,7 +2,7 @@
 ; Produces a single-file .exe installer for Windows x64
 
 #define AppName "ssh-client"
-#define AppVersion "0.0.11"
+#define AppVersion "0.0.12"
 #define AppPublisher "Dinesh Korukonda"
 #define AppURL "https://github.com/dineshkorukonda/ssh-client"
 #define AppExeName "ssh_client.bat"
