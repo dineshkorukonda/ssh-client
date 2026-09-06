@@ -121,4 +121,105 @@ defmodule SSHClientWeb.HostLiveTest do
       assert updated_key.assigns.connect_auth_method == :key
     end
   end
+
+  describe "add server modal event handlers" do
+    test "form_change preserves typed form values across renders" do
+      socket =
+        build_socket(%{
+          new_name: "",
+          new_host: "",
+          new_user: "",
+          new_port: "22",
+          new_users: "",
+          new_auth_method: "key",
+          new_password: "",
+          new_remember_password: true
+        })
+
+      params = %{
+        "name" => "Staging Redis",
+        "host" => "192.168.1.50",
+        "user" => "deploy",
+        "port" => "2222",
+        "users" => "deploy, admin",
+        "auth_method" => "password",
+        "password" => "test-pwd",
+        "remember_password" => "true"
+      }
+
+      assert {:noreply, updated} = HostLive.handle_event("form_change", params, socket)
+      assert updated.assigns.new_name == "Staging Redis"
+      assert updated.assigns.new_host == "192.168.1.50"
+      assert updated.assigns.new_user == "deploy"
+      assert updated.assigns.new_port == "2222"
+      assert updated.assigns.new_users == "deploy, admin"
+      assert updated.assigns.new_auth_method == "password"
+      assert updated.assigns.new_password == "test-pwd"
+      assert updated.assigns.new_remember_password == true
+    end
+
+    test "open_add_modal and close_add_modal reset form assigns" do
+      socket =
+        build_socket(%{
+          add_modal: true,
+          error: "Some error",
+          new_name: "Dirty Name",
+          new_host: "10.0.0.1",
+          new_user: "root",
+          new_port: "22",
+          new_users: "root",
+          new_auth_method: "password",
+          new_password: "test-pwd",
+          new_remember_password: true
+        })
+
+      assert {:noreply, closed} = HostLive.handle_event("close_add_modal", %{}, socket)
+      assert closed.assigns.add_modal == false
+      assert is_nil(closed.assigns.error)
+      assert closed.assigns.new_name == ""
+      assert closed.assigns.new_host == ""
+      assert closed.assigns.new_user == ""
+      assert closed.assigns.new_password == ""
+
+      assert {:noreply, reopened} = HostLive.handle_event("open_add_modal", %{}, closed)
+      assert reopened.assigns.add_modal == true
+      assert reopened.assigns.new_name == ""
+      assert reopened.assigns.new_host == ""
+      assert reopened.assigns.new_user == ""
+      assert reopened.assigns.new_password == ""
+    end
+
+    test "add_server with password stores credentials in Keychain" do
+      params = %{
+        "name" => "Secured Vault",
+        "host" => "192.168.5.10",
+        "user" => "appuser",
+        "port" => "22",
+        "users" => "",
+        "auth_method" => "password",
+        "password" => "test-pwd",
+        "remember_password" => "true"
+      }
+
+      socket =
+        build_socket(%{
+          servers: [],
+          add_modal: true,
+          error: nil,
+          new_name: "Secured Vault",
+          new_host: "192.168.5.10",
+          new_user: "appuser",
+          new_port: "22",
+          new_users: "",
+          new_auth_method: "password",
+          new_password: "test-pwd",
+          new_remember_password: true
+        })
+
+      assert {:noreply, updated} = HostLive.handle_event("add_server", params, socket)
+      assert updated.assigns.add_modal == false
+
+      assert {:ok, "test-pwd"} = SSHClient.Keychain.retrieve("appuser@secured-vault")
+    end
+  end
 end

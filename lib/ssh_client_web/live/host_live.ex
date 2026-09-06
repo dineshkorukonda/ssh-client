@@ -40,6 +40,8 @@ defmodule SSHClientWeb.HostLive do
         |> assign(:new_users, "")
         |> assign(:new_auth_method, "key")
         |> assign(:new_port, "22")
+        |> assign(:new_password, "")
+        |> assign(:new_remember_password, true)
         |> assign(:connect_modal, false)
         |> assign(:connect_server, nil)
         |> assign(:connect_user, "")
@@ -212,22 +214,65 @@ defmodule SSHClientWeb.HostLive do
   end
 
   def handle_event("open_add_modal", _params, socket) do
-    {:noreply, assign(socket, :add_modal, true)}
+    {:noreply,
+     assign(socket,
+       add_modal: true,
+       error: nil,
+       new_name: "",
+       new_host: "",
+       new_user: "",
+       new_users: "",
+       new_auth_method: "key",
+       new_port: "22",
+       new_password: "",
+       new_remember_password: true
+     )}
   end
 
   def handle_event("close_add_modal", _params, socket) do
-    {:noreply, assign(socket, add_modal: false, error: nil)}
+    {:noreply,
+     assign(socket,
+       add_modal: false,
+       error: nil,
+       new_name: "",
+       new_host: "",
+       new_user: "",
+       new_users: "",
+       new_auth_method: "key",
+       new_port: "22",
+       new_password: "",
+       new_remember_password: true
+     )}
+  end
+
+  def handle_event("form_change", params, socket) do
+    assigns = socket.assigns
+    new_auth = params["auth_method"] || Map.get(assigns, :new_auth_method, "key")
+    auth_str = if new_auth in ["password", :password], do: "password", else: "key"
+
+    {:noreply,
+     socket
+     |> assign(:new_name, params["name"] || Map.get(assigns, :new_name, ""))
+     |> assign(:new_host, params["host"] || Map.get(assigns, :new_host, ""))
+     |> assign(:new_user, params["user"] || Map.get(assigns, :new_user, ""))
+     |> assign(:new_port, params["port"] || Map.get(assigns, :new_port, "22"))
+     |> assign(:new_users, params["users"] || Map.get(assigns, :new_users, ""))
+     |> assign(:new_auth_method, auth_str)
+     |> assign(:new_password, params["password"] || Map.get(assigns, :new_password, ""))
+     |> assign(:new_remember_password, params["remember_password"] in ["true", true, "on"])}
   end
 
   def handle_event("add_server", params, socket) do
-    name = String.trim(params["name"] || "")
-    host = String.trim(params["host"] || "")
-    user = String.trim(params["user"] || "")
-    extra_users = String.trim(params["users"] || "")
-    auth_method = if params["auth_method"] in ["password", :password], do: "password", else: "key"
+    name = String.trim(params["name"] || socket.assigns[:new_name] || "")
+    host = String.trim(params["host"] || socket.assigns[:new_host] || "")
+    user = String.trim(params["user"] || socket.assigns[:new_user] || "")
+    extra_users = String.trim(params["users"] || socket.assigns[:new_users] || "")
+    auth_method = if (params["auth_method"] || socket.assigns[:new_auth_method]) in ["password", :password], do: "password", else: "key"
+    password = params["password"] || socket.assigns[:new_password] || ""
+    remember = params["remember_password"] in ["true", true, "on"] or socket.assigns[:new_remember_password] == true
 
     port =
-      case Integer.parse(params["port"] || "22") do
+      case Integer.parse(params["port"] || socket.assigns[:new_port] || "22") do
         {p, ""} when p in 1..65535 -> p
         _ -> 22
       end
@@ -241,8 +286,10 @@ defmodule SSHClientWeb.HostLive do
         |> Enum.reject(&(&1 == ""))
         |> Enum.uniq()
 
+      server_id = String.downcase(String.replace(name, ~r/\s+/, "-"))
+
       config = %{
-        "id" => String.downcase(String.replace(name, ~r/\s+/, "-")),
+        "id" => server_id,
         "name" => name,
         "host" => host,
         "user" => user,
@@ -253,10 +300,54 @@ defmodule SSHClientWeb.HostLive do
 
       case ServerManager.add_server(config) do
         {:ok, _result} ->
-          {:noreply, socket |> assign(add_modal: false, error: nil) |> load_servers()}
+          if password != "" do
+            if remember do
+              Keychain.store("#{user}@#{server_id}", password)
+            else
+              Keychain.store("#{user}@#{server_id}", password, backend: :memory)
+            end
+          end
+
+          {:noreply,
+           socket
+           |> assign(
+             add_modal: false,
+             error: nil,
+             new_name: "",
+             new_host: "",
+             new_user: "",
+             new_users: "",
+             new_auth_method: "key",
+             new_port: "22",
+             new_password: "",
+             new_remember_password: true
+           )
+           |> load_servers()}
 
         :ok ->
-          {:noreply, socket |> assign(add_modal: false, error: nil) |> load_servers()}
+          if password != "" do
+            if remember do
+              Keychain.store("#{user}@#{server_id}", password)
+            else
+              Keychain.store("#{user}@#{server_id}", password, backend: :memory)
+            end
+          end
+
+          {:noreply,
+           socket
+           |> assign(
+             add_modal: false,
+             error: nil,
+             new_name: "",
+             new_host: "",
+             new_user: "",
+             new_users: "",
+             new_auth_method: "key",
+             new_port: "22",
+             new_password: "",
+             new_remember_password: true
+           )
+           |> load_servers()}
 
         {:error, reason} ->
           {:noreply, assign(socket, :error, inspect(reason))}
@@ -542,14 +633,19 @@ defmodule SSHClientWeb.HostLive do
             </div>
           <% end %>
 
-          <form phx-submit="add_server" class="space-y-3">
+          <form phx-change="form_change" phx-submit="add_server" autocomplete="off" class="space-y-3">
             <div>
               <label class="block text-[11px] text-zinc-600 uppercase tracking-wider mb-1.5">Name</label>
               <input
                 type="text"
                 name="name"
                 value={@new_name}
+                phx-debounce="200"
                 placeholder="Production Web"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
                 class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none"
               />
             </div>
@@ -559,7 +655,12 @@ defmodule SSHClientWeb.HostLive do
                 type="text"
                 name="host"
                 value={@new_host}
+                phx-debounce="200"
                 placeholder="192.168.1.10"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
                 class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
               />
             </div>
@@ -570,7 +671,12 @@ defmodule SSHClientWeb.HostLive do
                   type="text"
                   name="user"
                   value={@new_user}
+                  phx-debounce="200"
                   placeholder="ubuntu"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
                   class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
                 />
               </div>
@@ -580,7 +686,9 @@ defmodule SSHClientWeb.HostLive do
                   type="number"
                   name="port"
                   value={@new_port}
+                  phx-debounce="200"
                   placeholder="22"
+                  autocomplete="off"
                   class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
                 />
               </div>
@@ -590,7 +698,13 @@ defmodule SSHClientWeb.HostLive do
               <input
                 type="text"
                 name="users"
+                value={@new_users}
+                phx-debounce="200"
                 placeholder="root, deploy, developer"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
                 class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
               />
             </div>
@@ -600,9 +714,36 @@ defmodule SSHClientWeb.HostLive do
                 name="auth_method"
                 class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 focus:outline-none font-mono"
               >
-                <option value="key">SSH Key</option>
-                <option value="password">Password</option>
+                <option value="key" selected={@new_auth_method == "key"}>SSH Key</option>
+                <option value="password" selected={@new_auth_method == "password"}>Password</option>
               </select>
+            </div>
+            <div>
+              <label class="block text-[11px] text-zinc-600 uppercase tracking-wider mb-1.5">
+                Password <%= if @new_auth_method == "password", do: "(required for password auth)", else: "(optional, saved to Keychain)" %>
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={@new_password}
+                phx-debounce="200"
+                placeholder="Enter server password"
+                autocomplete="new-password"
+                class="w-full h-9 px-3 bg-[#111] border border-[#1f1f1f] focus:border-blue-500/60 rounded-lg text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none font-mono"
+              />
+            </div>
+            <div class="flex items-center gap-2 pt-0.5">
+              <input
+                type="checkbox"
+                id="add_remember_password"
+                name="remember_password"
+                value="true"
+                checked={@new_remember_password}
+                class="checkbox checkbox-xs checkbox-primary rounded"
+              />
+              <label for="add_remember_password" class="text-xs text-zinc-400 select-none cursor-pointer">
+                Save password in OS Keychain
+              </label>
             </div>
             <div class="flex gap-2 pt-1">
               <button
