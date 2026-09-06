@@ -65,6 +65,7 @@ defmodule SSHClientWeb.SFTPLive do
         |> assign(:delete_modal, false)
         |> assign(:delete_target, nil) # :local or :remote
         |> assign(:delete_path, nil)
+        |> assign(:target_user, nil)
 
       socket = load_local_dir(socket, local_start)
 
@@ -74,6 +75,12 @@ defmodule SSHClientWeb.SFTPLive do
 
       {:ok, socket}
     end
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    user = params["user"]
+    {:noreply, assign(socket, :target_user, if(user && user != "", do: user, else: nil))}
   end
 
   # ---------------------------------------------------------------------------
@@ -87,11 +94,19 @@ defmodule SSHClientWeb.SFTPLive do
     if is_nil(server) do
       {:noreply, assign(socket, remote_loading: false, error: "Host '#{socket.assigns.server_id}' not found in configuration.")}
     else
-      case SSH.connect(server) do
+      connect_opts =
+        if socket.assigns[:target_user] && socket.assigns[:target_user] != "" do
+          [user: socket.assigns[:target_user]]
+        else
+          []
+        end
+
+      case SSH.connect(server, connect_opts) do
         {:ok, conn} ->
           case SFTP.start_channel(conn) do
             {:ok, sftp_pid} ->
-              start_path = if server.user == "root", do: "/root", else: "/home/#{server.user || "user"}"
+              target_u = socket.assigns[:target_user] || server.user
+              start_path = if target_u == "root", do: "/root", else: "/home/#{target_u || "user"}"
               socket =
                 socket
                 |> assign(conn: conn, sftp_pid: sftp_pid, remote_path: start_path)
@@ -965,6 +980,8 @@ defmodule SSHClientWeb.SFTPLive do
             name: snapshot.name || snapshot.id,
             host: snapshot.host,
             user: snapshot.user,
+            users: Map.get(snapshot, :users, []),
+            default_auth_method: Map.get(snapshot, :default_auth_method, :key),
             port: snapshot.port || 22,
             proxy_jump: snapshot.proxy_jump
           }

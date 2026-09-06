@@ -170,6 +170,8 @@ defmodule SSHClient.ServerWorker do
       name: state.server.name,
       host: state.server.host,
       user: state.server.user,
+      users: state.server.users,
+      default_auth_method: state.server.default_auth_method,
       port: state.server.port || 22,
       proxy_jump: state.server.proxy_jump,
       status: state.status,

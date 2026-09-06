@@ -86,9 +86,24 @@ defmodule SSHClientWeb.TerminalLive do
         |> assign(:command_search, "")
         |> assign(:selected_category, "all")
         |> assign(:all_commands, @default_commands)
+        |> assign(:target_user, nil)
+        |> assign(:target_auth, nil)
 
       {:ok, socket}
     end
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    user = params["user"]
+    auth = params["auth"]
+
+    socket =
+      socket
+      |> assign(:target_user, if(user && user != "", do: user, else: nil))
+      |> assign(:target_auth, if(auth && auth != "", do: auth, else: nil))
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -756,6 +771,21 @@ defmodule SSHClientWeb.TerminalLive do
           rows: socket.assigns.rows
         ]
 
+        opts =
+          if socket.assigns[:target_user] && socket.assigns[:target_user] != "" do
+            Keyword.put(opts, :user, socket.assigns[:target_user])
+          else
+            opts
+          end
+
+        opts =
+          if socket.assigns[:target_auth] && socket.assigns[:target_auth] != "" do
+            auth_atom = if socket.assigns[:target_auth] in ["password", :password], do: :password, else: :key
+            Keyword.put(opts, :auth_method, auth_atom)
+          else
+            opts
+          end
+
         case TerminalSupervisor.start_session(server, opts) do
           {:ok, pid} ->
             update_tab(socket, tab_id, fn t -> %{t | session_pid: pid, error: nil} end)
@@ -791,6 +821,8 @@ defmodule SSHClientWeb.TerminalLive do
           name: snapshot.name || snapshot.id,
           host: snapshot.host,
           user: snapshot.user,
+          users: Map.get(snapshot, :users, []),
+          default_auth_method: Map.get(snapshot, :default_auth_method, :key),
           port: snapshot.port || 22,
           proxy_jump: snapshot.proxy_jump
         }

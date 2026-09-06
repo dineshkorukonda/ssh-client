@@ -25,6 +25,28 @@ defmodule SSHClient.KeychainTest do
     test "returns :not_found for non-existent secret" do
       assert {:error, :not_found} = Keychain.retrieve("non-existent-account", backend: :memory)
     end
+
+    test "supports multiple user accounts on the same server with isolated passwords" do
+      root_account = "root@prod-cluster"
+      deploy_account = "deploy@prod-cluster"
+
+      assert :ok = Keychain.store(root_account, "root_p@ss", backend: :memory)
+      assert :ok = Keychain.store(deploy_account, "deploy_p@ss", backend: :memory)
+
+      assert {:ok, "root_p@ss"} = Keychain.retrieve(root_account, backend: :memory)
+      assert {:ok, "deploy_p@ss"} = Keychain.retrieve(deploy_account, backend: :memory)
+
+      # Updating one does not affect the other
+      assert :ok = Keychain.store(root_account, "new_root_p@ss", backend: :memory)
+      assert {:ok, "new_root_p@ss"} = Keychain.retrieve(root_account, backend: :memory)
+      assert {:ok, "deploy_p@ss"} = Keychain.retrieve(deploy_account, backend: :memory)
+
+      assert :ok = Keychain.delete(root_account, backend: :memory)
+      assert {:error, :not_found} = Keychain.retrieve(root_account, backend: :memory)
+      assert {:ok, "deploy_p@ss"} = Keychain.retrieve(deploy_account, backend: :memory)
+
+      assert :ok = Keychain.delete(deploy_account, backend: :memory)
+    end
   end
 
   describe "Credential Manager backend" do
