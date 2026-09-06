@@ -65,4 +65,43 @@ defmodule SSHClient.UpdaterTest do
       assert asset.name =~ ".tar.gz"
     end
   end
+
+  describe "build_windows_update_script/4" do
+    test "generates robust script with tree kill, logging, and non-interactive delay" do
+      script = Updater.build_windows_update_script("C:\\staging", "C:\\app", "C:\\staging\\update.log", 1234)
+
+      # 1. Non-interactive delay (no timeout command)
+      refute script =~ "timeout "
+      assert script =~ "ping -n 3 127.0.0.1"
+
+      # 2. Forceful tree termination of Erlang and epmd daemons
+      assert script =~ "taskkill /F /T /PID 1234"
+      assert script =~ "taskkill /F /T /IM erl.exe"
+      assert script =~ "taskkill /F /T /IM epmd.exe"
+      assert script =~ "taskkill /F /T /IM werl.exe"
+      assert script =~ "taskkill /F /T /IM beam.smp"
+
+      # 3. Non-destructive verified copy
+      assert script =~ "robocopy"
+      assert script =~ "/E /IS /IT"
+      refute script =~ "/MOVE"
+
+      # 4. Diagnostics logging
+      assert script =~ "update.log"
+
+      # 5. Clean relaunch
+      assert script =~ "launch-gui.vbs"
+    end
+  end
+
+  describe "build_linux_update_script/3" do
+    test "generates shell script with start command" do
+      script = Updater.build_linux_update_script("/tmp/staging", "/opt/ssh-client", 5678)
+
+      assert script =~ "#!/bin/sh"
+      assert script =~ "kill -9 5678"
+      assert script =~ "/opt/ssh-client/bin/ssh_client\" start &"
+      refute script =~ "daemon &"
+    end
+  end
 end

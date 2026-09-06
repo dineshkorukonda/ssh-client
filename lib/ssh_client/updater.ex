@@ -252,48 +252,17 @@ defmodule SSHClient.Updater do
     File.mkdir_p!(script_dir)
     bat_path = Path.join(script_dir, "apply_update.bat")
     vbs_path = Path.join(script_dir, "apply_update.vbs")
+    log_path = Path.join(script_dir, "update.log")
 
     win_staged = String.replace(staged_dir, "/", "\\")
     win_target = String.replace(target_dir, "/", "\\")
+    win_log = String.replace(log_path, "/", "\\")
 
-    bat_content = """
-    @echo off
-    setlocal enabledelayedexpansion
-
-    :: 1. Wait for parent process to cleanly exit and release file locks
-    timeout /t 2 /nobreak >nul
-    if not "#{current_pid}"=="" (
-        taskkill /PID #{current_pid} /F >nul 2>&1
-    )
-
-    :: Kill any remaining background beam processes
-    taskkill /F /IM werl.exe >nul 2>&1
-    taskkill /F /IM beam.smp >nul 2>&1
-
-    :: 2. Copy staged release files into the application directory
-    robocopy "#{win_staged}" "#{win_target}" /E /IS /IT /MOVE /R:3 /W:1 >nul 2>&1
-    if errorlevel 8 (
-        xcopy "#{win_staged}\\*" "#{win_target}\\" /E /Y /I /Q >nul 2>&1
-    )
-
-    :: 3. Clean up staging folder
-    rmdir /S /Q "#{win_staged}" >nul 2>&1
-
-    :: 4. Relaunch ssh-client
-    if exist "#{win_target}\\bin\\launch-gui.vbs" (
-        start "" wscript.exe "#{win_target}\\bin\\launch-gui.vbs"
-    ) else if exist "#{win_target}\\bin\\launch-gui.bat" (
-        start "" "#{win_target}\\bin\\launch-gui.bat"
-    ) else if exist "#{win_target}\\bin\\ssh_client.bat" (
-        start "" "#{win_target}\\bin\\ssh_client.bat" start
-    )
-
-    exit /b 0
-    """
+    bat_content = build_windows_update_script(win_staged, win_target, win_log, current_pid)
 
     vbs_content = """
     Set WshShell = CreateObject("WScript.Shell")
-    WshShell.Run "cmd /c \"\"" & WScript.Arguments(0) & "\"\"", 0, False
+    WshShell.Run "cmd /c """ & WScript.Arguments(0) & """", 0, False
     """
 
     File.write!(bat_path, bat_content)
@@ -311,25 +280,69 @@ defmodule SSHClient.Updater do
     {:ok, :restarting, "Update script launched. ssh-client is restarting into the new version."}
   end
 
+  @doc """
+  Generates the Windows batch script used to terminate processes, copy files, and relaunch.
+  Extracted as a public function for testing and determinism.
+  """
+  def build_windows_update_script(win_staged, win_target, win_log, current_pid) do
+    pid_clause =
+      if current_pid && to_string(current_pid) != "" do
+        "taskkill /F /T /PID #{current_pid} >> \"#{win_log}\" 2>&1"
+      else
+        ":: No specific PID to kill"
+      end
+
+    """
+    @echo off
+    setlocal enabledelayedexpansion
+
+    echo === ssh-client update started: %date% %time% === > "#{win_log}"
+
+    :: 1. Pause cleanly using ping delay
+    ping -n 3 127.0.0.1 >nul 2>&1
+
+    :: 2. Forcefully terminate running instances and child daemons to release file locks
+    #{pid_clause}
+    taskkill /F /T /IM erl.exe >> "#{win_log}" 2>&1
+    taskkill /F /T /IM epmd.exe >> "#{win_log}" 2>&1
+    taskkill /F /T /IM werl.exe >> "#{win_log}" 2>&1
+    taskkill /F /T /IM beam.smp >> "#{win_log}" 2>&1
+
+    :: Extra pause to ensure OS file handles are completely closed
+    ping -n 2 127.0.0.1 >nul 2>&1
+
+    :: 3. Copy staged release files into application directory (non-destructive)
+    echo Copying files from "#{win_staged}" to "#{win_target}"... >> "#{win_log}"
+    robocopy "#{win_staged}" "#{win_target}" /E /IS /IT /R:5 /W:1 >> "#{win_log}" 2>&1
+    if errorlevel 8 (
+        echo Robocopy reported errors, falling back to xcopy... >> "#{win_log}"
+        xcopy "#{win_staged}\\*" "#{win_target}\\" /E /Y /I /Q >> "#{win_log}" 2>&1
+    )
+
+    :: 4. Clean up staging folder
+    rmdir /S /Q "#{win_staged}" >> "#{win_log}" 2>&1
+
+    :: 5. Relaunch ssh-client
+    echo Relaunching application... >> "#{win_log}"
+    if exist "#{win_target}\\bin\\launch-gui.vbs" (
+        start "" wscript.exe "#{win_target}\\bin\\launch-gui.vbs"
+    ) else if exist "#{win_target}\\bin\\launch-gui.bat" (
+        start "" "#{win_target}\\bin\\launch-gui.bat"
+    ) else if exist "#{win_target}\\bin\\ssh_client.bat" (
+        start "" "#{win_target}\\bin\\ssh_client.bat" start
+    )
+
+    echo === Update completed successfully === >> "#{win_log}"
+    exit /b 0
+    """
+  end
+
   defp apply_update_linux(staged_dir, target_dir, current_pid) do
     script_dir = staging_dir()
     File.mkdir_p!(script_dir)
     sh_path = Path.join(script_dir, "apply_update.sh")
 
-    sh_content = """
-    #!/bin/sh
-    sleep 1
-    if [ -n "#{current_pid}" ]; then
-        kill -9 #{current_pid} 2>/dev/null || true
-    fi
-
-    cp -rf "#{staged_dir}"/* "#{target_dir}"/
-    rm -rf "#{staged_dir}"
-
-    if [ -f "#{target_dir}/bin/ssh_client" ]; then
-        "#{target_dir}/bin/ssh_client" daemon &
-    fi
-    """
+    sh_content = build_linux_update_script(staged_dir, target_dir, current_pid)
 
     File.write!(sh_path, sh_content)
     File.chmod!(sh_path, 0o755)
@@ -343,6 +356,32 @@ defmodule SSHClient.Updater do
     schedule_vm_shutdown()
 
     {:ok, :restarting, "Update script launched. ssh-client is restarting into the new version."}
+  end
+
+  @doc """
+  Generates the Linux shell script used to terminate processes, copy files, and relaunch.
+  Extracted as a public function for testing and determinism.
+  """
+  def build_linux_update_script(staged_dir, target_dir, current_pid) do
+    pid_clause =
+      if current_pid && to_string(current_pid) != "" do
+        "kill -9 #{current_pid} 2>/dev/null || true"
+      else
+        "# No specific PID to kill"
+      end
+
+    """
+    #!/bin/sh
+    sleep 1
+    #{pid_clause}
+
+    cp -rf "#{staged_dir}"/* "#{target_dir}"/
+    rm -rf "#{staged_dir}"
+
+    if [ -f "#{target_dir}/bin/ssh_client" ]; then
+        "#{target_dir}/bin/ssh_client" start &
+    fi
+    """
   end
 
   defp schedule_vm_shutdown do
