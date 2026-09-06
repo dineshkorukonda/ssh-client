@@ -129,7 +129,20 @@ defmodule SSHClient.SSH.Auth do
   def build_options(host_or_map, extra_opts \\ [])
 
   def build_options(%Host{} = host, extra_opts) do
-    order = host.auth_order || [host.auth_method || :key]
+    explicit_method = Keyword.get(extra_opts, :auth_method) || host.default_auth_method || host.auth_method
+
+    default_order =
+      if explicit_method in [:password, "password"] or Keyword.has_key?(extra_opts, :password) do
+        [:password, :keyboard_interactive, :key]
+      else
+        @default_auth_order
+      end
+
+    order =
+      Keyword.get(extra_opts, :auth_order) ||
+        (if explicit_method in [:password, "password"], do: default_order, else: host.auth_order) ||
+        default_order
+
     identity = host.identity_file
 
     opts =
@@ -141,10 +154,24 @@ defmodule SSHClient.SSH.Auth do
   end
 
   def build_options(map, extra_opts) when is_map(map) do
+    explicit_method =
+      Keyword.get(extra_opts, :auth_method) ||
+        Map.get(map, :default_auth_method) ||
+        Map.get(map, "default_auth_method") ||
+        Map.get(map, :auth_method) ||
+        Map.get(map, "auth_method")
+
+    default_order =
+      if explicit_method in [:password, "password"] or Keyword.has_key?(extra_opts, :password) do
+        [:password, :keyboard_interactive, :key]
+      else
+        @default_auth_order
+      end
+
     order =
-      Map.get(map, :auth_order) ||
-        Map.get(map, "auth_order") ||
-        [Map.get(map, :auth_method) || Map.get(map, "auth_method") || :key]
+      Keyword.get(extra_opts, :auth_order) ||
+        (if explicit_method in [:password, "password"], do: default_order, else: Map.get(map, :auth_order) || Map.get(map, "auth_order")) ||
+        default_order
 
     identity = Map.get(map, :identity_file) || Map.get(map, "identity_file")
 
@@ -182,7 +209,16 @@ defmodule SSHClient.SSH.Auth do
     base =
       case Keyword.get(opts, :keyboard_interact_fun) do
         nil ->
-          base
+          case Keyword.get(opts, :password) do
+            pwd when is_binary(pwd) and pwd != "" ->
+              [{:keyboard_interact_fun, build_keyboard_interactive_fun(pwd)} | base]
+
+            pwd when is_list(pwd) and pwd != [] ->
+              [{:keyboard_interact_fun, build_keyboard_interactive_fun(to_string(pwd))} | base]
+
+            _ ->
+              base
+          end
 
         kbi_fun when is_function(kbi_fun, 3) ->
           [{:keyboard_interact_fun, build_keyboard_interactive_fun(kbi_fun)} | base]

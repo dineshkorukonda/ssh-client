@@ -5,6 +5,7 @@ defmodule SSHClient.SSH do
 
   alias SSHClient.Config.Server
   alias SSHClient.Host
+  alias SSHClient.Keychain
   alias SSHClient.SSH.Auth
 
   defmodule Connection do
@@ -84,8 +85,10 @@ defmodule SSHClient.SSH do
   defp do_connect(target, nil, opts) do
     host = get_field(target, :host)
     port = get_field(target, :port, 22)
-    user = get_field(target, :user)
+    user = Keyword.get(opts, :user) || get_field(target, :user)
     timeout = Keyword.get(opts, :timeout, 10_000)
+
+    opts = resolve_keychain_password(target, user, opts)
 
     case connect_direct(target, host, port, user, timeout, opts) do
       {:ok, conn_ref} ->
@@ -99,12 +102,13 @@ defmodule SSHClient.SSH do
   defp do_connect(target, proxy_jump, opts) do
     jump_info = parse_proxy_jump(proxy_jump)
     timeout = Keyword.get(opts, :timeout, 10_000)
+    user = Keyword.get(opts, :user) || get_field(target, :user)
+    opts = resolve_keychain_password(target, user, opts)
 
     case connect_direct(target, jump_info.host, jump_info.port, jump_info.user, timeout, opts) do
       {:ok, jump_ref} ->
         target_host = get_field(target, :host)
         target_port = get_field(target, :port, 22)
-        target_user = get_field(target, :user)
         target_host_charlist = String.to_charlist(target_host)
 
         case :ssh.tcpip_tunnel_to_server(
@@ -115,7 +119,7 @@ defmodule SSHClient.SSH do
                target_port
              ) do
           {:ok, listen_port} ->
-            case connect_direct(target, "127.0.0.1", listen_port, target_user, timeout, opts) do
+            case connect_direct(target, "127.0.0.1", listen_port, user, timeout, opts) do
               {:ok, conn_ref} ->
                 {:ok,
                  %Connection{
@@ -137,6 +141,30 @@ defmodule SSHClient.SSH do
 
       {:error, reason} ->
         {:error, {:jump_host_failed, reason}}
+    end
+  end
+
+  defp resolve_keychain_password(target, user, opts) do
+    case Keyword.get(opts, :password) do
+      nil ->
+        server_id = get_field(target, :id)
+
+        if server_id && user do
+          account = "#{user}@#{server_id}"
+
+          case Keychain.retrieve(account) do
+            {:ok, secret} when is_binary(secret) and secret != "" ->
+              Keyword.put(opts, :password, secret)
+
+            _ ->
+              opts
+          end
+        else
+          opts
+        end
+
+      _ ->
+        opts
     end
   end
 

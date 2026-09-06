@@ -18,6 +18,9 @@ defmodule SSHClient.SSH.PTYSession do
     :client_pid,
     :client_ref,
     :buffer,
+    :user,
+    :password,
+    :auth_method,
     cols: 80,
     rows: 24,
     term: "xterm-256color"
@@ -30,6 +33,9 @@ defmodule SSHClient.SSH.PTYSession do
     - `:cols`: Initial terminal columns (default: 80)
     - `:rows`: Initial terminal rows (default: 24)
     - `:term`: Terminal type (default: "xterm-256color")
+    - `:user`: Optional override username for session
+    - `:password`: Optional password string for authentication
+    - `:auth_method`: Optional auth method preference (:key or :password)
   """
   def start_link({%Server{} = server, opts}) when is_list(opts) do
     GenServer.start_link(__MODULE__, {server, opts})
@@ -80,6 +86,9 @@ defmodule SSHClient.SSH.PTYSession do
     cols = Keyword.get(opts, :cols, 80)
     rows = Keyword.get(opts, :rows, 24)
     term = Keyword.get(opts, :term, "xterm-256color")
+    user = Keyword.get(opts, :user)
+    password = Keyword.get(opts, :password)
+    auth_method = Keyword.get(opts, :auth_method)
     buffer = Buffer.new(cols, rows)
 
     state = %__MODULE__{
@@ -89,17 +98,27 @@ defmodule SSHClient.SSH.PTYSession do
       cols: cols,
       rows: rows,
       term: term,
+      user: user,
+      password: password,
+      auth_method: auth_method,
       buffer: buffer
     }
 
-    ActivityLog.info(server.id, "Initiating interactive PTY terminal session (#{cols}x#{rows})")
+    target_user = user || server.user || "default"
+    ActivityLog.info(server.id, "Initiating interactive PTY terminal session as '#{target_user}' (#{cols}x#{rows})")
 
     {:ok, state, {:continue, :connect}}
   end
 
   @impl true
   def handle_continue(:connect, state) do
-    case SSH.connect(state.server) do
+    connect_opts =
+      []
+      |> (fn o -> if state.user, do: [{:user, state.user} | o], else: o end).()
+      |> (fn o -> if state.password, do: [{:password, state.password} | o], else: o end).()
+      |> (fn o -> if state.auth_method, do: [{:auth_method, state.auth_method} | o], else: o end).()
+
+    case SSH.connect(state.server, connect_opts) do
       {:ok, conn} ->
         case SSH.open_pty(conn, cols: state.cols, rows: state.rows, term: state.term) do
           {:ok, channel_id} ->
