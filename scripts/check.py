@@ -24,9 +24,10 @@ def run_step(step_name, cmd, cwd=REPO_ROOT, env=None):
         sys.exit(res.returncode)
     print(f"PASSED: {step_name}")
 
-def resolve_mix_command():
-    if shutil.which("mix"):
-        return ["mix", "test"]
+def resolve_mix_command(env=None):
+    path = env.get("PATH") if env else None
+    if shutil.which("mix", path=path):
+        return [shutil.which("mix", path=path), "test"] if sys.platform == "win32" else ["mix", "test"]
     
     scoop_elixir = os.path.expanduser(r"~\scoop\apps\elixir\current\bin\mix.ps1")
     scoop_elixir_bat = os.path.expanduser(r"~\scoop\apps\elixir\current\bin\mix.bat")
@@ -74,7 +75,7 @@ def main():
     )
 
     # Step 4: Mix test suite
-    mix_cmd = resolve_mix_command()
+    mix_cmd = resolve_mix_command(env=env)
     run_step(
         "Elixir Unit Tests (mix test)",
         mix_cmd,

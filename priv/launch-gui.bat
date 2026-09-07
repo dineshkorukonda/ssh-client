@@ -10,7 +10,7 @@ set "APP_FLAGS=--app=%URL% --user-data-dir="%USER_DATA_DIR%" --window-size=1120,
 powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:4000/hosts' -UseBasicParsing -TimeoutSec 1; exit 0 } catch { exit 1 }" >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     start "" /b "%~dp0ssh_client.bat" start
-    powershell -NoProfile -Command "$ready = $false; for ($i=0; $i -lt 20; $i++) { try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:4000/hosts' -UseBasicParsing -TimeoutSec 1; if ($r.StatusCode -eq 200) { $ready = $true; break } } catch { Start-Sleep -Milliseconds 300 } }; if (-not $ready) { Start-Sleep -Seconds 1 }" >nul 2>&1
+    powershell -NoProfile -Command "$ready = $false; for ($i=0; $i -lt 30; $i++) { try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:4000/hosts' -UseBasicParsing -TimeoutSec 1; if ($r.StatusCode -eq 200) { $ready = $true; break } } catch { Start-Sleep -Milliseconds 300 } }; if (-not $ready) { Start-Sleep -Seconds 1 }" >nul 2>&1
 )
 
 :: 2. Locate Microsoft Edge or Google Chrome executable
@@ -27,28 +27,21 @@ if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
     set "BROWSER_EXE=%LocalAppData%\Google\Chrome\Application\chrome.exe"
 )
 
-:: 3. Launch isolated window and monitor lifecycle
+:: 3. Launch isolated window
 if defined BROWSER_EXE (
-    start /wait "" "%BROWSER_EXE%" %APP_FLAGS%
+    start "" "%BROWSER_EXE%" %APP_FLAGS%
 ) else (
     where msedge >nul 2>&1
     if %ERRORLEVEL% EQU 0 (
-        start /wait "" msedge %APP_FLAGS%
+        start "" msedge %APP_FLAGS%
     ) else (
         where chrome >nul 2>&1
         if %ERRORLEVEL% EQU 0 (
-            start /wait "" chrome %APP_FLAGS%
+            start "" chrome %APP_FLAGS%
         ) else (
             start "" "%URL%"
-            goto :skip_stop
         )
     )
 )
 
-:: 4. Clean shutdown when GUI window is closed
-call "%~dp0ssh_client.bat" stop >nul 2>&1
-taskkill /F /T /IM erl.exe >nul 2>&1
-taskkill /F /T /IM epmd.exe >nul 2>&1
-
-:skip_stop
 endlocal
