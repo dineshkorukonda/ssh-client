@@ -134,10 +134,6 @@ user@192.168.1.100:22
 
 ---
 
-## Architecture & Development
-
-See [**`SPEC.md`**](SPEC.md) for the complete architecture specification, subsystem designs, and the completed 9-phase roadmap.
-
 ### Running the Test Suite
 ```bash
 # Unit tests
