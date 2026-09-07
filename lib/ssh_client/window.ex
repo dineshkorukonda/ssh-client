@@ -15,19 +15,35 @@ defmodule SSHClient.Window do
     }
   end
 
-  def start_link(opts \\ []) do
+  @doc """
+  Resolves configuration options for the desktop window.
+  """
+  def config(opts \\ []) do
+    port = Keyword.get(opts, :port, 4000)
+    default_url = "http://127.0.0.1:#{port}"
+    url = Keyword.get(opts, :url, default_url)
     title = Keyword.get(opts, :title, "ssh-client")
-    url = Keyword.get(opts, :url, "http://localhost:4000")
     size = Keyword.get(opts, :size, {1024, 720})
+
+    %{
+      port: port,
+      url: url,
+      title: title,
+      size: size
+    }
+  end
+
+  def start_link(opts \\ []) do
+    cfg = config(opts)
 
     if Code.ensure_loaded?(Desktop.Window) do
       apply(Desktop.Window, :start_link, [
         [
           app: :ssh_client,
           id: SSHClientWindow,
-          title: title,
-          size: size,
-          url: url
+          title: cfg.title,
+          size: cfg.size,
+          url: cfg.url
         ]
       ])
     else
