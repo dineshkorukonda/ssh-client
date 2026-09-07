@@ -1,0 +1,119 @@
+/* ssh-client: Minimal Stark Monochrome Theme & Performance Styles */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --b1: 9 9 11;       /* #09090b - Base background (Obsidian) */
+  --b2: 18 18 21;     /* #121215 - Card & panel background */
+  --b3: 24 24 27;     /* #18181b - Hover / input background */
+  --bc: 250 250 250;  /* #fafafa - Main text content */
+  --n: 24 24 27;      /* Neutral background */
+  --nc: 244 244 245;  /* Neutral text */
+  --p: 255 255 255;   /* Primary stark white */
+  --pc: 9 9 11;       /* Primary content */
+  --s: 39 39 42;      /* Secondary dark slate */
+  --sc: 244 244 245;  /* Secondary text */
+  --a: 239 68 68;     /* Accent stark red */
+  --ac: 255 255 255;  /* Accent text */
+  --er: 239 68 68;    /* Error red */
+  --erc: 255 255 255;
+  --su: 16 185 129;   /* Success emerald */
+  --suc: 255 255 255;
+  --wa: 245 158 11;   /* Warning amber */
+  --wac: 0 0 0;
+  --in: 56 189 248;   /* Info sky */
+  --inc: 0 0 0;
+  --rounded-box: 0.5rem;
+  --rounded-btn: 0.375rem;
+  --rounded-badge: 0.25rem;
+  --animation-btn: 0.15s;
+  --animation-input: 0.15s;
+  --btn-focus-scale: 0.98;
+  --border-btn: 1px;
+  --tab-border: 1px;
+  --tab-radius: 0.375rem;
+}
+
+body {
+  background-color: #09090b;
+  color: #fafafa;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Typography & Mono */
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Card & Surface elevated styling */
+.stark-card {
+  background-color: #121215;
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.stark-card:hover {
+  border-color: #3f3f46;
+}
+
+.stark-panel {
+  background-color: #0d0d10;
+  border: 1px solid #1f1f23;
+}
+
+/* Status Indicator Dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+.status-dot.online {
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.status-dot.offline {
+  background-color: #ef4444;
+}
+
+.status-dot.reconnecting {
+  background-color: #f59e0b;
+}
+
+.status-dot.connecting {
+  background-color: #38bdf8;
+}
+
+/* Smooth fade in */
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

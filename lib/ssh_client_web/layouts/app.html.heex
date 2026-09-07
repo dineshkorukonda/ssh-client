@@ -1,9 +1,17 @@
-<main class="h-full">
+<main class="h-full bg-[#09090b] text-zinc-100">
   <%= if msg = Phoenix.Flash.get(@flash, :info) do %>
-    <p class="fixed top-4 right-4 z-50 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-lg" role="alert"><%= msg %></p>
+    <div class="toast toast-top toast-end z-50">
+      <div class="alert bg-[#18181b] text-zinc-100 border border-zinc-700 shadow-xl text-xs font-mono" role="alert">
+        <span><%= msg %></span>
+      </div>
+    </div>
   <% end %>
   <%= if msg = Phoenix.Flash.get(@flash, :error) do %>
-    <p class="fixed top-4 right-4 z-50 px-4 py-2 bg-red-600 text-white text-sm rounded-lg shadow-lg" role="alert"><%= msg %></p>
+    <div class="toast toast-top toast-end z-50">
+      <div class="alert bg-red-950/80 text-red-200 border border-red-800 shadow-xl text-xs font-mono" role="alert">
+        <span><%= msg %></span>
+      </div>
+    </div>
   <% end %>
   {@inner_content}
 </main>

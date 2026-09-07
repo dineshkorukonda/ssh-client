@@ -257,50 +257,50 @@ defmodule SSHClientWeb.SettingsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex h-full min-h-screen bg-[#050505]">
+    <div class="flex h-full min-h-screen bg-[#09090b] text-zinc-100 antialiased">
       <!-- Sidebar -->
-      <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col justify-between shrink-0">
+      <aside class="w-60 bg-[#0c0d0e] border-r border-[#1f1f23] flex flex-col shrink-0 justify-between">
         <div>
-          <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
-            <a href="/" class="flex items-center gap-3">
-              <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-lg" />
+          <div class="px-5 py-4 border-b border-[#1f1f23] flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2.5">
+              <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md border border-zinc-800" />
               <div>
                 <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-                <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
+                <span class="block text-[10px] text-zinc-500 font-mono">v<%= @version %></span>
               </div>
             </a>
             <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
           </div>
 
-          <nav class="flex-1 px-3 py-4 space-y-0.5">
+          <nav class="px-3 py-4 space-y-1">
             <a
               href="/"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
+              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
             >
-              Hosts
+              <span>Hosts</span>
             </a>
             <a
               href="/logs"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
+              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
             >
-              Logs
+              <span>Activity Logs</span>
             </a>
             <a
               href="/settings"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-blue-600/10 text-blue-400 text-sm font-medium"
+              class="flex items-center justify-between px-3 py-2 rounded-md bg-zinc-800/80 text-white text-xs font-medium font-mono transition-colors border border-zinc-700/50"
             >
-              Settings
+              <span>Settings</span>
             </a>
           </nav>
         </div>
 
-        <div class="px-5 py-4 border-t border-[#1f1f1f] flex items-center justify-between">
-          <span class="text-[11px] text-zinc-700 font-mono">
+        <div class="px-5 py-4 border-t border-[#1f1f23] bg-[#09090b]/50 flex items-center justify-between text-xs font-mono">
+          <span class="text-[11px] text-zinc-500">
             <%= @active_servers_count %> host<%= if @active_servers_count != 1, do: "s" %>
           </span>
           <button
             phx-click="lock_vault"
-            class="text-[10px] text-zinc-600 hover:text-zinc-400 font-mono transition-colors"
+            class="text-[11px] text-zinc-500 hover:text-red-400 transition-colors"
             title="Lock Vault"
           >
             Lock
@@ -309,9 +309,9 @@ defmodule SSHClientWeb.SettingsLive do
       </aside>
 
       <!-- Main content -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-auto">
+      <div class="flex-1 flex flex-col min-w-0 overflow-auto bg-[#09090b]">
         <!-- Topbar -->
-        <header class="h-14 flex items-center justify-between px-8 border-b border-[#1f1f1f] bg-[#050505] shrink-0">
+        <header class="h-14 flex items-center justify-between px-8 border-b border-[#1f1f23] bg-[#0c0d0e] shrink-0 font-mono">
           <div class="flex items-center gap-3">
             <h1 class="text-sm font-semibold text-white tracking-tight">Application Settings & Diagnostics</h1>
           </div>
@@ -319,10 +319,10 @@ defmodule SSHClientWeb.SettingsLive do
             <button
               phx-click="check_update"
               disabled={@checking_update or @downloading_update}
-              class="h-8 px-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1.5"
+              class="btn btn-sm bg-white text-zinc-950 hover:bg-zinc-200 border-none text-xs font-mono font-medium rounded-md h-8 min-h-0 shadow-sm"
             >
               <%= if @checking_update do %>
-                <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span class="w-3 h-3 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin"></span>
                 Checking...
               <% else %>
                 Check for Updates
