@@ -455,24 +455,15 @@ defmodule SSHClientWeb.SFTPLive do
           <!-- Terminal Quick Switch -->
           <a
             href={"/terminal/#{@server_id}"}
-            class="h-7 px-3 bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium rounded-md transition-colors shadow-sm inline-flex items-center gap-1.5"
+            class="btn btn-xs bg-white text-zinc-950 hover:bg-zinc-200 border-none font-mono font-medium rounded shadow-sm inline-flex items-center gap-1.5"
           >
             <span>&gt;_ Terminal</span>
           </a>
 
-          <!-- Theme Switcher -->
-          <button
-            phx-click="toggle_theme"
-            class="h-7 px-2.5 bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md transition-colors inline-flex items-center gap-1"
-            title="Toggle Light/Dark Theme"
-          >
-            <%= if @theme == "dark", do: "Light Mode", else: "Dark Mode" %>
-          </button>
-
           <!-- Logs -->
           <a
             href="/logs"
-            class="h-7 px-2.5 bg-[var(--card-bg)] hover:bg-[var(--hover-bg)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs font-mono rounded-md transition-colors inline-flex items-center"
+            class="btn btn-xs btn-ghost border border-zinc-800 text-zinc-400 hover:text-zinc-200 font-mono rounded inline-flex items-center"
           >
             Logs
           </a>

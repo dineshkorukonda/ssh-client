@@ -31,7 +31,7 @@ defmodule SSHClientWeb.LogsLive do
         |> assign(:search_query, "")
         |> assign(:logs, logs)
         |> assign(:selected_entry, nil)
-        |> assign(:version, "0.0.1")
+        |> assign(:version, SSHClient.Updater.current_version())
 
       {:ok, socket}
     end
@@ -97,46 +97,51 @@ defmodule SSHClientWeb.LogsLive do
     assigns = assign(assigns, :filtered_logs, filtered_logs)
 
     ~H"""
-    <div class="flex h-full min-h-screen bg-[#050505]">
+    <div class="flex h-full min-h-screen bg-[#09090b] text-zinc-100 antialiased">
       <!-- Sidebar -->
-      <aside class="w-56 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col shrink-0">
-        <div class="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-lg" />
-            <div>
-              <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-              <span class="block text-[10px] text-zinc-600 font-mono">v<%= @version %></span>
-            </div>
+      <aside class="w-60 bg-[#0c0d0e] border-r border-[#1f1f23] flex flex-col shrink-0 justify-between">
+        <div>
+          <div class="px-5 py-4 border-b border-[#1f1f23] flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2.5">
+              <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md border border-zinc-800" />
+              <div>
+                <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
+                <span class="block text-[10px] text-zinc-500 font-mono">v<%= @version %></span>
+              </div>
+            </a>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
           </div>
-          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
+
+          <nav class="px-3 py-4 space-y-1">
+            <a
+              href="/"
+              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
+            >
+              <span>Hosts</span>
+            </a>
+            <a
+              href="/logs"
+              class="flex items-center justify-between px-3 py-2 rounded-md bg-zinc-800/80 text-white text-xs font-medium font-mono transition-colors border border-zinc-700/50"
+            >
+              <span>Activity Logs</span>
+              <span class="badge badge-sm bg-zinc-900 border-zinc-700 text-zinc-300 font-mono"><%= length(@logs) %></span>
+            </a>
+            <a
+              href="/settings"
+              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
+            >
+              <span>Settings</span>
+            </a>
+          </nav>
         </div>
-        <nav class="flex-1 px-3 py-4 space-y-0.5">
-          <a
-            href="/"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
-          >
-            Hosts
-          </a>
-          <a
-            href="/logs"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-blue-600/10 text-blue-400 text-sm font-medium"
-          >
-            Logs
-          </a>
-          <a
-            href="/settings"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 text-sm font-medium transition-colors"
-          >
-            Settings
-          </a>
-        </nav>
-        <div class="px-5 py-4 border-t border-[#1f1f1f] flex items-center justify-between">
-          <span class="text-[11px] text-zinc-700 font-mono">
+
+        <div class="px-5 py-4 border-t border-[#1f1f23] bg-[#09090b]/50 flex items-center justify-between text-xs font-mono">
+          <span class="text-[11px] text-zinc-500">
             <%= length(@logs) %> events
           </span>
           <button
             phx-click="lock_vault"
-            class="text-[10px] text-zinc-600 hover:text-zinc-400 font-mono transition-colors"
+            class="text-[11px] text-zinc-500 hover:text-red-400 transition-colors"
             title="Lock Vault"
           >
             Lock
@@ -145,12 +150,12 @@ defmodule SSHClientWeb.LogsLive do
       </aside>
 
       <!-- Main content -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#09090b]">
         <!-- Topbar -->
-        <header class="h-14 flex items-center justify-between px-6 border-b border-[#1f1f1f] bg-[#050505] shrink-0">
+        <header class="h-14 flex items-center justify-between px-6 border-b border-[#1f1f23] bg-[#0c0d0e] shrink-0 font-mono">
           <div class="flex items-center gap-3">
-            <h1 class="text-sm font-semibold text-white tracking-tight">Activity & Connection Logs</h1>
-            <span class="text-[11px] text-zinc-600 font-mono"><%= length(@filtered_logs) %> shown</span>
+            <h1 class="text-sm font-semibold text-white tracking-tight">System & SSH Telemetry Logs</h1>
+            <span class="text-[11px] text-zinc-500"><%= length(@filtered_logs) %> shown</span>
           </div>
 
           <div class="flex items-center gap-2">
@@ -158,7 +163,7 @@ defmodule SSHClientWeb.LogsLive do
             <select
               phx-change="filter_server"
               name="server_id"
-              class="h-8 px-2.5 bg-[#111] border border-[#1f1f1f] rounded-lg text-xs text-zinc-300 font-mono focus:outline-none"
+              class="select select-sm h-8 bg-[#18181b] border-zinc-800 focus:border-zinc-500 rounded text-xs text-zinc-200"
             >
               <option value="all" selected={@selected_server == "all"}>All Hosts</option>
               <%= for server_id <- @servers do %>
@@ -167,13 +172,13 @@ defmodule SSHClientWeb.LogsLive do
             </select>
 
             <!-- Level filter -->
-            <div class="flex bg-[#111] border border-[#1f1f1f] rounded-lg p-0.5">
+            <div class="flex bg-[#18181b] border border-zinc-800 rounded p-0.5">
               <%= for {lvl, label} <- [{"all", "All"}, {"info", "Info"}, {"warn", "Warn"}, {"error", "Error"}] do %>
                 <button
                   phx-click="filter_level"
                   phx-value-level={lvl}
-                  class={["px-2.5 py-1 text-xs rounded-md transition-colors font-medium",
-                    if(@selected_level == lvl, do: "bg-blue-600 text-white", else: "text-zinc-500 hover:text-zinc-300")]}
+                  class={["px-2.5 py-0.5 text-xs rounded transition-colors font-medium",
+                    if(@selected_level == lvl, do: "bg-white text-zinc-950", else: "text-zinc-400 hover:text-zinc-200")]}
                 >
                   <%= label %>
                 </button>
@@ -187,13 +192,13 @@ defmodule SSHClientWeb.LogsLive do
               placeholder="Search logs..."
               phx-keyup="search"
               phx-value-value={@search_query}
-              class="h-8 px-3 bg-[#111] border border-[#1f1f1f] rounded-lg text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-blue-500/60 w-40 font-mono"
+              class="input input-sm h-8 w-44 bg-[#18181b] border-zinc-800 focus:border-zinc-500 rounded text-xs text-zinc-200 placeholder-zinc-600"
             />
 
             <!-- Clear -->
             <button
               phx-click="clear_logs"
-              class="h-8 px-3 bg-[#111] hover:bg-[#1a1a1a] border border-[#1f1f1f] hover:border-red-500/40 text-zinc-400 hover:text-red-400 text-xs rounded-lg transition-colors font-medium"
+              class="btn btn-sm btn-ghost border border-zinc-800 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 text-xs font-mono h-8 min-h-0 rounded"
             >
               Clear
             </button>
