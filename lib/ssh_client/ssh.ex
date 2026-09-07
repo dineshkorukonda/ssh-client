@@ -152,12 +152,24 @@ defmodule SSHClient.SSH do
         if server_id && user do
           account = "#{user}@#{server_id}"
 
-          case Keychain.retrieve(account) do
+          case SSHClient.PassphraseCache.get("password:#{account}") do
             {:ok, secret} when is_binary(secret) and secret != "" ->
               Keyword.put(opts, :password, secret)
 
             _ ->
-              opts
+              case SSHClient.PassphraseCache.get(account) do
+                {:ok, secret} when is_binary(secret) and secret != "" ->
+                  Keyword.put(opts, :password, secret)
+
+                _ ->
+                  case Keychain.retrieve(account) do
+                    {:ok, secret} when is_binary(secret) and secret != "" ->
+                      Keyword.put(opts, :password, secret)
+
+                    _ ->
+                      opts
+                  end
+              end
           end
         else
           opts

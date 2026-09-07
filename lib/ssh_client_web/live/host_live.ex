@@ -193,6 +193,9 @@ defmodule SSHClientWeb.HostLive do
 
     if server do
       if auth_method == :password and password != "" do
+        SSHClient.PassphraseCache.put("password:#{user}@#{server.id}", password)
+        SSHClient.PassphraseCache.put("#{user}@#{server.id}", password)
+
         if remember do
           Keychain.store("#{user}@#{server.id}", password)
         else
@@ -301,6 +304,9 @@ defmodule SSHClientWeb.HostLive do
       case ServerManager.add_server(config) do
         {:ok, _result} ->
           if password != "" do
+            SSHClient.PassphraseCache.put("password:#{user}@#{server_id}", password)
+            SSHClient.PassphraseCache.put("#{user}@#{server_id}", password)
+
             if remember do
               Keychain.store("#{user}@#{server_id}", password)
             else
@@ -326,6 +332,9 @@ defmodule SSHClientWeb.HostLive do
 
         :ok ->
           if password != "" do
+            SSHClient.PassphraseCache.put("password:#{user}@#{server_id}", password)
+            SSHClient.PassphraseCache.put("#{user}@#{server_id}", password)
+
             if remember do
               Keychain.store("#{user}@#{server_id}", password)
             else
