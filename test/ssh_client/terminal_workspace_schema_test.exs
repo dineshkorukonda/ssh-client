@@ -120,6 +120,122 @@ defmodule SSHClient.TerminalWorkspaceSchemaTest do
     assert "is invalid" in errors_on(changeset).font_size
   end
 
+  test "duplicate sibling positions return a layout changeset error" do
+    tab = insert_tab(300)
+
+    root =
+      Repo.insert!(
+        LayoutNode.changeset(struct(LayoutNode), %{
+          terminal_tab_id: tab.id,
+          node_type: :split,
+          position: 0,
+          direction: :horizontal,
+          ratio: 0.5
+        })
+      )
+
+    Repo.insert!(
+      LayoutNode.changeset(struct(LayoutNode), %{
+        terminal_tab_id: tab.id,
+        parent_id: root.id,
+        node_type: :pane,
+        position: 0,
+        pane_id: "pane-first",
+        host_id: "host-first"
+      })
+    )
+
+    assert {:error, changeset} =
+             Repo.insert(
+               LayoutNode.changeset(struct(LayoutNode), %{
+                 terminal_tab_id: tab.id,
+                 parent_id: root.id,
+                 node_type: :pane,
+                 position: 0,
+                 pane_id: "pane-second",
+                 host_id: "host-second"
+               })
+             )
+
+    assert "has already been taken" in errors_on(changeset).position
+  end
+
+  test "a second root returns a layout changeset error" do
+    tab = insert_tab(400)
+
+    Repo.insert!(
+      LayoutNode.changeset(struct(LayoutNode), %{
+        terminal_tab_id: tab.id,
+        node_type: :pane,
+        position: 0,
+        pane_id: "root-first",
+        host_id: "host-first"
+      })
+    )
+
+    assert {:error, changeset} =
+             Repo.insert(
+               LayoutNode.changeset(struct(LayoutNode), %{
+                 terminal_tab_id: tab.id,
+                 node_type: :pane,
+                 position: 1,
+                 pane_id: "root-second",
+                 host_id: "host-second"
+               })
+             )
+
+    assert "has already been taken" in errors_on(changeset).parent_id
+  end
+
+  test "position check constraints are mapped symmetrically" do
+    assert has_constraint?(
+             Workspace.changeset(struct(Workspace), %{name: "Workspace", position: 0}),
+             :check,
+             "workspaces_position_nonnegative"
+           )
+
+    assert has_constraint?(
+             Tab.changeset(struct(Tab), %{
+               workspace_id: 1,
+               stable_id: "tab",
+               title: "Tab",
+               position: 0
+             }),
+             :check,
+             "terminal_tabs_position_nonnegative"
+           )
+
+    assert has_constraint?(
+             LayoutNode.changeset(struct(LayoutNode), %{
+               terminal_tab_id: 1,
+               node_type: :pane,
+               position: 0,
+               pane_id: "pane",
+               host_id: "host"
+             }),
+             :check,
+             "layout_nodes_position_nonnegative"
+           )
+  end
+
+  defp insert_tab(workspace_position) do
+    workspace =
+      Repo.insert!(struct(Workspace, name: "Constraints", position: workspace_position))
+
+    Repo.insert!(
+      struct(Tab,
+        workspace_id: workspace.id,
+        stable_id: "tab-#{workspace_position}",
+        title: "Terminal",
+        position: 0
+      )
+    )
+  end
+
+  defp has_constraint?(changeset, type, name) do
+    Enum.any?(changeset.constraints, &(&1.type == type and &1.constraint == name))
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {message, options} ->
       Regex.replace(~r"%{(\w+)}", message, fn _, key ->
