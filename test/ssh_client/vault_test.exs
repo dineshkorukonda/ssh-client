@@ -47,5 +47,10 @@ defmodule SSHClient.VaultTest do
     assert {:ok, :unlocked} = Vault.unlock("secret123")
     assert Vault.status() == :unlocked
     assert {:ok, "my-ssh-private-key-data"} = Vault.decrypt(ciphertext)
+
+    # Destroy vault
+    assert :ok = Vault.destroy_vault()
+    assert Vault.status() == :uninitialized
+    refute File.exists?(@test_vault_path)
   end
 end
