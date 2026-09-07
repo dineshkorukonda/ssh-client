@@ -18,5 +18,6 @@ defmodule SSHClient.TerminalWorkspace.Workspace do
     |> validate_required([:name, :position])
     |> validate_number(:position, greater_than_or_equal_to: 0)
     |> unique_constraint(:position)
+    |> check_constraint(:position, name: :workspaces_position_nonnegative)
   end
 end

@@ -21,5 +21,6 @@ defmodule SSHClient.TerminalWorkspace.Tab do
     |> foreign_key_constraint(:workspace_id)
     |> unique_constraint([:workspace_id, :stable_id])
     |> unique_constraint([:workspace_id, :position])
+    |> check_constraint(:position, name: :terminal_tabs_position_nonnegative)
   end
 end

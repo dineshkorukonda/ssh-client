@@ -22,8 +22,8 @@ defmodule SSHClient.Application do
       end
 
     children = [
-      SSHClient.Repo,
       SSHClient.Repo.Migrator,
+      SSHClient.Repo,
       # PubSub
       {Phoenix.PubSub, name: SSHClient.PubSub},
       # Phoenix HTTP server

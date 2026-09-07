@@ -4,6 +4,7 @@ defmodule SSHClient.PersistenceFoundationTest do
   import Ecto.Query
 
   alias SSHClient.Repo
+  alias SSHClient.Repo.Migrator
   alias SSHClient.TerminalWorkspace.LayoutNode
   alias SSHClient.TerminalWorkspace.Tab
   alias SSHClient.TerminalWorkspace.Workspace
@@ -23,6 +24,11 @@ defmodule SSHClient.PersistenceFoundationTest do
     assert "terminal_tabs" in tables
     assert "layout_nodes" in tables
     assert "terminal_preferences" in tables
+  end
+
+  test "startup migrator is a temporary one-shot child" do
+    assert Migrator.child_spec([]).restart == :temporary
+    refute Process.whereis(Migrator)
   end
 
   test "workspace rows persist when the repository connection restarts" do

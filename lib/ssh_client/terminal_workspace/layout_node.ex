@@ -35,7 +35,12 @@ defmodule SSHClient.TerminalWorkspace.LayoutNode do
     |> foreign_key_constraint(:terminal_tab_id)
     |> foreign_key_constraint(:parent_id)
     |> unique_constraint(:pane_id)
+    |> unique_constraint(:position,
+      name: :layout_nodes_terminal_tab_id_parent_id_position_index
+    )
+    |> unique_constraint(:parent_id, name: :layout_nodes_terminal_tab_id_index)
     |> check_constraint(:node_type, name: :layout_nodes_shape_valid)
+    |> check_constraint(:position, name: :layout_nodes_position_nonnegative)
   end
 
   defp validate_shape(changeset) do

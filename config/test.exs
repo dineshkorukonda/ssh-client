@@ -9,7 +9,7 @@ test_database =
 config :ssh_client, SSHClient.Repo,
   database: test_database,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 2,
+  pool_size: 1,
   journal_mode: :delete
 
 config :ssh_client, SSHClientWeb.Endpoint,
