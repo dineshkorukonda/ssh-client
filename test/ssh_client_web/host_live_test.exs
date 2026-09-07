@@ -1,5 +1,5 @@
 defmodule SSHClientWeb.HostLiveTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias SSHClientWeb.HostLive
 
@@ -190,6 +190,9 @@ defmodule SSHClientWeb.HostLiveTest do
     end
 
     test "add_server with password stores credentials in Keychain" do
+      # Pre-delete to ensure no stale Windows CM or memory entry from prior runs
+      SSHClient.Keychain.delete("appuser@secured-vault")
+
       params = %{
         "name" => "Secured Vault",
         "host" => "192.168.5.10",
@@ -215,6 +218,10 @@ defmodule SSHClientWeb.HostLiveTest do
           new_password: "test-pwd",
           new_remember_password: true
         })
+
+      on_exit(fn ->
+        SSHClient.Keychain.delete("appuser@secured-vault")
+      end)
 
       assert {:noreply, updated} = HostLive.handle_event("add_server", params, socket)
       assert updated.assigns.add_modal == false

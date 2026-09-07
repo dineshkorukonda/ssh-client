@@ -22,6 +22,8 @@ defmodule SSHClient.Application do
       end
 
     children = [
+      # PubSub
+      {Phoenix.PubSub, name: SSHClient.PubSub},
       # Phoenix HTTP server
       SSHClientWeb.Endpoint,
       # Desktop Window or headless fallback
@@ -35,7 +37,9 @@ defmodule SSHClient.Application do
       SSHClient.TerminalSupervisor,
       SSHClient.PassphraseCache,
       SSHClient.Vault,
-      SSHClient.SocketAPI
+      SSHClient.SocketAPI,
+      SSHClient.SessionSupervisor,
+      SSHClient.SessionManager
     ]
 
     opts = [strategy: :one_for_one, name: SSHClient.Supervisor]
