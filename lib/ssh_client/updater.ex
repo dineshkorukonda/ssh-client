@@ -37,16 +37,38 @@ defmodule SSHClient.Updater do
   In an OTP release, this points to the directory containing bin/, erts-*/, lib/, releases/.
   """
   def app_root_dir do
-    case :code.root_dir() do
-      dir when is_list(dir) ->
-        dir_str = to_string(dir)
-        Path.expand(dir_str)
+    cond do
+      env_root = System.get_env("RELEASE_ROOT") ->
+        Path.expand(env_root)
 
-      dir when is_binary(dir) ->
-        Path.expand(dir)
+      true ->
+        app_dir =
+          try do
+            Application.app_dir(:ssh_client)
+          rescue
+            _ -> nil
+          end
 
-      _ ->
-        File.cwd!()
+        cond do
+          app_dir && String.contains?(app_dir, "/lib/ssh_client") ->
+            # app_dir is <RELEASE_ROOT>/lib/ssh_client-0.0.x
+            app_dir |> Path.dirname() |> Path.dirname() |> Path.expand()
+
+          true ->
+            case :code.root_dir() do
+              dir when is_list(dir) or is_binary(dir) ->
+                expanded = dir |> to_string() |> Path.expand()
+
+                if String.contains?(Path.basename(expanded), "erts-") do
+                  Path.dirname(expanded)
+                else
+                  expanded
+                end
+
+              _ ->
+                File.cwd!()
+            end
+        end
     end
   end
 
@@ -142,10 +164,39 @@ defmodule SSHClient.Updater do
 
     with {:ok, downloaded_file} <- download_file(asset_url, archive_path, caller_pid),
          :ok <- prepare_unpacked_dir(unpacked_dir),
-         {:ok, staged_path} <- extract_archive(downloaded_file, unpacked_dir) do
+         {:ok, unpacked_path} <- extract_archive(downloaded_file, unpacked_dir) do
+      staged_path = resolve_staged_payload_dir(unpacked_path)
       {:ok, %{staged_dir: staged_path, archive_path: downloaded_file}}
     else
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Inspects the unpacked directory and resolves the directory containing the release payload (bin/),
+  handling nested root archive directories.
+  """
+  def resolve_staged_payload_dir(unpacked_dir) do
+    if File.exists?(Path.join(unpacked_dir, "bin")) do
+      unpacked_dir
+    else
+      case File.ls(unpacked_dir) do
+        {:ok, entries} ->
+          sub_with_bin =
+            Enum.find(entries, fn entry ->
+              sub = Path.join(unpacked_dir, entry)
+              File.dir?(sub) and File.exists?(Path.join(sub, "bin"))
+            end)
+
+          if sub_with_bin do
+            Path.join(unpacked_dir, sub_with_bin)
+          else
+            unpacked_dir
+          end
+
+        _ ->
+          unpacked_dir
+      end
     end
   end
 
@@ -251,7 +302,6 @@ defmodule SSHClient.Updater do
     script_dir = staging_dir()
     File.mkdir_p!(script_dir)
     bat_path = Path.join(script_dir, "apply_update.bat")
-    vbs_path = Path.join(script_dir, "apply_update.vbs")
     log_path = Path.join(script_dir, "update.log")
 
     win_staged = String.replace(staged_dir, "/", "\\")
@@ -259,18 +309,14 @@ defmodule SSHClient.Updater do
     win_log = String.replace(log_path, "/", "\\")
 
     bat_content = build_windows_update_script(win_staged, win_target, win_log, current_pid)
-
-    vbs_content = """
-    Set WshShell = CreateObject("WScript.Shell")
-    WshShell.Run "cmd /c """ & WScript.Arguments(0) & """", 0, False
-    """
-
     File.write!(bat_path, bat_content)
-    File.write!(vbs_path, vbs_content)
 
-    try do
-      System.cmd("wscript.exe", [vbs_path, bat_path], spawn_opt: [:detached])
-    rescue
+    ps_command = "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', '\"#{bat_path}\"' -WindowStyle Hidden"
+
+    case System.cmd("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps_command]) do
+      {_, 0} ->
+        :ok
+
       _ ->
         System.cmd("cmd.exe", ["/c", "start", "", "/b", bat_path], spawn_opt: [:detached])
     end
@@ -287,7 +333,20 @@ defmodule SSHClient.Updater do
   def build_windows_update_script(win_staged, win_target, win_log, current_pid) do
     pid_clause =
       if current_pid && to_string(current_pid) != "" do
-        "taskkill /F /T /PID #{current_pid} >> \"#{win_log}\" 2>&1"
+        """
+        set /a attempts=0
+        :wait_pid_loop
+        tasklist /FI "PID eq #{current_pid}" 2>nul | find /I "#{current_pid}" >nul 2>&1
+        if %ERRORLEVEL% equ 0 (
+            set /a attempts+=1
+            if !attempts! geq 15 (
+                taskkill /F /PID #{current_pid} >> "#{win_log}" 2>&1
+            ) else (
+                ping -n 2 127.0.0.1 >nul 2>&1
+                goto wait_pid_loop
+            )
+        )
+        """
       else
         ":: No specific PID to kill"
       end
@@ -296,26 +355,25 @@ defmodule SSHClient.Updater do
     @echo off
     setlocal enabledelayedexpansion
 
-    echo === ssh-client update started: %date% %time% === > "#{win_log}"
+    echo === ssh-client update started: %date% %time% === >> "#{win_log}" 2>&1
 
-    :: 1. Pause cleanly using ping delay
+    :: 1. Wait for main process to exit
+    #{pid_clause}
+
+    :: 2. Terminate background daemons to release file handles
+    taskkill /F /IM erl.exe >> "#{win_log}" 2>&1
+    taskkill /F /IM epmd.exe >> "#{win_log}" 2>&1
+    taskkill /F /IM werl.exe >> "#{win_log}" 2>&1
+    taskkill /F /IM beam.smp >> "#{win_log}" 2>&1
+
+    :: Extra pause for OS file handle release
     ping -n 3 127.0.0.1 >nul 2>&1
 
-    :: 2. Forcefully terminate running instances and child daemons to release file locks
-    #{pid_clause}
-    taskkill /F /T /IM erl.exe >> "#{win_log}" 2>&1
-    taskkill /F /T /IM epmd.exe >> "#{win_log}" 2>&1
-    taskkill /F /T /IM werl.exe >> "#{win_log}" 2>&1
-    taskkill /F /T /IM beam.smp >> "#{win_log}" 2>&1
-
-    :: Extra pause to ensure OS file handles are completely closed
-    ping -n 2 127.0.0.1 >nul 2>&1
-
-    :: 3. Copy staged release files into application directory (non-destructive)
-    echo Copying files from "#{win_staged}" to "#{win_target}"... >> "#{win_log}"
+    :: 3. Copy staged release files into application directory
+    echo Copying files from "#{win_staged}" to "#{win_target}"... >> "#{win_log}" 2>&1
     robocopy "#{win_staged}" "#{win_target}" /E /IS /IT /R:5 /W:1 >> "#{win_log}" 2>&1
     if errorlevel 8 (
-        echo Robocopy reported errors, falling back to xcopy... >> "#{win_log}"
+        echo Robocopy reported errors, falling back to xcopy... >> "#{win_log}" 2>&1
         xcopy "#{win_staged}\\*" "#{win_target}\\" /E /Y /I /Q >> "#{win_log}" 2>&1
     )
 
@@ -323,7 +381,7 @@ defmodule SSHClient.Updater do
     rmdir /S /Q "#{win_staged}" >> "#{win_log}" 2>&1
 
     :: 5. Relaunch ssh-client
-    echo Relaunching application... >> "#{win_log}"
+    echo Relaunching application... >> "#{win_log}" 2>&1
     if exist "#{win_target}\\bin\\launch-gui.vbs" (
         start "" wscript.exe "#{win_target}\\bin\\launch-gui.vbs"
     ) else if exist "#{win_target}\\bin\\launch-gui.bat" (
@@ -332,7 +390,7 @@ defmodule SSHClient.Updater do
         start "" "#{win_target}\\bin\\ssh_client.bat" start
     )
 
-    echo === Update completed successfully === >> "#{win_log}"
+    echo === Update completed successfully === >> "#{win_log}" 2>&1
     exit /b 0
     """
   end

@@ -120,21 +120,15 @@ defmodule SSHClient.ServiceAction do
 
     target = ServerWorker.resolve_worker_pub(server_id)
 
-    task =
-      Task.start(fn ->
-        case GenServer.call(target, {:exec_cmd, cmd}, 60_000) do
-          {:ok, output} ->
-            send(client_pid, {:log_chunk, server_id, output})
+    Task.start(fn ->
+      case GenServer.call(target, {:exec_cmd, cmd}, 60_000) do
+        {:ok, output} ->
+          send(client_pid, {:log_chunk, server_id, output})
 
-          {:error, reason} ->
-            send(client_pid, {:log_error, server_id, reason})
-        end
-      end)
-
-    case task do
-      {:ok, pid} -> {:ok, pid}
-      {:error, reason} -> {:error, reason}
-    end
+        {:error, reason} ->
+          send(client_pid, {:log_error, server_id, reason})
+      end
+    end)
   end
 
   # Builds the shell command for the given service type, name, and action.
