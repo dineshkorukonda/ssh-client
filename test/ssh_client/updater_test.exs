@@ -67,19 +67,20 @@ defmodule SSHClient.UpdaterTest do
   end
 
   describe "build_windows_update_script/4" do
-    test "generates robust script with tree kill, logging, and non-interactive delay" do
+    test "generates robust script with process wait, logging, and non-interactive delay" do
       script = Updater.build_windows_update_script("C:\\staging", "C:\\app", "C:\\staging\\update.log", 1234)
 
       # 1. Non-interactive delay (no timeout command)
       refute script =~ "timeout "
       assert script =~ "ping -n 3 127.0.0.1"
 
-      # 2. Forceful tree termination of Erlang and epmd daemons
-      assert script =~ "taskkill /F /T /PID 1234"
-      assert script =~ "taskkill /F /T /IM erl.exe"
-      assert script =~ "taskkill /F /T /IM epmd.exe"
-      assert script =~ "taskkill /F /T /IM werl.exe"
-      assert script =~ "taskkill /F /T /IM beam.smp"
+      # 2. Process exit loop and daemon termination
+      assert script =~ "PID eq 1234"
+      assert script =~ "taskkill /F /PID 1234"
+      assert script =~ "taskkill /F /IM erl.exe"
+      assert script =~ "taskkill /F /IM epmd.exe"
+      assert script =~ "taskkill /F /IM werl.exe"
+      assert script =~ "taskkill /F /IM beam.smp"
 
       # 3. Non-destructive verified copy
       assert script =~ "robocopy"
@@ -91,6 +92,25 @@ defmodule SSHClient.UpdaterTest do
 
       # 5. Clean relaunch
       assert script =~ "launch-gui.vbs"
+    end
+  end
+
+  describe "resolve_staged_payload_dir/1" do
+    test "resolves directory when bin is directly inside" do
+      temp_dir = Path.join(System.tmp_dir!(), "test_stage_direct_#{:erlang.unique_integer([:positive])}")
+      File.mkdir_p!(Path.join(temp_dir, "bin"))
+      on_exit(fn -> File.rm_rf(temp_dir) end)
+
+      assert Updater.resolve_staged_payload_dir(temp_dir) == temp_dir
+    end
+
+    test "resolves nested directory when archive wraps inside a root folder" do
+      temp_dir = Path.join(System.tmp_dir!(), "test_stage_nested_#{:erlang.unique_integer([:positive])}")
+      nested_dir = Path.join(temp_dir, "ssh_client_release")
+      File.mkdir_p!(Path.join(nested_dir, "bin"))
+      on_exit(fn -> File.rm_rf(temp_dir) end)
+
+      assert Updater.resolve_staged_payload_dir(temp_dir) == nested_dir
     end
   end
 
