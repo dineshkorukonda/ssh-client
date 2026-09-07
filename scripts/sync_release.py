@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Release and Changelog Synchronization Tool for ssh-client.
-Enforces synchronization across all 6 version locations and guarantees zero emojis.
+Release synchronization tool for ssh-client.
+Enforces version synchronization across mix, installer, updater, and web files
+and guarantees zero emojis. GitHub Releases generate notes from pull requests.
 
 Usage:
   python scripts/sync_release.py --check [version]
@@ -24,8 +25,6 @@ FILES = {
     "mix": os.path.join(ROOT_DIR, "mix.exs"),
     "installer": os.path.join(ROOT_DIR, "windows", "installer.iss"),
     "updater": os.path.join(ROOT_DIR, "lib", "ssh_client", "updater.ex"),
-    "release_notes": os.path.join(ROOT_DIR, "RELEASE_NOTES.md"),
-    "changelog": os.path.join(ROOT_DIR, "CHANGELOG.md"),
     "web_index": os.path.join(ROOT_DIR, "web", "index.html"),
     "web_install": os.path.join(ROOT_DIR, "web", "install.html"),
     "web_install_idx": os.path.join(ROOT_DIR, "web", "install", "index.html"),
@@ -72,23 +71,7 @@ def extract_versions():
             if m:
                 versions["lib/ssh_client/updater.ex"] = m.group(1)
 
-    # 4. RELEASE_NOTES.md: ## ssh-client v0.0.x
-    if os.path.exists(FILES["release_notes"]):
-        with open(FILES["release_notes"], "r", encoding="utf-8") as f:
-            content = f.read()
-            m = re.search(r"##\s+ssh-client\s+v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)", content)
-            if m:
-                versions["RELEASE_NOTES.md"] = m.group(1)
-
-    # 5. CHANGELOG.md: ## [0.0.x]
-    if os.path.exists(FILES["changelog"]):
-        with open(FILES["changelog"], "r", encoding="utf-8") as f:
-            content = f.read()
-            m = re.search(r"##\s+\[([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)\]", content)
-            if m:
-                versions["CHANGELOG.md"] = m.group(1)
-
-    # 6. web/index.html: v0.0.x
+    # 4. web/index.html: v0.0.x
     if os.path.exists(FILES["web_index"]):
         with open(FILES["web_index"], "r", encoding="utf-8") as f:
             content = f.read()
@@ -245,64 +228,7 @@ def bump_version(new_version, notes=None):
             f.write(content)
         print(f"  Updated {FILES['updater']}")
 
-    # 4. RELEASE_NOTES.md
-    if os.path.exists(FILES["release_notes"]):
-        notes_body = notes if notes else f"Beta release v{new_version} updates application binaries and features."
-        new_release_notes = f"""## ssh-client v{new_version} (Beta)
-
-{notes_body}
-
----
-
-### Binary Packages and Downloads
-
-| Platform | Format | Package / Asset |
-|---|---|---|
-| Windows x64 | Single-File Installer | [ssh-client-setup-v{new_version}-windows-x64.exe](https://github.com/dineshkorukonda/ssh-client/releases/download/v{new_version}/ssh-client-setup-v{new_version}-windows-x64.exe) |
-| Windows x64 | Portable ZIP Archive | [ssh-client-windows-x64.zip](https://github.com/dineshkorukonda/ssh-client/releases/download/v{new_version}/ssh-client-windows-x64.zip) |
-| Linux x64 | Standalone Tarball | [ssh-client-linux-x64.tar.gz](https://github.com/dineshkorukonda/ssh-client/releases/download/v{new_version}/ssh-client-linux-x64.tar.gz) |
-| Container (Docker) | GitHub Packages (GHCR) | `docker pull ghcr.io/dineshkorukonda/ssh-client:{new_version}` |
-
----
-
-### Key Highlights in v{new_version}
-
-- **Update Notes**: {notes_body}
-- **Editorial Stark Dark UI**: Zero-emoji monochrome interface with high-contrast typography and real-time telemetry.
-- **Master Vault**: PBKDF2 with AES-256-GCM encryption.
-- **Integrated SFTP Explorer & Multi-Tab Terminal**: Remote directory explorer and embedded full-bleed xterm.js terminal.
-
----
-
-### Documentation & Links
-
-- Repository: https://github.com/dineshkorukonda/ssh-client
-- Documentation: https://ssh-client.dineshkorukonda.online
-- Installation: https://ssh-client.dineshkorukonda.online/install
-- Changelog: https://ssh-client.dineshkorukonda.online/changelog
-"""
-        with open(FILES["release_notes"], "w", encoding="utf-8") as f:
-            f.write(new_release_notes)
-        print(f"  Updated {FILES['release_notes']}")
-
-    # 5. CHANGELOG.md
-    if os.path.exists(FILES["changelog"]):
-        with open(FILES["changelog"], "r", encoding="utf-8") as f:
-            cl_content = f.read()
-        if f"## [{new_version}]" not in cl_content:
-            entry = f"\n## [{new_version}] - {today}\n\n### Changed\n- {notes or 'General improvements and bug fixes.'}\n\n---\n"
-            header_marker = "Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n"
-            header_end = cl_content.find(header_marker)
-            if header_end != -1:
-                insert_pos = header_end + len(header_marker)
-                cl_content = cl_content[:insert_pos] + entry + cl_content[insert_pos:]
-            else:
-                cl_content = entry + cl_content
-            with open(FILES["changelog"], "w", encoding="utf-8") as f:
-                f.write(cl_content)
-            print(f"  Updated {FILES['changelog']}")
-
-    # 6. web HTML files
+    # 4. web HTML files
     web_files = [
         FILES["web_index"],
         FILES["web_install"],
@@ -435,7 +361,7 @@ def bump_version(new_version, notes=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Synchronize and validate versions and changelogs.")
+    parser = argparse.ArgumentParser(description="Synchronize and validate versions across repository files.")
     parser.add_argument("version", nargs="?", help="New version to bump across repository (e.g. 0.0.3)")
     parser.add_argument("--check", nargs="?", const="", help="Check version synchronization across all files")
     parser.add_argument("--emoji-check", action="store_true", help="Audit repository for emoji violations")

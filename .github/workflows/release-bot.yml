@@ -9,7 +9,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 
 jobs:
   pr-lint:
@@ -45,7 +44,7 @@ jobs:
           " "$PR_TITLE"
 
   auto-release:
-    name: Automated Release & Changelog Bot
+    name: Automated Release Bot
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]') && !startsWith(github.event.head_commit.message, 'chore(release):')
     steps:
@@ -60,7 +59,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run Auto-Bump & Changelog Generator
+      - name: Run Auto-Bump & Website Changelog Generator
         id: bump
         run: |
           COMMIT_MSG="${{ github.event.head_commit.message }}"
@@ -75,16 +74,8 @@ jobs:
           NEW_VER="${{ steps.bump.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add mix.exs windows/installer.iss lib/ssh_client/updater.ex RELEASE_NOTES.md CHANGELOG.md web/
+          git add mix.exs windows/installer.iss lib/ssh_client/updater.ex web/
           git commit -m "chore(release): release v${NEW_VER} [skip ci]"
           git push origin main
           git tag "v${NEW_VER}"
           git push origin "v${NEW_VER}"
-
-      - name: Trigger CI Release Build
-        if: steps.bump.outputs.version != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          NEW_VER="${{ steps.bump.outputs.version }}"
-          gh workflow run ci.yml --ref "v${NEW_VER}"
