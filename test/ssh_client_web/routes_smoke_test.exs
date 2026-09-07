@@ -15,7 +15,9 @@ defmodule SSHClientWeb.RoutesSmokeTest do
     assert "/" in paths
     assert "/hosts" in paths
     assert "/lock" in paths
+    assert "/terminal" in paths
     assert "/terminal/:id" in paths
+    assert "/sftp" in paths
     assert "/sftp/:id" in paths
     assert "/settings" in paths
     assert "/logs" in paths
@@ -24,9 +26,17 @@ defmodule SSHClientWeb.RoutesSmokeTest do
   test "route plugs map directly to expected LiveView modules" do
     routes = Router.__routes__()
 
+    sftp_idx_route = Enum.find(routes, &(&1.path == "/sftp"))
+    assert elem(sftp_idx_route.metadata.phoenix_live_view, 0) == SSHClientWeb.SFTPLive
+    assert elem(sftp_idx_route.metadata.phoenix_live_view, 1) == :index
+
     sftp_route = Enum.find(routes, &(&1.path == "/sftp/:id"))
     assert elem(sftp_route.metadata.phoenix_live_view, 0) == SSHClientWeb.SFTPLive
     assert elem(sftp_route.metadata.phoenix_live_view, 1) == :show
+
+    terminal_idx_route = Enum.find(routes, &(&1.path == "/terminal"))
+    assert elem(terminal_idx_route.metadata.phoenix_live_view, 0) == SSHClientWeb.TerminalLive
+    assert elem(terminal_idx_route.metadata.phoenix_live_view, 1) == :index
 
     terminal_route = Enum.find(routes, &(&1.path == "/terminal/:id"))
     assert elem(terminal_route.metadata.phoenix_live_view, 0) == SSHClientWeb.TerminalLive
