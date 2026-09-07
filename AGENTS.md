@@ -20,7 +20,11 @@ This document governs the coding, testing, release, and style rules for `ssh-cli
 
 ## 2. Pull Request, CI & Release Bot Monitoring Rules
 - Every change must go through a dedicated feature or bugfix branch and a GitHub Pull Request.
-- Before and after merging PRs:
+- **PR Metadata Requirements**:
+  1. **Assignee**: Every PR must be explicitly assigned to the PR author (`--assignee "@me"`).
+  2. **Labels**: Every PR must have appropriate semantic labels attached (e.g. `enhancement`, `bug`, `documentation`, `feature`, `chore`, `ci`, `testing`, `security`).
+  3. **Conflict Checks & Immediate Resolution**: Check for merge conflicts against the base branch (`main`). If any conflicts exist, rebase immediately against `origin/main` (`git fetch origin main && git rebase origin/main`), resolve all conflict markers, verify the test suite, and push the resolved branch before merging.
+- **Before and After Merging PRs**:
   1. **Monitor PR Checks**: Verify that all CI checks pass on the PR branch (`gh pr checks <number>`).
   2. **Branch Management**: Do NOT delete branches prematurely. Retain branch context until CI and release workflows have fully succeeded.
   3. **Monitor Post-Merge Release Bot**: Immediately after merging to `main`, check the automated `Release Bot` and `CI` workflow runs (`gh run list`, `gh run view <id>`). Verify that auto-bump, tagging, and asset build jobs complete successfully. If any failure occurs, diagnose and resolve it immediately.
