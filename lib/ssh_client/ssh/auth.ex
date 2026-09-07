@@ -149,6 +149,7 @@ defmodule SSHClient.SSH.Auth do
       extra_opts
       |> Keyword.put_new(:auth_order, order)
       |> maybe_put_identity(identity)
+      |> maybe_put_password(host, extra_opts)
 
     do_build_options(opts)
   end
@@ -179,8 +180,38 @@ defmodule SSHClient.SSH.Auth do
       extra_opts
       |> Keyword.put_new(:auth_order, order)
       |> maybe_put_identity(identity)
+      |> maybe_put_password(map, extra_opts)
 
     do_build_options(opts)
+  end
+
+  defp maybe_put_password(opts, target, extra_opts) do
+    if Keyword.has_key?(opts, :password) do
+      opts
+    else
+      user = Keyword.get(extra_opts, :user) || get_opt(target, :user)
+      server_id = get_opt(target, :id)
+
+      if user && server_id do
+        account = "#{user}@#{server_id}"
+
+        case SSHClient.PassphraseCache.get("password:#{account}") do
+          {:ok, pwd} when is_binary(pwd) and pwd != "" ->
+            Keyword.put(opts, :password, pwd)
+
+          _ ->
+            case SSHClient.PassphraseCache.get(account) do
+              {:ok, pwd} when is_binary(pwd) and pwd != "" ->
+                Keyword.put(opts, :password, pwd)
+
+              _ ->
+                opts
+            end
+        end
+      else
+        opts
+      end
+    end
   end
 
   defp maybe_put_identity(opts, nil), do: opts

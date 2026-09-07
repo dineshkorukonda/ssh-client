@@ -88,6 +88,10 @@ defmodule SSHClientWeb.TerminalLive do
         |> assign(:all_commands, @default_commands)
         |> assign(:target_user, nil)
         |> assign(:target_auth, nil)
+        |> assign(:show_deploy_modal, false)
+        |> assign(:deploy_key_info, nil)
+        |> assign(:deploy_status, :idle)
+        |> assign(:deploy_message, nil)
 
       {:ok, socket}
     end
@@ -309,6 +313,42 @@ defmodule SSHClientWeb.TerminalLive do
     {:noreply, socket}
   end
 
+  def handle_event("deploy_ssh_key", _params, socket) do
+    key_info = socket.assigns[:deploy_key_info]
+    server = socket.assigns[:server]
+    user = socket.assigns[:target_user] || (server && server.user) || "root"
+
+    if key_info && server do
+      case SSHClient.SSH.KeyDeployer.deploy(server, key_info.content, user: user) do
+        {:ok, :deployed} ->
+          {:noreply,
+           socket
+           |> assign(
+             deploy_status: :success,
+             show_deploy_modal: false,
+             deploy_message: "SSH Key deployed successfully. Passwordless login enabled."
+           )
+           |> push_event("terminal_output", %{
+             data: "\r\n\x1b[1;32m[ssh-client]\x1b[0m Public key (#{key_info.filename}) deployed to #{user}@#{server.id}. Passwordless login enabled.\r\n"
+           })}
+
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(
+             deploy_status: :error,
+             deploy_message: "Failed to deploy key: #{inspect(reason)}"
+           )}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("dismiss_deploy_modal", _params, socket) do
+    {:noreply, assign(socket, show_deploy_modal: false, deploy_status: :dismissed)}
+  end
+
   # ---------------------------------------------------------------------------
   # Messages from PTYSession
   # ---------------------------------------------------------------------------
@@ -319,6 +359,21 @@ defmodule SSHClientWeb.TerminalLive do
 
     socket =
       update_tab_by_pid(socket, pid, fn t -> %{t | connected: true, error: nil} end)
+
+    auth_method = socket.assigns.target_auth || (socket.assigns.server && socket.assigns.server.default_auth_method)
+
+    socket =
+      if auth_method in ["password", :password] and socket.assigns.deploy_status == :idle do
+        case SSHClient.SSH.KeyManager.get_default_public_key() do
+          {:ok, key_info} ->
+            assign(socket, show_deploy_modal: true, deploy_key_info: key_info)
+
+          _ ->
+            socket
+        end
+      else
+        socket
+      end
 
     tab = active_tab(socket)
     if tab && tab.session_pid == pid do
@@ -708,6 +763,58 @@ defmodule SSHClientWeb.TerminalLive do
                   No command suggestions match "<%= @command_search %>"
                 </div>
               <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Auto Deploy SSH Key Prompt Modal -->
+        <%= if @show_deploy_modal and @deploy_key_info do %>
+          <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+            <div class="w-full max-w-md bg-[#121214] border border-[#27272a] rounded-xl shadow-2xl p-5 font-mono">
+              <div class="flex items-center justify-between pb-3 border-b border-[#27272a] mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  <h3 class="text-sm font-semibold text-zinc-100">Deploy SSH Key</h3>
+                </div>
+                <button
+                  phx-click="dismiss_deploy_modal"
+                  class="text-zinc-500 hover:text-zinc-300 text-xs px-2 py-0.5 rounded hover:bg-[#1f1f23] transition-colors"
+                >
+                  Skip
+                </button>
+              </div>
+
+              <p class="text-xs text-zinc-300 leading-relaxed mb-3">
+                You connected using password authentication. Would you like to install your local public key (<span class="text-blue-400 font-semibold"><%= @deploy_key_info.filename %></span>) onto <span class="text-zinc-100 font-semibold"><%= @target_user || (@server && @server.user) || "root" %>@<%= @server_id %></span> for passwordless login?
+              </p>
+
+              <div class="bg-[#09090b] border border-[#1f1f23] rounded-lg p-2.5 mb-4 text-[11px] text-zinc-400 truncate">
+                <span class="text-zinc-500">Key Path: </span>
+                <span class="text-zinc-300"><%= @deploy_key_info.path %></span>
+              </div>
+
+              <%= if @deploy_status == :error do %>
+                <div class="p-2.5 rounded bg-red-950/40 border border-red-800/60 text-red-300 text-xs mb-4">
+                  <%= @deploy_message %>
+                </div>
+              <% end %>
+
+              <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#1f1f23]">
+                <button
+                  type="button"
+                  phx-click="dismiss_deploy_modal"
+                  class="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f23] transition-colors"
+                >
+                  Don't Ask Again
+                </button>
+                <button
+                  type="button"
+                  phx-click="deploy_ssh_key"
+                  class="px-4 py-1.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-sm inline-flex items-center gap-1.5"
+                >
+                  Deploy Key (Passwordless)
+                </button>
+              </div>
             </div>
           </div>
         <% end %>

@@ -193,6 +193,9 @@ defmodule SSHClientWeb.HostLive do
 
     if server do
       if auth_method == :password and password != "" do
+        SSHClient.PassphraseCache.put("password:#{user}@#{server.id}", password)
+        SSHClient.PassphraseCache.put("#{user}@#{server.id}", password)
+
         if remember do
           Keychain.store("#{user}@#{server.id}", password)
         else

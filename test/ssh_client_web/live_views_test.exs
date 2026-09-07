@@ -23,6 +23,7 @@ defmodule SSHClientWeb.LiveViewsTest do
     ]
 
     for view <- views do
+      Code.ensure_loaded!(view)
       assert function_exported?(view, :mount, 3)
       assert function_exported?(view, :render, 1)
     end

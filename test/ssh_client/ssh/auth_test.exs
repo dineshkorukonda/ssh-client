@@ -145,5 +145,12 @@ defmodule SSHClient.SSH.AuthTest do
       assert Keyword.get(opts, :password) == ~c"temp_password"
       assert Path.expand(to_string(Keyword.get(opts, :user_dir))) == Path.expand(Path.dirname(custom_key))
     end
+
+    test "resolves password from PassphraseCache if cached in memory" do
+      SSHClient.PassphraseCache.put("password:deploy@staging-box", "ephemeral-secret-999")
+      target = %{id: "staging-box", user: "deploy", auth_method: :password}
+      opts = Auth.build_options(target)
+      assert Keyword.get(opts, :password) == ~c"ephemeral-secret-999"
+    end
   end
 end
