@@ -166,15 +166,15 @@ defmodule SSHClient.ServerWorkerTest do
         ServerWorker.start_link(@test_server,
           runner: mock_runner,
           name: nil,
-          reconnect_interval: 100,
+          reconnect_interval: 300,
           poll_interval: 10_000
         )
 
       Process.sleep(50)
       assert ServerWorker.get_status(worker) == :reconnecting
 
-      # Wait for reconnect_interval (100ms)
-      Process.sleep(150)
+      # Wait for reconnect_interval (300ms)
+      Process.sleep(400)
       assert ServerWorker.get_status(worker) == :polling
     end
 

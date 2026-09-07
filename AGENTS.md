@@ -28,7 +28,7 @@ This document governs the coding, testing, release, and style rules for `ssh-cli
   1. **Monitor PR Checks**: Verify that all CI checks pass on the PR branch (`gh pr checks <number>`).
   2. **Branch Management**: Do NOT delete branches prematurely. Retain branch context until CI and release workflows have fully succeeded.
   3. **Monitor Post-Merge Release Bot**: Immediately after merging to `main`, check the automated `Release Bot` and `CI` workflow runs (`gh run list`, `gh run view <id>`). Verify that auto-bump, tagging, and asset build jobs complete successfully. If any failure occurs, diagnose and resolve it immediately.
-- Run `python scripts/sync_release.py --check`, `python scripts/sync_release.py --emoji-check`, and `python scripts/test_sync_release.py` before submitting any PR.
+- Run `python scripts/check.py` (or individual scripts `python scripts/sync_release.py --check`, `python scripts/sync_release.py --emoji-check`, and `python scripts/test_sync_release.py`) before submitting any PR.
 
 ## 3. Strict Aesthetic Rules: No Emojis
 - Do not use emojis anywhere in this project:
