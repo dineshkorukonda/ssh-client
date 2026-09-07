@@ -6,8 +6,6 @@ defmodule SSHClient.Updater do
   and extraction, and seamless zero-wizard in-place restart updates on Windows and Linux.
   """
 
-  require Logger
-
   @current_version "0.0.17"
   @repo_owner "dineshkorukonda"
   @repo_name "ssh-client"
