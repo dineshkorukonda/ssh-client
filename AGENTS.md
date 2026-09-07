@@ -8,9 +8,8 @@ This document governs the coding, testing, release, and style rules for `ssh-cli
   1. `mix.exs` -> `version: "0.0.x"`
   2. `windows/installer.iss` -> `#define AppVersion "0.0.x"`
   3. `lib/ssh_client/updater.ex` -> `@current_version "0.0.x"`
-  4. `RELEASE_NOTES.md` -> Root release notes document (updated per release)
-  5. `CHANGELOG.md` -> Detailed changelog
-  6. `web/` landing site -> `web/index.html`, `web/install/index.html`, `web/changelog/index.html`
+  4. `web/` landing site -> `web/index.html`, `web/install/index.html`, `web/changelog/index.html`
+- GitHub Release notes are generated automatically from merged pull requests (see `.github/release.yml`). Do not keep root `CHANGELOG.md` or `RELEASE_NOTES.md` files.
 - Every release must publish:
   - Windows x64 single-file installer (`.exe`)
   - Windows x64 portable ZIP archive (`.zip`)
@@ -35,7 +34,7 @@ This document governs the coding, testing, release, and style rules for `ssh-cli
   - No emojis in code, variable names, or comments
   - No emojis in UI buttons, tabs, notifications, or LiveView templates
   - No emojis in commit messages or pull request titles/descriptions
-  - No emojis in `RELEASE_NOTES.md`, `CHANGELOG.md`, `README.md`, or the landing website
+  - No emojis in `README.md`, GitHub release category titles, or the landing website
 - Adhere strictly to the editorial stark dark aesthetic (monochrome, precise typography, subtle red/blue accents).
 
 ## 4. Testing & Code Quality Matrix
