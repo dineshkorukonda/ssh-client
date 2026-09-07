@@ -31,7 +31,64 @@
       (function() {
         const savedTheme = localStorage.getItem('ssh_client_theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+        } else {
+          document.documentElement.classList.add('light');
+          document.documentElement.classList.remove('dark');
+        }
       })();
+
+      function getTerminalTheme(isLight) {
+        return isLight ? {
+          background: '#ffffff',
+          foreground: '#09090b',
+          cursor:     '#09090b',
+          cursorAccent: '#ffffff',
+          selectionBackground: 'rgba(0, 0, 0, 0.15)',
+          selectionForeground: '#000000',
+          black:      '#09090b',
+          brightBlack:'#71717a',
+          red:        '#dc2626',
+          brightRed:  '#ef4444',
+          blue:       '#2563eb',
+          brightBlue: '#3b82f6',
+          cyan:       '#0891b2',
+          brightCyan: '#06b6d4',
+          green:      '#16a34a',
+          brightGreen:'#22c55e',
+          yellow:     '#ca8a04',
+          brightYellow:'#eab308',
+          magenta:    '#9333ea',
+          brightMagenta: '#a855f7',
+          white:      '#f4f4f5',
+          brightWhite:'#ffffff'
+        } : {
+          background: '#09090b',
+          foreground: '#fafafa',
+          cursor:     '#fafafa',
+          cursorAccent: '#09090b',
+          selectionBackground: 'rgba(255, 255, 255, 0.25)',
+          selectionForeground: '#ffffff',
+          black:      '#09090b',
+          brightBlack:'#3f3f46',
+          red:        '#ef4444',
+          brightRed:  '#f87171',
+          blue:       '#38bdf8',
+          brightBlue: '#60a5fa',
+          cyan:       '#06b6d4',
+          brightCyan: '#22d3ee',
+          green:      '#10b981',
+          brightGreen:'#34d399',
+          yellow:     '#f59e0b',
+          brightYellow:'#fbbf24',
+          magenta:    '#d946ef',
+          brightMagenta: '#f472b6',
+          white:      '#a1a1aa',
+          brightWhite:'#fafafa'
+        };
+      }
 
       window.TerminalHook = {
         mounted() {
@@ -53,53 +110,7 @@
             fontFamily: "'JetBrains Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
             allowTransparency: true,
             scrollback: 10000,
-            theme: isLight ? {
-              background: '#ffffff',
-              foreground: '#0f172a',
-              cursor:     '#2563eb',
-              cursorAccent: '#ffffff',
-              selectionBackground: 'rgba(37, 99, 235, 0.25)',
-              selectionForeground: '#000000',
-              black:      '#0f172a',
-              brightBlack:'#475569',
-              red:        '#dc2626',
-              brightRed:  '#ef4444',
-              blue:       '#2563eb',
-              brightBlue: '#3b82f6',
-              cyan:       '#0891b2',
-              brightCyan: '#06b6d4',
-              green:      '#16a34a',
-              brightGreen:'#22c55e',
-              yellow:     '#ca8a04',
-              brightYellow:'#eab308',
-              magenta:    '#9333ea',
-              brightMagenta: '#a855f7',
-              white:      '#f8fafc',
-              brightWhite:'#ffffff'
-            } : {
-              background: '#050505',
-              foreground: '#e4e4e7',
-              cursor:     '#38bdf8',
-              cursorAccent: '#050505',
-              selectionBackground: 'rgba(56, 189, 248, 0.35)',
-              selectionForeground: '#ffffff',
-              black:      '#050505',
-              brightBlack:'#3f3f46',
-              red:        '#ef4444',
-              brightRed:  '#f87171',
-              blue:       '#38bdf8',
-              brightBlue: '#60a5fa',
-              cyan:       '#06b6d4',
-              brightCyan: '#22d3ee',
-              green:      '#22c55e',
-              brightGreen:'#4ade80',
-              yellow:     '#eab308',
-              brightYellow:'#fde047',
-              magenta:    '#d946ef',
-              brightMagenta: '#f472b6',
-              white:      '#e4e4e7',
-              brightWhite:'#fafafa'
-            }
+            theme: getTerminalTheme(isLight)
           });
 
           const fitAddon = (typeof FitAddon !== 'undefined') ? new FitAddon.FitAddon() : null;
@@ -320,55 +331,37 @@
       // Global Theme Hook
       window.ThemeHook = {
         mounted() {
-          this.handleEvent('toggle_theme', ({ theme }) => {
+          const applyTheme = (theme) => {
             localStorage.setItem('ssh_client_theme', theme);
             document.documentElement.setAttribute('data-theme', theme);
+            if (theme === 'dark') {
+              document.documentElement.classList.add('dark');
+              document.documentElement.classList.remove('light');
+            } else {
+              document.documentElement.classList.add('light');
+              document.documentElement.classList.remove('dark');
+            }
+            window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme } }));
+          };
+
+          this.handleEvent('toggle_theme', ({ theme }) => {
+            applyTheme(theme);
           });
+
+          window.toggleAppTheme = () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+          };
         }
       };
     </script>
 
     <style>
-      /* Dark Theme (Default) */
-      [data-theme="dark"] {
-        --app-bg: #050505;
-        --sidebar-bg: #0a0a0a;
-        --panel-bg: #0e0e0e;
-        --card-bg: #121212;
-        --border: #1f1f1f;
-        --border-subtle: #27272a;
-        --text-primary: #f5f5f5;
-        --text-secondary: #a1a1aa;
-        --text-muted: #71717a;
-        --text-dim: #3f3f46;
-        --accent: #38bdf8;
-        --accent-bg: rgba(56, 189, 248, 0.1);
-        --accent-border: rgba(56, 189, 248, 0.25);
-        --hover-bg: rgba(255, 255, 255, 0.04);
-      }
-
-      /* High-Contrast Light Theme */
-      [data-theme="light"] {
-        --app-bg: #f8fafc;
-        --sidebar-bg: #ffffff;
-        --panel-bg: #ffffff;
-        --card-bg: #f1f5f9;
-        --border: #e2e8f0;
-        --border-subtle: #cbd5e1;
-        --text-primary: #0f172a;
-        --text-secondary: #334155;
-        --text-muted: #64748b;
-        --text-dim: #94a3b8;
-        --accent: #2563eb;
-        --accent-bg: rgba(37, 99, 235, 0.08);
-        --accent-border: rgba(37, 99, 235, 0.25);
-        --hover-bg: rgba(15, 23, 42, 0.04);
-      }
-
       html, body {
         font-family: 'Poppins', sans-serif;
-        background-color: var(--app-bg);
-        color: var(--text-primary);
+        background-color: hsl(var(--background));
+        color: hsl(var(--foreground));
         height: 100%;
         margin: 0;
         padding: 0;
@@ -391,13 +384,9 @@
       .xterm-screen {
         height: 100% !important;
       }
-
-      ::-webkit-scrollbar { width: 5px; height: 5px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
     </style>
   </head>
-  <body class="h-full bg-[var(--app-bg)] text-[var(--text-primary)]" phx-hook="ThemeHook" id="app-body">
+  <body class="h-full bg-background text-foreground antialiased selection:bg-primary/20" phx-hook="ThemeHook" id="app-body">
     {@inner_content}
 
     <!-- Phoenix & LiveView JS client -->

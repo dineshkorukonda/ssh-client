@@ -2,7 +2,8 @@
 module.exports = {
   content: [
     "./lib/**/*.{ex,heex}",
-    "./priv/static/**/*.js"
+    "./priv/static/**/*.js",
+    "./web/**/*.{html,js}"
   ],
   darkMode: ["class", '[data-theme="dark"]'],
   theme: {
@@ -12,10 +13,40 @@ module.exports = {
         mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       colors: {
-        obsidian: '#09090b',
-        panel: '#121215',
-        surface: '#18181b',
-      }
+        background: "hsl(var(--background) / <alpha-value>)",
+        foreground: "hsl(var(--foreground) / <alpha-value>)",
+        card: {
+          DEFAULT: "hsl(var(--card) / <alpha-value>)",
+          foreground: "hsl(var(--card-foreground) / <alpha-value>)",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover) / <alpha-value>)",
+          foreground: "hsl(var(--popover-foreground) / <alpha-value>)",
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary) / <alpha-value>)",
+          foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
+          foreground: "hsl(var(--secondary-foreground) / <alpha-value>)",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted) / <alpha-value>)",
+          foreground: "hsl(var(--muted-foreground) / <alpha-value>)",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent) / <alpha-value>)",
+          foreground: "hsl(var(--accent-foreground) / <alpha-value>)",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
+          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+        },
+        border: "hsl(var(--border) / <alpha-value>)",
+        input: "hsl(var(--input) / <alpha-value>)",
+        ring: "hsl(var(--ring) / <alpha-value>)",
+      },
     },
   },
   plugins: [
@@ -26,7 +57,7 @@ module.exports = {
       {
         dark: {
           "color-scheme": "dark",
-          "primary": "#ffffff",
+          "primary": "#fafafa",
           "primary-content": "#09090b",
           "secondary": "#27272a",
           "secondary-content": "#fafafa",
@@ -49,12 +80,32 @@ module.exports = {
           "--rounded-box": "0.5rem",
           "--rounded-btn": "0.375rem",
           "--rounded-badge": "0.25rem",
-          "--animation-btn": "0.15s",
-          "--animation-input": "0.15s",
-          "--btn-focus-scale": "0.98",
-          "--border-btn": "1px",
-          "--tab-border": "1px",
-          "--tab-radius": "0.375rem",
+        },
+        light: {
+          "color-scheme": "light",
+          "primary": "#09090b",
+          "primary-content": "#ffffff",
+          "secondary": "#f4f4f5",
+          "secondary-content": "#09090b",
+          "accent": "#ef4444",
+          "accent-content": "#ffffff",
+          "neutral": "#f4f4f5",
+          "neutral-content": "#09090b",
+          "base-100": "#ffffff",
+          "base-200": "#f4f4f5",
+          "base-300": "#e4e4e7",
+          "base-content": "#09090b",
+          "info": "#0284c7",
+          "info-content": "#ffffff",
+          "success": "#059669",
+          "success-content": "#ffffff",
+          "warning": "#d97706",
+          "warning-content": "#ffffff",
+          "error": "#dc2626",
+          "error-content": "#ffffff",
+          "--rounded-box": "0.5rem",
+          "--rounded-btn": "0.375rem",
+          "--rounded-badge": "0.25rem",
         }
       }
     ],

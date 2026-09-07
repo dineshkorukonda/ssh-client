@@ -6,6 +6,7 @@ defmodule SSHClientWeb.SettingsLive do
   """
 
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
+  import SSHClientWeb.CoreComponents
 
   alias SSHClient.Config
   alias SSHClient.ServerManager
@@ -25,6 +26,7 @@ defmodule SSHClientWeb.SettingsLive do
       known_hosts_entries = HostKeyVerifier.load_known_hosts()
       discovered_keys = Auth.resolve_identities()
       active_servers = list_active_servers()
+      online_count = count_online_servers()
 
       socket =
         socket
@@ -35,6 +37,7 @@ defmodule SSHClientWeb.SettingsLive do
         |> assign(:known_hosts_count, length(known_hosts_entries))
         |> assign(:discovered_keys, discovered_keys)
         |> assign(:active_servers_count, length(active_servers))
+        |> assign(:online_count, online_count)
         |> assign(:version, Updater.current_version())
         |> assign(:platform, detect_platform())
         |> assign(:checking_update, false)
@@ -257,316 +260,281 @@ defmodule SSHClientWeb.SettingsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex h-full min-h-screen bg-[#09090b] text-zinc-100 antialiased">
-      <!-- Sidebar -->
-      <aside class="w-60 bg-[#0c0d0e] border-r border-[#1f1f23] flex flex-col shrink-0 justify-between">
-        <div>
-          <div class="px-5 py-4 border-b border-[#1f1f23] flex items-center justify-between">
-            <a href="/" class="flex items-center gap-2.5">
-              <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md border border-zinc-800" />
-              <div>
-                <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-                <span class="block text-[10px] text-zinc-500 font-mono">v<%= @version %></span>
-              </div>
-            </a>
-            <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
-          </div>
+    <div class="min-h-screen bg-background text-foreground flex flex-col antialiased">
+      <.top_navigation
+        current_tab={:settings}
+        servers_count={@active_servers_count}
+        online_count={@online_count}
+        version={@version}
+      />
 
-          <nav class="px-3 py-4 space-y-1">
-            <a
-              href="/"
-              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
-            >
-              <span>Hosts</span>
-            </a>
-            <a
-              href="/logs"
-              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
-            >
-              <span>Activity Logs</span>
-            </a>
-            <a
-              href="/settings"
-              class="flex items-center justify-between px-3 py-2 rounded-md bg-zinc-800/80 text-white text-xs font-medium font-mono transition-colors border border-zinc-700/50"
-            >
-              <span>Settings</span>
-            </a>
-          </nav>
-        </div>
-
-        <div class="px-5 py-4 border-t border-[#1f1f23] bg-[#09090b]/50 flex items-center justify-between text-xs font-mono">
-          <span class="text-[11px] text-zinc-500">
-            <%= @active_servers_count %> host<%= if @active_servers_count != 1, do: "s" %>
-          </span>
-          <button
-            phx-click="lock_vault"
-            class="text-[11px] text-zinc-500 hover:text-red-400 transition-colors"
-            title="Lock Vault"
-          >
-            Lock
-          </button>
-        </div>
-      </aside>
-
-      <!-- Main content -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-auto bg-[#09090b]">
-        <!-- Topbar -->
-        <header class="h-14 flex items-center justify-between px-8 border-b border-[#1f1f23] bg-[#0c0d0e] shrink-0 font-mono">
-          <div class="flex items-center gap-3">
-            <h1 class="text-sm font-semibold text-white tracking-tight">Application Settings & Diagnostics</h1>
+      <main class="flex-1 container mx-auto max-w-5xl px-4 py-6 flex flex-col space-y-6">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
+          <div>
+            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">Settings & System Diagnostics</h1>
+            <p class="text-xs text-muted-foreground font-mono mt-0.5">
+              Manage application telemetry, release updates, SSH key discovery, and host imports.
+            </p>
           </div>
           <div class="flex items-center gap-2">
             <button
               phx-click="check_update"
               disabled={@checking_update or @downloading_update}
-              class="btn btn-sm bg-white text-zinc-950 hover:bg-zinc-200 border-none text-xs font-mono font-medium rounded-md h-8 min-h-0 shadow-sm"
+              class="inline-flex items-center justify-center gap-2 h-8 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-medium shadow-xs transition-colors disabled:opacity-50"
             >
               <%= if @checking_update do %>
-                <span class="w-3 h-3 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin"></span>
+                <span class="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></span>
                 Checking...
               <% else %>
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
                 Check for Updates
               <% end %>
             </button>
           </div>
-        </header>
+        </div>
 
-        <!-- Content Area -->
-        <div class="p-8 max-w-4xl space-y-6">
-          <!-- Update Status Card (if checked) -->
-          <%= if @update_info do %>
-            <div class={["p-6 rounded-2xl border transition-all",
-              if(@update_info.update_available?, do: "bg-blue-950/20 border-blue-500/40", else: "bg-[#0a0a0a] border-[#1f1f1f]")]}>
-              <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2.5">
-                    <span class={["w-2.5 h-2.5 rounded-full", if(@update_info.update_available?, do: "bg-blue-400 animate-pulse", else: "bg-emerald-400")]}></span>
-                    <h3 class="text-base font-semibold text-white">
-                      <%= if @update_info.update_available? do %>
-                        New Version Available: <%= @update_info.tag_name %>
-                      <% else %>
-                        ssh-client is up to date (v<%= @version %>)
-                      <% end %>
-                    </h3>
-                  </div>
-                  <p class="text-xs text-zinc-400 font-mono">
-                    Current installed: v<%= @version %> &bull; Latest release: <%= @update_info.tag_name %>
-                  </p>
-                </div>
-
-                <%= if @update_info.update_available? do %>
-                  <div class="flex items-center gap-2 shrink-0">
-                    <%= if @downloading_update do %>
-                      <div class="px-4 py-2 bg-blue-600/30 border border-blue-500/40 rounded-xl text-xs font-mono text-blue-300 flex items-center gap-2">
-                        <span class="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
-                        Downloading (<%= @download_progress %>%)
-                      </div>
+        <!-- Update Status Card (if checked) -->
+        <%= if @update_info do %>
+          <div class={["p-6 rounded-xl border transition-all shadow-xs",
+            if(@update_info.update_available?, do: "bg-primary/5 border-primary/40", else: "bg-card border-border")]}>
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2.5">
+                  <span class={["w-2.5 h-2.5 rounded-full", if(@update_info.update_available?, do: "bg-primary animate-pulse", else: "bg-emerald-500")]}></span>
+                  <h3 class="text-base font-semibold text-foreground">
+                    <%= if @update_info.update_available? do %>
+                      New Release Available: <%= @update_info.tag_name %>
                     <% else %>
-                      <button
-                        phx-click="start_in_app_update"
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl transition-all shadow-lg shadow-blue-900/30 inline-flex items-center gap-1.5"
-                      >
-                        Download &amp; Install Update
-                      </button>
-                      <a
-                        href={@update_info.release_url}
-                        target="_blank"
-                        class="px-3 py-2 bg-[#141414] hover:bg-[#1f1f1f] border border-[#262626] text-zinc-300 text-xs font-medium rounded-xl transition-colors"
-                      >
-                        GitHub Release ↗
-                      </a>
+                      ssh-client is up to date (v<%= @version %>)
                     <% end %>
-                  </div>
-                <% end %>
+                  </h3>
+                </div>
+                <p class="text-xs text-muted-foreground font-mono">
+                  Current installed: v<%= @version %> &bull; Latest release: <%= @update_info.tag_name %>
+                </p>
               </div>
 
-              <!-- Live Download Progress Bar -->
-              <%= if @downloading_update do %>
-                <div class="mt-4 pt-4 border-t border-blue-500/20 space-y-2">
-                  <div class="flex justify-between text-xs font-mono text-blue-300">
-                    <span>Downloading update payload...</span>
-                    <span><%= @download_progress %>%</span>
-                  </div>
-                  <div class="w-full h-2 bg-[#111] rounded-full overflow-hidden border border-blue-500/30">
-                    <div class="h-full bg-blue-500 transition-all duration-300 rounded-full" style={"width: #{@download_progress}%"}></div>
-                  </div>
-                </div>
-              <% end %>
-
-              <!-- Ready to Restart (Zero-Wizard In-Place Hot-Swap) -->
-              <%= if @install_status == :ready_to_restart do %>
-                <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <span class="font-semibold block text-emerald-200">Update Ready:</span>
-                    <%= @install_message %>
-                  </div>
-                  <button
-                    phx-click="restart_and_apply"
-                    class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shrink-0 transition-all shadow-lg shadow-emerald-900/30"
-                  >
-                    Restart &amp; Apply Update
-                  </button>
-                </div>
-              <% end %>
-
-              <!-- Restarting State -->
-              <%= if @install_status == :restarting do %>
-                <div class="mt-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono flex items-center gap-2.5">
-                  <span class="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
-                  <span><%= @install_message %></span>
-                </div>
-              <% end %>
-
-              <!-- Installation Success/Status message (Installer Fallback) -->
-              <%= if @install_status == :installed do %>
-                <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex items-center justify-between gap-3">
-                  <div>
-                    <span class="font-semibold block text-emerald-200">Update Ready:</span>
-                    <%= @install_message %>
-                  </div>
-                  <%= if @download_path do %>
+              <%= if @update_info.update_available? do %>
+                <div class="flex items-center gap-2 shrink-0">
+                  <%= if @downloading_update do %>
+                    <div class="px-4 py-2 bg-primary/20 border border-primary/40 rounded-lg text-xs font-mono text-primary flex items-center gap-2">
+                      <span class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                      Downloading (<%= @download_progress %>%)
+                    </div>
+                  <% else %>
                     <button
-                      phx-click="launch_installer"
-                      class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg shrink-0 transition-colors"
+                      phx-click="start_in_app_update"
+                      class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-lg transition-all shadow-xs inline-flex items-center gap-1.5"
                     >
-                      Run Installer
+                      Download &amp; Install Update
+                    </button>
+                    <a
+                      href={@update_info.release_url}
+                      target="_blank"
+                      class="px-3 py-2 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs font-medium rounded-lg transition-colors"
+                    >
+                      GitHub Release ↗
+                    </a>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+
+            <!-- Live Download Progress Bar -->
+            <%= if @downloading_update do %>
+              <div class="mt-4 pt-4 border-t border-border space-y-2">
+                <div class="flex justify-between text-xs font-mono text-primary">
+                  <span>Downloading update payload...</span>
+                  <span><%= @download_progress %>%</span>
+                </div>
+                <div class="w-full h-2 bg-muted rounded-full overflow-hidden border border-border">
+                  <div class="h-full bg-primary transition-all duration-300 rounded-full" style={"width: #{@download_progress}%"}></div>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Ready to Restart (Zero-Wizard In-Place Hot-Swap) -->
+            <%= if @install_status == :ready_to_restart do %>
+              <div class="mt-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span class="font-semibold block text-foreground">Update Ready:</span>
+                  <%= @install_message %>
+                </div>
+                <button
+                  phx-click="restart_and_apply"
+                  class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shrink-0 transition-all shadow-xs"
+                >
+                  Restart &amp; Apply Update
+                </button>
+              </div>
+            <% end %>
+
+            <!-- Restarting State -->
+            <%= if @install_status == :restarting do %>
+              <div class="mt-4 p-4 rounded-lg bg-primary/10 border border-primary/30 text-primary text-xs font-mono flex items-center gap-2.5">
+                <span class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                <span><%= @install_message %></span>
+              </div>
+            <% end %>
+
+            <!-- Installation Success/Status message (Installer Fallback) -->
+            <%= if @install_status == :installed do %>
+              <div class="mt-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono flex items-center justify-between gap-3">
+                <div>
+                  <span class="font-semibold block text-foreground">Update Ready:</span>
+                  <%= @install_message %>
+                </div>
+                <%= if @download_path do %>
+                  <button
+                    phx-click="launch_installer"
+                    class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-md shrink-0 transition-colors"
+                  >
+                    Run Installer
+                  </button>
+                <% end %>
+              </div>
+            <% end %>
+
+            <%= if @install_error do %>
+              <div class="mt-4 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs font-mono">
+                <%= @install_error %>
+              </div>
+            <% end %>
+
+            <!-- Platform Packages List -->
+            <%= if @update_info.update_available? and @update_info.assets != [] do %>
+              <div class="mt-4 pt-4 border-t border-border space-y-2">
+                <span class="text-[11px] text-muted-foreground uppercase tracking-wider block font-mono">Platform Packages</span>
+                <div class="flex flex-wrap gap-2">
+                  <%= for asset <- @update_info.assets do %>
+                    <button
+                      phx-click="start_in_app_update"
+                      phx-value-url={asset.browser_download_url}
+                      phx-value-name={asset.name}
+                      class="px-3 py-1.5 bg-background hover:bg-muted border border-border hover:border-input text-xs text-foreground font-mono rounded-md transition-colors inline-flex items-center gap-2 text-left"
+                    >
+                      <span class="font-medium"><%= asset.name %></span>
+                      <span class="text-muted-foreground text-[10px]">(<%= format_bytes(asset.size) %>)</span>
                     </button>
                   <% end %>
                 </div>
-              <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
 
-              <%= if @install_error do %>
-                <div class="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono">
-                  <%= @install_error %>
-                </div>
-              <% end %>
+        <%= if @update_error do %>
+          <div class="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono">
+            Update check failed: <%= @update_error %>
+          </div>
+        <% end %>
 
-              <!-- Manual download options -->
-              <%= if @update_info.update_available? and @update_info.assets != [] do %>
-                <div class="mt-4 pt-4 border-t border-[#1f1f1f] space-y-2">
-                  <span class="text-[11px] text-zinc-500 uppercase tracking-wider block font-mono">Platform Packages</span>
-                  <div class="flex flex-wrap gap-2">
-                    <%= for asset <- @update_info.assets do %>
-                      <button
-                        phx-click="start_in_app_update"
-                        phx-value-url={asset.browser_download_url}
-                        phx-value-name={asset.name}
-                        class="px-3 py-1.5 bg-[#111] hover:bg-[#1a1a1a] border border-[#222] hover:border-zinc-700 text-xs text-zinc-300 font-mono rounded-lg transition-colors inline-flex items-center gap-2 text-left"
-                      >
-                        <span class="text-white font-medium"><%= asset.name %></span>
-                        <span class="text-zinc-600 text-[10px]">(<%= format_bytes(asset.size) %>)</span>
-                      </button>
-                    <% end %>
-                  </div>
-                </div>
-              <% end %>
+        <!-- System & Paths Info -->
+        <div class="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+          <div class="flex items-center justify-between pb-2 border-b border-border/60">
+            <h2 class="text-sm font-semibold text-foreground">System & Environment Configuration</h2>
+            <span class="text-xs text-muted-foreground font-mono">Local Node</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+            <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1">
+              <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Platform Architecture</span>
+              <span class="text-foreground font-semibold"><%= @platform %></span>
             </div>
-          <% end %>
-
-          <%= if @update_error do %>
-            <div class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
-              Update check failed: <%= @update_error %>
+            <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1">
+              <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Application Release</span>
+              <span class="text-foreground font-semibold">v<%= @version %></span>
             </div>
-          <% end %>
-
-          <!-- System & Paths Info -->
-          <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl p-6 space-y-4">
-            <h2 class="text-sm font-semibold text-white">System & Configuration</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-              <div class="p-3.5 bg-[#111] border border-[#1a1a1a] rounded-xl space-y-1">
-                <span class="text-zinc-500 uppercase tracking-wider text-[10px] block">Platform</span>
-                <span class="text-zinc-200"><%= @platform %></span>
+            <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1 md:col-span-2">
+              <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Local Store File Path</span>
+              <span class="text-foreground break-all"><%= @config_path %></span>
+            </div>
+            <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1 md:col-span-2">
+              <div class="flex items-center justify-between">
+                <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Known Hosts Path</span>
+                <span class="text-[11px] text-muted-foreground"><%= @known_hosts_count %> verified fingerprints</span>
               </div>
-              <div class="p-3.5 bg-[#111] border border-[#1a1a1a] rounded-xl space-y-1">
-                <span class="text-zinc-500 uppercase tracking-wider text-[10px] block">Application Version</span>
-                <span class="text-zinc-200">v<%= @version %></span>
-              </div>
-              <div class="p-3.5 bg-[#111] border border-[#1a1a1a] rounded-xl space-y-1 md:col-span-2">
-                <span class="text-zinc-500 uppercase tracking-wider text-[10px] block">Config File Path</span>
-                <span class="text-zinc-300 break-all"><%= @config_path %></span>
-              </div>
-              <div class="p-3.5 bg-[#111] border border-[#1a1a1a] rounded-xl space-y-1 md:col-span-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-zinc-500 uppercase tracking-wider text-[10px] block">Known Hosts Path</span>
-                  <span class="text-[11px] text-zinc-500"><%= @known_hosts_count %> verified entries</span>
-                </div>
-                <span class="text-zinc-300 break-all"><%= @known_hosts_path %></span>
-              </div>
+              <span class="text-foreground break-all"><%= @known_hosts_path %></span>
             </div>
           </div>
+        </div>
 
-          <!-- SSH Key Discovery -->
-          <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-sm font-semibold text-white">Discovered SSH Private Keys</h2>
-                <p class="text-xs text-zinc-500 mt-0.5">Identities discovered in ~/.ssh used automatically for authentication.</p>
-              </div>
-              <span class="text-[11px] text-zinc-600 font-mono"><%= length(@discovered_keys) %> detected</span>
+        <!-- SSH Key Discovery -->
+        <div class="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+          <div class="flex items-center justify-between pb-2 border-b border-border/60">
+            <div>
+              <h2 class="text-sm font-semibold text-foreground">Discovered SSH Private Keys</h2>
+              <p class="text-xs text-muted-foreground mt-0.5">Identities discovered in ~/.ssh used automatically for public-key authentication.</p>
             </div>
+            <span class="text-[11px] text-muted-foreground font-mono"><%= length(@discovered_keys) %> detected</span>
+          </div>
 
-            <%= if @discovered_keys == [] do %>
-              <div class="p-4 bg-[#111] border border-[#1a1a1a] rounded-xl text-xs text-zinc-500 font-mono">
-                No standard private keys (id_ed25519, id_rsa, id_ecdsa) found in ~/.ssh.
+          <%= if @discovered_keys == [] do %>
+            <div class="p-4 bg-muted/30 border border-border rounded-lg text-xs text-muted-foreground font-mono">
+              No standard private keys (id_ed25519, id_rsa, id_ecdsa) found in ~/.ssh.
+            </div>
+          <% else %>
+            <div class="space-y-2">
+              <%= for key_path <- @discovered_keys do %>
+                <div class="flex items-center justify-between p-3 bg-muted/30 border border-border rounded-lg text-xs font-mono">
+                  <span class="text-foreground font-medium"><%= key_path %></span>
+                  <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold uppercase">ready</span>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Import OpenSSH Config -->
+        <div class="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+          <div class="flex items-center justify-between pb-2 border-b border-border/60">
+            <div>
+              <h2 class="text-sm font-semibold text-foreground">Import from OpenSSH ~/.ssh/config</h2>
+              <p class="text-xs text-muted-foreground mt-0.5">Scan existing SSH client configurations and register hosts automatically.</p>
+            </div>
+            <button
+              phx-click="scan_ssh_config"
+              class="h-8 px-3 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-medium inline-flex items-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Scan ~/.ssh/config
+            </button>
+          </div>
+
+          <%= if @import_status do %>
+            <div class="p-3 bg-muted/40 border border-border rounded-lg text-xs text-foreground font-mono">
+              <%= @import_status %>
+            </div>
+          <% end %>
+
+          <%= if @import_candidates != [] do %>
+            <div class="space-y-3 pt-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-foreground font-semibold">Available Hosts to Import:</span>
+                <button
+                  phx-click="import_all_candidates"
+                  class="h-8 px-4 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium rounded-md shadow-xs transition-colors"
+                >
+                  Import <%= length(@import_candidates) %> Hosts
+                </button>
               </div>
-            <% else %>
-              <div class="space-y-2">
-                <%= for key_path <- @discovered_keys do %>
-                  <div class="flex items-center justify-between p-3 bg-[#111] border border-[#1a1a1a] rounded-xl text-xs font-mono">
-                    <span class="text-zinc-300"><%= key_path %></span>
-                    <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ready</span>
+
+              <div class="space-y-1.5 max-h-48 overflow-auto border border-border rounded-lg p-2 bg-muted/20">
+                <%= for cand <- @import_candidates do %>
+                  <div class="flex items-center justify-between p-2 rounded-md bg-card border border-border/50 text-xs font-mono">
+                    <span class="text-foreground font-medium"><%= cand.id %></span>
+                    <span class="text-muted-foreground"><%= cand.user %>@<%= cand.address %>:<%= cand.port || 22 %></span>
                   </div>
                 <% end %>
               </div>
-            <% end %>
-          </div>
-
-          <!-- Import OpenSSH Config -->
-          <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-sm font-semibold text-white">Import from OpenSSH ~/.ssh/config</h2>
-                <p class="text-xs text-zinc-500 mt-0.5">Scan your existing SSH config file and import configured hosts into ssh-client.</p>
-              </div>
-              <button
-                phx-click="scan_ssh_config"
-                class="h-8 px-3 bg-[#111] hover:bg-[#1a1a1a] border border-[#1f1f1f] hover:border-zinc-600 text-zinc-300 text-xs rounded-lg transition-colors font-medium"
-              >
-                Scan ~/.ssh/config
-              </button>
             </div>
-
-            <%= if @import_status do %>
-              <div class="p-3 bg-[#111] border border-[#1a1a1a] rounded-xl text-xs text-zinc-400 font-mono">
-                <%= @import_status %>
-              </div>
-            <% end %>
-
-            <%= if @import_candidates != [] do %>
-              <div class="space-y-3 pt-2">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-zinc-400 font-semibold">Found Hosts to Import:</span>
-                  <button
-                    phx-click="import_all_candidates"
-                    class="h-8 px-4 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
-                  >
-                    Import <%= length(@import_candidates) %> Hosts
-                  </button>
-                </div>
-
-                <div class="space-y-1.5 max-h-48 overflow-auto border border-[#1f1f1f] rounded-xl p-2 bg-[#050505]">
-                  <%= for cand <- @import_candidates do %>
-                    <div class="flex items-center justify-between p-2 rounded-lg bg-[#111] text-xs font-mono">
-                      <span class="text-zinc-200 font-medium"><%= cand.id %></span>
-                      <span class="text-zinc-500"><%= cand.user %>@<%= cand.address %>:<%= cand.port || 22 %></span>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-            <% end %>
-          </div>
+          <% end %>
         </div>
-      </div>
+      </main>
     </div>
     """
   end
@@ -578,6 +546,20 @@ defmodule SSHClientWeb.SettingsLive do
       _ -> []
     catch
       :exit, _ -> []
+    end
+  end
+
+  defp count_online_servers do
+    try do
+      ServerManager.list_servers()
+      |> Enum.count(fn s ->
+        status = s[:status] || s["status"]
+        status in ["online", "healthy", :online, :healthy]
+      end)
+    rescue
+      _ -> 0
+    catch
+      :exit, _ -> 0
     end
   end
 
@@ -600,3 +582,4 @@ defmodule SSHClientWeb.SettingsLive do
 
   defp format_bytes(_), do: "0 B"
 end
+

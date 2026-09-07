@@ -63,20 +63,39 @@ defmodule SSHClientWeb.LockLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen w-screen bg-[#09090b] flex items-center justify-center p-4 antialiased">
-      <div class="w-full max-w-sm stark-card bg-[#121215] border border-zinc-800 rounded-lg p-6 shadow-2xl space-y-6">
+    <div class="min-h-screen w-screen bg-background text-foreground flex items-center justify-center p-4 antialiased relative">
+      <!-- Top Theme Switcher -->
+      <div class="absolute top-4 right-4">
+        <button
+          type="button"
+          onclick="window.toggleAppTheme()"
+          class="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border bg-card text-foreground hover:bg-muted transition-colors"
+          title="Toggle Dark / Light Theme"
+        >
+          <!-- Moon icon for dark mode -->
+          <svg class="w-4 h-4 hidden dark:block text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+          <!-- Sun icon for light mode -->
+          <svg class="w-4 h-4 block dark:hidden text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="w-full max-w-sm bg-card border border-border rounded-xl p-8 shadow-xl space-y-6">
         <!-- Brand Header -->
         <div class="flex flex-col items-center text-center space-y-2">
-          <div class="flex items-center gap-2">
-            <img src="/images/icon.png" alt="Logo" class="w-8 h-8 rounded-md border border-zinc-800" />
-            <span class="text-white font-bold text-base tracking-tight font-mono">ssh-client</span>
-            <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
+          <div class="flex items-center gap-2.5">
+            <img src="/images/icon.png" alt="Logo" class="w-8 h-8 rounded-lg border border-border shadow-xs" />
+            <span class="text-foreground font-bold text-base tracking-tight font-sans">ssh-client</span>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-primary/10 text-primary border border-primary/20">BETA</span>
           </div>
-          <p class="text-xs text-zinc-500 font-mono">Hardware Encrypted Vault</p>
+          <p class="text-xs text-muted-foreground font-mono">Hardware Encrypted Vault</p>
         </div>
 
         <%= if @error do %>
-          <div class="px-3 py-2 bg-red-950/50 border border-red-800/50 rounded text-red-300 text-xs font-mono">
+          <div class="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs font-mono">
             <%= @error %>
           </div>
         <% end %>
@@ -84,56 +103,56 @@ defmodule SSHClientWeb.LockLive do
         <%= if @vault_status == :uninitialized do %>
           <!-- First Time Setup -->
           <form phx-submit="init_vault" class="space-y-4 font-mono text-xs">
-            <div class="text-center">
-              <h2 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Initialize Master Vault</h2>
-              <p class="text-[11px] text-zinc-500 mt-1">This password encrypts your stored SSH keys and server credentials.</p>
+            <div class="text-center pb-1">
+              <h2 class="text-xs font-semibold text-foreground uppercase tracking-wider">Initialize Master Vault</h2>
+              <p class="text-[11px] text-muted-foreground mt-1">Set a master passphrase to encrypt local credentials and private keys.</p>
             </div>
 
-            <div>
-              <label class="block text-[11px] text-zinc-400 uppercase tracking-wider mb-1">Master Password / PIN</label>
+            <div class="space-y-1">
+              <label class="block text-[11px] text-muted-foreground uppercase tracking-wider font-sans font-semibold">Master Password</label>
               <input
                 type="password"
                 name="password"
-                placeholder="Enter a secure password..."
-                class="input input-sm w-full bg-[#18181b] border-zinc-800 focus:border-zinc-500 rounded text-zinc-200"
+                placeholder="Enter master password..."
+                class="w-full h-9 px-3 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 required
                 autofocus
               />
             </div>
 
-            <div>
-              <label class="block text-[11px] text-zinc-400 uppercase tracking-wider mb-1">Confirm Master Password</label>
+            <div class="space-y-1">
+              <label class="block text-[11px] text-muted-foreground uppercase tracking-wider font-sans font-semibold">Confirm Password</label>
               <input
                 type="password"
                 name="confirm_password"
-                placeholder="Re-enter password..."
-                class="input input-sm w-full bg-[#18181b] border-zinc-800 focus:border-zinc-500 rounded text-zinc-200"
+                placeholder="Re-enter master password..."
+                class="w-full h-9 px-3 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 required
               />
             </div>
 
             <button
               type="submit"
-              class="btn btn-sm w-full bg-white text-zinc-950 hover:bg-zinc-200 border-none font-medium rounded shadow-sm"
+              class="w-full h-9 bg-primary text-primary-foreground hover:bg-primary/90 font-medium rounded-md shadow-xs transition-colors"
             >
-              Initialize & Unlock Vault
+              Initialize &amp; Unlock Vault
             </button>
           </form>
         <% else %>
           <!-- Unlock Screen -->
           <form phx-submit="unlock_vault" class="space-y-4 font-mono text-xs">
-            <div class="text-center">
-              <h2 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Vault Locked</h2>
-              <p class="text-[11px] text-zinc-500 mt-1">Enter your master password to access your servers.</p>
+            <div class="text-center pb-1">
+              <h2 class="text-xs font-semibold text-foreground uppercase tracking-wider">Vault Locked</h2>
+              <p class="text-[11px] text-muted-foreground mt-1">Enter your master passphrase to decrypt stored hosts and credentials.</p>
             </div>
 
-            <div>
-              <label class="block text-[11px] text-zinc-400 uppercase tracking-wider mb-1">Master Password</label>
+            <div class="space-y-1">
+              <label class="block text-[11px] text-muted-foreground uppercase tracking-wider font-sans font-semibold">Master Password</label>
               <input
                 type="password"
                 name="password"
                 placeholder="Enter master password..."
-                class="input input-sm w-full bg-[#18181b] border-zinc-800 focus:border-zinc-500 rounded text-zinc-200"
+                class="w-full h-9 px-3 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 required
                 autofocus
               />
@@ -141,7 +160,7 @@ defmodule SSHClientWeb.LockLive do
 
             <button
               type="submit"
-              class="btn btn-sm w-full bg-white text-zinc-950 hover:bg-zinc-200 border-none font-medium rounded shadow-sm"
+              class="w-full h-9 bg-primary text-primary-foreground hover:bg-primary/90 font-medium rounded-md shadow-xs transition-colors"
             >
               Unlock Vault
             </button>
@@ -152,3 +171,4 @@ defmodule SSHClientWeb.LockLive do
     """
   end
 end
+
