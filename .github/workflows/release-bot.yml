@@ -80,3 +80,11 @@ jobs:
           git push origin main
           git tag "v${NEW_VER}"
           git push origin "v${NEW_VER}"
+
+      - name: Trigger CI Release Build
+        if: steps.bump.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VER="${{ steps.bump.outputs.version }}"
+          gh workflow run ci.yml --ref "v${NEW_VER}"
