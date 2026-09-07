@@ -22,6 +22,8 @@ defmodule SSHClient.Application do
       end
 
     children = [
+      # PubSub
+      {Phoenix.PubSub, name: SSHClient.PubSub},
       # Phoenix HTTP server
       SSHClientWeb.Endpoint,
       # Desktop Window or headless fallback
