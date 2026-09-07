@@ -481,40 +481,40 @@ defmodule SSHClientWeb.TerminalLive do
     assigns = assign(assigns, :cur_tab, cur_tab)
 
     ~H"""
-    <div class="flex flex-col h-screen w-screen bg-[#050505] overflow-hidden select-none font-sans">
+    <div class="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none font-sans">
       <!-- Terminal topbar -->
-      <div class="h-11 flex items-center justify-between px-3 bg-[#0a0a0a] border-b border-[#1f1f1f] shrink-0 z-20">
+      <div class="h-12 flex items-center justify-between px-3 bg-card/90 border-b border-border shrink-0 z-20">
         <!-- Left: Host back nav, Server ID, BETA badge, Multi-tab bar -->
         <div class="flex items-center gap-2 min-w-0">
           <a
             href="/"
-            class="text-zinc-400 hover:text-white text-xs font-mono transition-colors inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#141414] hover:bg-[#202020] border border-[#27272a] shrink-0"
+            class="text-muted-foreground hover:text-foreground text-xs font-mono transition-colors inline-flex items-center gap-1 px-2.5 py-1 rounded bg-secondary hover:bg-secondary/80 border border-border shrink-0"
             title="Back to Hosts"
           >
             &larr; <span class="hidden sm:inline">Hosts</span>
           </a>
-          <span class="text-zinc-700">|</span>
-          <span class="text-white text-xs font-mono font-semibold truncate"><%= @server_id %></span>
-          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
+          <span class="text-border">|</span>
+          <span class="text-foreground text-xs font-mono font-semibold truncate"><%= @server_id %></span>
+          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
 
           <!-- Multi-Tab workspace pills -->
-          <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-[#27272a]">
+          <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-border">
             <%= for tab <- @tabs do %>
               <div class={["flex items-center rounded font-mono text-xs overflow-hidden border transition-colors",
-                if(tab.id == @active_tab_id, do: "bg-[#18181b] border-blue-500/60 text-blue-400", else: "bg-[#0e0e10] border-[#222226] text-zinc-500 hover:text-zinc-300 hover:bg-[#141416]")]}>
+                if(tab.id == @active_tab_id, do: "bg-background border-border text-foreground font-semibold shadow-sm", else: "bg-muted/50 border-transparent text-muted-foreground hover:text-foreground hover:bg-muted")]}>
                 <button
                   phx-click="switch_tab"
                   phx-value-id={tab.id}
-                  class="px-2 py-0.5 text-left flex items-center gap-1.5"
+                  class="px-2.5 py-1 text-left flex items-center gap-1.5"
                 >
-                  <span class={["w-1.5 h-1.5 rounded-full", if(tab.connected, do: "bg-emerald-400", else: "bg-zinc-600")]}></span>
+                  <span class={["w-1.5 h-1.5 rounded-full", if(tab.connected, do: "bg-emerald-500", else: "bg-muted-foreground")]}></span>
                   <span><%= tab.title %></span>
                 </button>
                 <%= if length(@tabs) > 1 do %>
                   <button
                     phx-click="close_tab"
                     phx-value-id={tab.id}
-                    class="px-1 py-0.5 text-zinc-600 hover:text-red-400 hover:bg-white/5 transition-colors"
+                    class="px-1.5 py-1 text-muted-foreground hover:text-destructive transition-colors"
                     title="Close Tab"
                   >
                     &times;
@@ -524,7 +524,7 @@ defmodule SSHClientWeb.TerminalLive do
             <% end %>
             <button
               phx-click="new_tab"
-              class="h-5 px-1.5 bg-[#121214] hover:bg-[#202020] border border-[#222226] hover:border-zinc-500 text-zinc-400 hover:text-white rounded text-[11px] font-mono transition-colors"
+              class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
               title="Open New Terminal Tab"
             >
               +
@@ -535,19 +535,19 @@ defmodule SSHClientWeb.TerminalLive do
         <!-- Center / Right: Quick Controls & Status -->
         <div class="flex items-center gap-2">
           <!-- Connection badge for active tab -->
-          <span class={["inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-full border shrink-0",
-            if(@cur_tab.connected, do: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", else: if(@cur_tab.error, do: "bg-red-500/10 text-red-400 border-red-500/20", else: "bg-blue-500/10 text-blue-400 border-blue-500/20"))]}>
+          <span class={["inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-0.5 rounded-full border shrink-0",
+            if(@cur_tab.connected, do: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", else: if(@cur_tab.error, do: "bg-destructive/10 text-destructive border-destructive/20", else: "bg-blue-500/10 text-blue-500 border-blue-500/20"))]}>
             <span class={["w-1.5 h-1.5 rounded-full",
-              if(@cur_tab.connected, do: "bg-emerald-400 animate-pulse", else: if(@cur_tab.error, do: "bg-red-400", else: "bg-blue-400 animate-ping"))]}></span>
+              if(@cur_tab.connected, do: "bg-emerald-500 animate-pulse", else: if(@cur_tab.error, do: "bg-destructive", else: "bg-blue-500 animate-ping"))]}></span>
             <span class="hidden md:inline"><%= if @cur_tab.connected, do: "connected", else: if(@cur_tab.error, do: "error", else: "connecting...") %></span>
           </span>
 
-          <span class="text-zinc-600 text-[10px] font-mono hidden lg:inline"><%= @cols %>x<%= @rows %></span>
+          <span class="text-muted-foreground text-[10px] font-mono hidden lg:inline"><%= @cols %>x<%= @rows %></span>
 
           <!-- SFTP Quick Link -->
           <a
             href={"/sftp/#{@server_id}"}
-            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono inline-flex items-center"
+            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
             title="Open SFTP File Explorer"
           >
             SFTP
@@ -556,7 +556,7 @@ defmodule SSHClientWeb.TerminalLive do
           <!-- Quick Action: Paste -->
           <button
             phx-click="request_paste"
-            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono inline-flex items-center"
+            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
             title="Paste Clipboard (Ctrl+V)"
           >
             Paste
@@ -565,8 +565,8 @@ defmodule SSHClientWeb.TerminalLive do
           <!-- Quick Action: Toggle Commands Drawer -->
           <button
             phx-click="toggle_commands"
-            class={["h-7 px-2.5 border text-xs rounded-md transition-colors font-mono inline-flex items-center",
-              if(@show_commands, do: "bg-blue-600/20 border-blue-500 text-blue-300", else: "bg-[#141414] hover:bg-[#202020] border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white")]}
+            class={["h-7 px-2.5 border text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm",
+              if(@show_commands, do: "bg-primary text-primary-foreground border-primary", else: "bg-secondary hover:bg-secondary/80 border-border text-secondary-foreground")]}
             title="Toggle Command Autocomplete & Suggestions"
           >
             Cmds
@@ -575,7 +575,7 @@ defmodule SSHClientWeb.TerminalLive do
           <!-- Quick Action: Switch to Zsh -->
           <button
             phx-click="switch_to_zsh"
-            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-blue-500/60 text-blue-400 hover:text-blue-300 text-xs rounded-md transition-colors font-mono inline-flex items-center"
+            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
             title="Switch remote shell to Zsh (exec zsh -l)"
           >
             Zsh
@@ -584,25 +584,25 @@ defmodule SSHClientWeb.TerminalLive do
           <!-- Quick Action: Clear Screen -->
           <button
             phx-click="clear_screen"
-            class="h-7 px-2 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-400 hover:text-zinc-200 text-xs rounded-md transition-colors font-mono"
+            class="h-7 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-xs rounded-md transition-colors font-mono"
             title="Clear Terminal Screen (Ctrl+L)"
           >
             Clear
           </button>
 
           <!-- Font Size Adjusters -->
-          <div class="hidden sm:flex items-center border border-[#27272a] rounded-md bg-[#141414] overflow-hidden">
+          <div class="hidden sm:flex items-center border border-border rounded-md bg-secondary overflow-hidden">
             <button
               phx-click="font_decrease"
-              class="h-7 px-2 text-[11px] text-zinc-400 hover:text-white hover:bg-[#222] transition-colors font-mono"
+              class="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
               title="Decrease Font Size (Ctrl -)"
             >
               A-
             </button>
-            <span class="w-[1px] h-4 bg-[#27272a]"></span>
+            <span class="w-[1px] h-4 bg-border"></span>
             <button
               phx-click="font_increase"
-              class="h-7 px-2 text-[11px] text-zinc-400 hover:text-white hover:bg-[#222] transition-colors font-mono"
+              class="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
               title="Increase Font Size (Ctrl +)"
             >
               A+
@@ -612,7 +612,7 @@ defmodule SSHClientWeb.TerminalLive do
           <!-- Reconnect -->
           <button
             phx-click="reconnect"
-            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-300 hover:text-white text-xs rounded-md transition-colors font-mono"
+            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
             title="Reconnect Session"
           >
             Reconnect
@@ -621,7 +621,7 @@ defmodule SSHClientWeb.TerminalLive do
           <!-- Logs -->
           <a
             href="/logs"
-            class="h-7 px-2.5 bg-[#141414] hover:bg-[#202020] border border-[#27272a] hover:border-zinc-500 text-zinc-400 hover:text-zinc-200 text-xs rounded-md transition-colors font-mono inline-flex items-center"
+            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center"
             title="View Real-Time Logs"
           >
             Logs
@@ -630,7 +630,7 @@ defmodule SSHClientWeb.TerminalLive do
       </div>
 
       <!-- Main Body: Terminal + Docked Command Palette -->
-      <div class="flex-1 flex flex-col min-h-0 w-full relative bg-[#050505]">
+      <div class="flex-1 flex flex-col min-h-0 w-full relative bg-background">
         <!-- xterm.js full-height container -->
         <div
           id="xterm-container"

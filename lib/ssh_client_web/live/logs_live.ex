@@ -5,6 +5,7 @@ defmodule SSHClientWeb.LogsLive do
   """
 
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
+  import SSHClientWeb.CoreComponents
 
   alias SSHClient.ActivityLog
   alias SSHClient.ServerManager
@@ -20,12 +21,16 @@ defmodule SSHClientWeb.LogsLive do
       end
 
       servers = list_server_ids()
+      all_servers = list_all_servers()
+      online_count = count_online_servers()
       logs = ActivityLog.list_logs(limit: 200)
 
       socket =
         socket
         |> assign(:page_title, "Activity Logs — ssh-client")
         |> assign(:servers, servers)
+        |> assign(:servers_count, length(all_servers))
+        |> assign(:online_count, online_count)
         |> assign(:selected_server, "all")
         |> assign(:selected_level, "all")
         |> assign(:search_query, "")
@@ -97,73 +102,30 @@ defmodule SSHClientWeb.LogsLive do
     assigns = assign(assigns, :filtered_logs, filtered_logs)
 
     ~H"""
-    <div class="flex h-full min-h-screen bg-[#09090b] text-zinc-100 antialiased">
-      <!-- Sidebar -->
-      <aside class="w-60 bg-[#0c0d0e] border-r border-[#1f1f23] flex flex-col shrink-0 justify-between">
-        <div>
-          <div class="px-5 py-4 border-b border-[#1f1f23] flex items-center justify-between">
-            <a href="/" class="flex items-center gap-2.5">
-              <img src="/images/icon.png" alt="Logo" class="w-7 h-7 rounded-md border border-zinc-800" />
-              <div>
-                <span class="text-white font-semibold text-sm tracking-tight block">ssh-client</span>
-                <span class="block text-[10px] text-zinc-500 font-mono">v<%= @version %></span>
-              </div>
-            </a>
-            <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-red-500/10 text-red-400 border border-red-500/20">BETA</span>
+    <div class="min-h-screen bg-background text-foreground flex flex-col antialiased">
+      <.top_navigation
+        current_tab={:logs}
+        servers_count={@servers_count}
+        online_count={@online_count}
+        version={@version}
+      />
+
+      <main class="flex-1 container mx-auto max-w-7xl px-4 py-6 flex flex-col space-y-4">
+        <!-- Header & Action Toolbar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
+          <div>
+            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">Activity & Telemetry Logs</h1>
+            <p class="text-xs text-muted-foreground font-mono mt-0.5">
+              Real-time audit stream of SSH connections, authentication attempts, SFTP operations, and worker polling.
+            </p>
           </div>
 
-          <nav class="px-3 py-4 space-y-1">
-            <a
-              href="/"
-              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
-            >
-              <span>Hosts</span>
-            </a>
-            <a
-              href="/logs"
-              class="flex items-center justify-between px-3 py-2 rounded-md bg-zinc-800/80 text-white text-xs font-medium font-mono transition-colors border border-zinc-700/50"
-            >
-              <span>Activity Logs</span>
-              <span class="badge badge-sm bg-zinc-900 border-zinc-700 text-zinc-300 font-mono"><%= length(@logs) %></span>
-            </a>
-            <a
-              href="/settings"
-              class="flex items-center justify-between px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 text-xs font-medium font-mono transition-colors"
-            >
-              <span>Settings</span>
-            </a>
-          </nav>
-        </div>
-
-        <div class="px-5 py-4 border-t border-[#1f1f23] bg-[#09090b]/50 flex items-center justify-between text-xs font-mono">
-          <span class="text-[11px] text-zinc-500">
-            <%= length(@logs) %> events
-          </span>
-          <button
-            phx-click="lock_vault"
-            class="text-[11px] text-zinc-500 hover:text-red-400 transition-colors"
-            title="Lock Vault"
-          >
-            Lock
-          </button>
-        </div>
-      </aside>
-
-      <!-- Main content -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#09090b]">
-        <!-- Topbar -->
-        <header class="h-14 flex items-center justify-between px-6 border-b border-[#1f1f23] bg-[#0c0d0e] shrink-0 font-mono">
-          <div class="flex items-center gap-3">
-            <h1 class="text-sm font-semibold text-white tracking-tight">System & SSH Telemetry Logs</h1>
-            <span class="text-[11px] text-zinc-500"><%= length(@filtered_logs) %> shown</span>
-          </div>
-
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <!-- Server filter -->
             <select
               phx-change="filter_server"
               name="server_id"
-              class="select select-sm h-8 bg-[#18181b] border-zinc-800 focus:border-zinc-500 rounded text-xs text-zinc-200"
+              class="h-8 px-2.5 bg-background border border-input rounded-md text-xs text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="all" selected={@selected_server == "all"}>All Hosts</option>
               <%= for server_id <- @servers do %>
@@ -171,14 +133,17 @@ defmodule SSHClientWeb.LogsLive do
               <% end %>
             </select>
 
-            <!-- Level filter -->
-            <div class="flex bg-[#18181b] border border-zinc-800 rounded p-0.5">
+            <!-- Level filter tabs -->
+            <div class="inline-flex items-center rounded-md bg-muted p-0.5 border border-border">
               <%= for {lvl, label} <- [{"all", "All"}, {"info", "Info"}, {"warn", "Warn"}, {"error", "Error"}] do %>
                 <button
                   phx-click="filter_level"
                   phx-value-level={lvl}
-                  class={["px-2.5 py-0.5 text-xs rounded transition-colors font-medium",
-                    if(@selected_level == lvl, do: "bg-white text-zinc-950", else: "text-zinc-400 hover:text-zinc-200")]}
+                  class={["px-2.5 py-1 text-xs rounded font-mono font-medium transition-all",
+                    if(@selected_level == lvl,
+                      do: "bg-background text-foreground shadow-xs",
+                      else: "text-muted-foreground hover:text-foreground"
+                    )]}
                 >
                   <%= label %>
                 </button>
@@ -186,129 +151,150 @@ defmodule SSHClientWeb.LogsLive do
             </div>
 
             <!-- Search input -->
-            <input
-              type="text"
-              value={@search_query}
-              placeholder="Search logs..."
-              phx-keyup="search"
-              phx-value-value={@search_query}
-              class="input input-sm h-8 w-44 bg-[#18181b] border-zinc-800 focus:border-zinc-500 rounded text-xs text-zinc-200 placeholder-zinc-600"
-            />
+            <div class="relative">
+              <svg class="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={@search_query}
+                placeholder="Search logs..."
+                phx-keyup="search"
+                phx-value-value={@search_query}
+                class="h-8 pl-8 pr-3 w-44 sm:w-56 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
 
             <!-- Clear -->
             <button
               phx-click="clear_logs"
-              class="btn btn-sm btn-ghost border border-zinc-800 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 text-xs font-mono h-8 min-h-0 rounded"
+              class="h-8 px-3 rounded-md border border-border bg-card hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive text-muted-foreground text-xs font-mono font-medium transition-colors"
             >
               Clear
             </button>
           </div>
-        </header>
+        </div>
 
-        <!-- Log entries list -->
-        <div class="flex-1 overflow-auto p-4">
-          <%= if @filtered_logs == [] do %>
-            <div class="flex flex-col items-center justify-center h-64 gap-2 text-zinc-600 text-xs font-mono">
-              <span>No log events found</span>
-              <span class="text-zinc-700">Events from SSH connections, authentication, and worker polling will appear here in real-time.</span>
+        <!-- Log entries container -->
+        <div class="flex-1 bg-card border border-border rounded-xl shadow-xs overflow-hidden flex flex-col min-h-[500px]">
+          <div class="px-4 py-2.5 bg-muted/40 border-b border-border flex items-center justify-between font-mono text-xs text-muted-foreground shrink-0">
+            <span>Displaying <%= length(@filtered_logs) %> of <%= length(@logs) %> events</span>
+            <span class="text-[11px]">Live WebSocket Feed Connected</span>
+          </div>
+
+          <div class="flex-1 overflow-auto p-3">
+            <%= if @filtered_logs == [] do %>
+              <div class="flex flex-col items-center justify-center h-80 gap-2 text-muted-foreground text-xs font-mono">
+                <svg class="w-8 h-8 text-muted-foreground/40 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="font-medium text-foreground">No log events recorded</span>
+                <span class="text-[11px] max-w-sm text-center">Connection attempts, background health checks, and errors will automatically stream here.</span>
+              </div>
+            <% else %>
+              <div class="space-y-1 font-mono text-xs">
+                <%= for entry <- @filtered_logs do %>
+                  <div
+                    phx-click="view_details"
+                    phx-value-id={entry.id}
+                    class="flex items-center gap-3 px-3 py-2 rounded-lg bg-background hover:bg-muted/60 border border-border/40 hover:border-border cursor-pointer transition-all group"
+                  >
+                    <!-- Timestamp -->
+                    <span class="text-muted-foreground shrink-0 text-[11px] tabular-nums">
+                      <%= format_timestamp(entry.timestamp) %>
+                    </span>
+
+                    <!-- Level Badge -->
+                    <span class={["px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider shrink-0 border", level_badge_class(entry.level)]}>
+                      <%= entry.level %>
+                    </span>
+
+                    <!-- Host Badge -->
+                    <%= if entry.server_id do %>
+                      <span class="px-2 py-0.5 rounded text-[11px] bg-primary/10 text-primary border border-primary/20 shrink-0 font-medium">
+                        <%= entry.server_id %>
+                      </span>
+                    <% end %>
+
+                    <!-- Message -->
+                    <span class={["flex-1 truncate font-mono", if(entry.level == :error, do: "text-destructive font-semibold", else: "text-foreground")]}>
+                      <%= entry.message %>
+                    </span>
+
+                    <!-- Details indicator -->
+                    <%= if entry.details do %>
+                      <span class="text-[10px] text-muted-foreground group-hover:text-primary shrink-0 transition-colors">
+                        Inspect &rarr;
+                      </span>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </main>
+
+      <!-- Log Details Modal -->
+      <%= if @selected_entry do %>
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div class="bg-card border border-border text-foreground rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div class="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-2.5">
+                <span class={["px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border", level_badge_class(@selected_entry.level)]}>
+                  <%= @selected_entry.level %>
+                </span>
+                <h3 class="text-sm font-semibold text-foreground">Log Event Details</h3>
+              </div>
+              <button phx-click="close_details" class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          <% else %>
-            <div class="space-y-1 font-mono text-xs">
-              <%= for entry <- @filtered_logs do %>
-                <div
-                  phx-click="view_details"
-                  phx-value-id={entry.id}
-                  class="flex items-start gap-3 px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#141414] hover:border-[#27272a] hover:bg-[#111] cursor-pointer transition-colors group"
-                >
-                  <!-- Timestamp -->
-                  <span class="text-zinc-600 shrink-0 text-[11px]">
-                    <%= format_timestamp(entry.timestamp) %>
-                  </span>
 
-                  <!-- Level Badge -->
-                  <span class={["px-1.5 py-0.2 rounded text-[10px] uppercase font-bold tracking-wider shrink-0", level_badge_class(entry.level)]}>
-                    <%= entry.level %>
-                  </span>
+            <div class="p-6 overflow-auto space-y-4 font-mono text-xs">
+              <div class="grid grid-cols-2 gap-4">
+                <div class="p-3 bg-muted/40 rounded-lg border border-border/60">
+                  <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Timestamp</span>
+                  <span class="text-foreground font-semibold"><%= DateTime.to_iso8601(@selected_entry.timestamp) %></span>
+                </div>
 
-                  <!-- Host Badge -->
-                  <%= if entry.server_id do %>
-                    <span class="px-2 py-0.2 rounded text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
-                      <%= entry.server_id %>
-                    </span>
-                  <% end %>
+                <%= if @selected_entry.server_id do %>
+                  <div class="p-3 bg-muted/40 rounded-lg border border-border/60">
+                    <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Host Target</span>
+                    <span class="text-primary font-semibold"><%= @selected_entry.server_id %></span>
+                  </div>
+                <% end %>
+              </div>
 
-                  <!-- Message -->
-                  <span class={["flex-1 break-all", if(entry.level == :error, do: "text-red-300 font-semibold", else: "text-zinc-300")]}>
-                    <%= entry.message %>
-                  </span>
+              <div>
+                <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Message</span>
+                <div class="p-3 bg-background border border-border rounded-lg text-foreground break-all">
+                  <%= @selected_entry.message %>
+                </div>
+              </div>
 
-                  <!-- Details indicator -->
-                  <%= if entry.details do %>
-                    <span class="text-[10px] text-zinc-600 group-hover:text-blue-400 shrink-0">
-                      details &rarr;
-                    </span>
-                  <% end %>
+              <%= if @selected_entry.details do %>
+                <div>
+                  <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Diagnostic Details / Payload</span>
+                  <pre class="p-3 bg-muted border border-border rounded-lg text-foreground overflow-auto max-h-60 text-[11px] whitespace-pre-wrap"><%= @selected_entry.details %></pre>
                 </div>
               <% end %>
             </div>
-          <% end %>
+
+            <div class="px-6 py-3 border-t border-border bg-muted/30 flex justify-end shrink-0">
+              <button
+                phx-click="close_details"
+                class="px-4 py-2 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs font-medium rounded-md transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      <% end %>
     </div>
-
-    <!-- Log Details Modal / Drawer -->
-    <%= if @selected_entry do %>
-      <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-          <div class="px-6 py-4 border-b border-[#1f1f1f] flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-2">
-              <span class={["px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider", level_badge_class(@selected_entry.level)]}>
-                <%= @selected_entry.level %>
-              </span>
-              <h3 class="text-sm font-semibold text-white">Log Event Details</h3>
-            </div>
-            <button phx-click="close_details" class="text-zinc-500 hover:text-zinc-300 text-lg leading-none">&times;</button>
-          </div>
-
-          <div class="p-6 overflow-auto space-y-4 font-mono text-xs">
-            <div>
-              <span class="text-zinc-600 uppercase tracking-wider text-[10px] block mb-1">Timestamp</span>
-              <span class="text-zinc-300"><%= DateTime.to_iso8601(@selected_entry.timestamp) %></span>
-            </div>
-
-            <%= if @selected_entry.server_id do %>
-              <div>
-                <span class="text-zinc-600 uppercase tracking-wider text-[10px] block mb-1">Host ID</span>
-                <span class="text-blue-400"><%= @selected_entry.server_id %></span>
-              </div>
-            <% end %>
-
-            <div>
-              <span class="text-zinc-600 uppercase tracking-wider text-[10px] block mb-1">Message</span>
-              <div class="p-3 bg-[#111] border border-[#1f1f1f] rounded-xl text-zinc-200 break-all">
-                <%= @selected_entry.message %>
-              </div>
-            </div>
-
-            <%= if @selected_entry.details do %>
-              <div>
-                <span class="text-zinc-600 uppercase tracking-wider text-[10px] block mb-1">Diagnostic Details / Payload</span>
-                <pre class="p-3 bg-[#050505] border border-[#1f1f1f] rounded-xl text-zinc-400 overflow-auto max-h-60 text-[11px] whitespace-pre-wrap"><%= @selected_entry.details %></pre>
-              </div>
-            <% end %>
-          </div>
-
-          <div class="px-6 py-3 border-t border-[#1f1f1f] bg-[#080808] flex justify-end shrink-0">
-            <button
-              phx-click="close_details"
-              class="px-4 py-1.5 bg-[#111] hover:bg-[#1a1a1a] border border-[#1f1f1f] text-zinc-300 text-xs font-medium rounded-lg transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    <% end %>
     """
   end
 
@@ -345,10 +331,10 @@ defmodule SSHClientWeb.LogsLive do
 
   defp format_timestamp(_), do: ""
 
-  defp level_badge_class(:info), do: "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-  defp level_badge_class(:warn), do: "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-  defp level_badge_class(:error), do: "bg-red-500/10 text-red-400 border border-red-500/20"
-  defp level_badge_class(_), do: "bg-zinc-800 text-zinc-500"
+  defp level_badge_class(:info), do: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+  defp level_badge_class(:warn), do: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+  defp level_badge_class(:error), do: "bg-destructive/10 text-destructive border-destructive/20"
+  defp level_badge_class(_), do: "bg-muted text-muted-foreground border-border"
 
   defp list_server_ids do
     try do
@@ -359,6 +345,30 @@ defmodule SSHClientWeb.LogsLive do
       _ -> []
     catch
       :exit, _ -> []
+    end
+  end
+
+  defp list_all_servers do
+    try do
+      ServerManager.list_servers()
+    rescue
+      _ -> []
+    catch
+      :exit, _ -> []
+    end
+  end
+
+  defp count_online_servers do
+    try do
+      ServerManager.list_servers()
+      |> Enum.count(fn s ->
+        status = s[:status] || s["status"]
+        status in ["online", "healthy", :online, :healthy]
+      end)
+    rescue
+      _ -> 0
+    catch
+      :exit, _ -> 0
     end
   end
 end
