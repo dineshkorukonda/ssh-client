@@ -37,7 +37,9 @@ defmodule SSHClient.Application do
       SSHClient.TerminalSupervisor,
       SSHClient.PassphraseCache,
       SSHClient.Vault,
-      SSHClient.SocketAPI
+      SSHClient.SocketAPI,
+      SSHClient.SessionSupervisor,
+      SSHClient.SessionManager
     ]
 
     opts = [strategy: :one_for_one, name: SSHClient.Supervisor]
