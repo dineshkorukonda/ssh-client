@@ -74,6 +74,11 @@ defmodule SSHClient.Vault do
     GenServer.call(__MODULE__, :lock)
   end
 
+  @doc "Destroys the vault file on disk and resets vault to uninitialized"
+  def destroy_vault do
+    GenServer.call(__MODULE__, :destroy_vault)
+  end
+
   @doc "Encrypts plaintext using the currently unlocked master key"
   def encrypt(plaintext) when is_binary(plaintext) do
     GenServer.call(__MODULE__, {:encrypt, plaintext})
@@ -159,6 +164,13 @@ defmodule SSHClient.Vault do
     if state.timer, do: Process.cancel_timer(state.timer)
     new_status = if state.salt, do: :locked, else: :uninitialized
     {:reply, :ok, %{state | key: nil, status: new_status, timer: nil}}
+  end
+
+  @impl true
+  def handle_call(:destroy_vault, _from, state) do
+    if state.timer, do: Process.cancel_timer(state.timer)
+    if File.exists?(state.vault_file), do: File.rm(state.vault_file)
+    {:reply, :ok, %__MODULE__{vault_file: state.vault_file, status: :uninitialized}}
   end
 
   @impl true

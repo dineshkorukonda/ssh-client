@@ -15,11 +15,31 @@ defmodule SSHClientWeb.LockLive do
       socket
       |> assign(:page_title, "Vault Lock — ssh-client")
       |> assign(:vault_status, status)
+      |> assign(:show_reset_confirm, false)
       |> assign(:password, "")
       |> assign(:confirm_password, "")
       |> assign(:error, nil)
 
     {:ok, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_reset_confirm", _params, socket) do
+    {:noreply, assign(socket, :show_reset_confirm, !socket.assigns.show_reset_confirm)}
+  end
+
+  def handle_event("confirm_reset_vault", _params, socket) do
+    Vault.destroy_vault()
+
+    socket =
+      socket
+      |> assign(:vault_status, :uninitialized)
+      |> assign(:show_reset_confirm, false)
+      |> assign(:error, nil)
+      |> assign(:password, "")
+      |> assign(:confirm_password, "")
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -164,6 +184,40 @@ defmodule SSHClientWeb.LockLive do
             >
               Unlock Vault
             </button>
+
+            <div class="pt-2 text-center">
+              <%= if @show_reset_confirm do %>
+                <div class="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-left space-y-2 mt-2">
+                  <p class="text-[11px] text-destructive leading-relaxed">
+                    Resetting will clear the master password. Existing unencrypted server entries will be preserved.
+                  </p>
+                  <div class="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      phx-click="confirm_reset_vault"
+                      class="px-2.5 py-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded text-[10px] font-medium transition-colors"
+                    >
+                      Confirm Reset
+                    </button>
+                    <button
+                      type="button"
+                      phx-click="toggle_reset_confirm"
+                      class="px-2.5 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border rounded text-[10px] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              <% else %>
+                <button
+                  type="button"
+                  phx-click="toggle_reset_confirm"
+                  class="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted transition-colors"
+                >
+                  Forgot password or reset master vault?
+                </button>
+              <% end %>
+            </div>
           </form>
         <% end %>
       </div>
