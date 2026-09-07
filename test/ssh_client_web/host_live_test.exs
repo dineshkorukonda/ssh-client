@@ -216,6 +216,10 @@ defmodule SSHClientWeb.HostLiveTest do
           new_remember_password: true
         })
 
+      on_exit(fn ->
+        SSHClient.Keychain.delete("appuser@secured-vault")
+      end)
+
       assert {:noreply, updated} = HostLive.handle_event("add_server", params, socket)
       assert updated.assigns.add_modal == false
 

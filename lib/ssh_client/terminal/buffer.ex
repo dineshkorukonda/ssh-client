@@ -11,7 +11,10 @@ defmodule SSHClient.Terminal.Buffer do
     :cursor_row,
     :lines,
     :style,
-    :cursor_visible
+    :cursor_visible,
+    scrollback: [],
+    scrollback_count: 0,
+    max_scrollback: 1000
   ]
 
   @default_style %{
@@ -38,17 +41,23 @@ defmodule SSHClient.Terminal.Buffer do
           cursor_row: non_neg_integer(),
           lines: %{non_neg_integer() => [cell()]},
           style: map(),
-          cursor_visible: boolean()
+          cursor_visible: boolean(),
+          scrollback: [[cell()]],
+          scrollback_count: non_neg_integer(),
+          max_scrollback: non_neg_integer()
         }
 
   @doc """
-  Initializes a new blank terminal buffer of specified dimensions.
+  Initializes a new blank terminal buffer of specified dimensions and optional scrollback limit.
   """
-  def new(cols \\ 80, rows \\ 24) when cols > 0 and rows > 0 do
+  def new(cols \\ 80, rows \\ 24, opts \\ []) when cols > 0 and rows > 0 do
     blank_lines =
       for r <- 0..(rows - 1), into: %{} do
         {r, blank_row(cols)}
       end
+
+    max_scrollback =
+      if is_list(opts), do: Keyword.get(opts, :max_scrollback, 1000), else: 1000
 
     %__MODULE__{
       cols: cols,
@@ -57,7 +66,10 @@ defmodule SSHClient.Terminal.Buffer do
       cursor_row: 0,
       lines: blank_lines,
       style: @default_style,
-      cursor_visible: true
+      cursor_visible: true,
+      scrollback: [],
+      scrollback_count: 0,
+      max_scrollback: max_scrollback
     }
   end
 
@@ -104,8 +116,31 @@ defmodule SSHClient.Terminal.Buffer do
 
   @doc """
   Renders the buffer content as plain text lines separated by newlines.
+  Includes scrollback history lines before active screen rows.
   """
   def to_text(%__MODULE__{} = buf) do
+    scrollback_lines =
+      buf.scrollback
+      |> Enum.reverse()
+      |> Enum.map(fn row_cells ->
+        row_cells |> Enum.map(& &1.char) |> Enum.join() |> String.trim_trailing()
+      end)
+
+    screen_lines =
+      for r <- 0..(buf.rows - 1) do
+        row_cells = Map.get(buf.lines, r, [])
+        row_cells |> Enum.map(& &1.char) |> Enum.join() |> String.trim_trailing()
+      end
+
+    (scrollback_lines ++ screen_lines)
+    |> Enum.join("\n")
+    |> String.trim_trailing()
+  end
+
+  @doc """
+  Renders only the active visible screen rows as plain text.
+  """
+  def to_screen_text(%__MODULE__{} = buf) do
     for r <- 0..(buf.rows - 1) do
       row_cells = Map.get(buf.lines, r, [])
       row_cells |> Enum.map(& &1.char) |> Enum.join() |> String.trim_trailing()
@@ -116,12 +151,21 @@ defmodule SSHClient.Terminal.Buffer do
 
   @doc """
   Renders each line of the buffer into rich text HTML suitable for Qt Quick Text components.
+  Includes scrollback history lines before active screen rows.
   """
   def to_html_lines(%__MODULE__{} = buf) do
-    for r <- 0..(buf.rows - 1) do
-      row_cells = Map.get(buf.lines, r, [])
-      render_html_row(row_cells)
-    end
+    scrollback_html =
+      buf.scrollback
+      |> Enum.reverse()
+      |> Enum.map(&render_html_row/1)
+
+    screen_html =
+      for r <- 0..(buf.rows - 1) do
+        row_cells = Map.get(buf.lines, r, [])
+        render_html_row(row_cells)
+      end
+
+    scrollback_html ++ screen_html
   end
 
   @doc """
@@ -133,7 +177,8 @@ defmodule SSHClient.Terminal.Buffer do
       rows: buf.rows,
       cursor: %{col: buf.cursor_col, row: buf.cursor_row, visible: buf.cursor_visible},
       text: to_text(buf),
-      html_lines: to_html_lines(buf)
+      html_lines: to_html_lines(buf),
+      scrollback_count: buf.scrollback_count
     }
   end
 
@@ -307,6 +352,24 @@ defmodule SSHClient.Terminal.Buffer do
   end
 
   defp scroll_up(buf) do
+    # Capture top line being scrolled off screen
+    top_line = Map.get(buf.lines, 0, blank_row(buf.cols))
+
+    # Push top_line to scrollback list [top_line | scrollback]
+    {new_scrollback, new_count} =
+      if buf.max_scrollback > 0 do
+        sb = [top_line | buf.scrollback]
+        cnt = buf.scrollback_count + 1
+
+        if cnt > buf.max_scrollback do
+          {Enum.take(sb, buf.max_scrollback), buf.max_scrollback}
+        else
+          {sb, cnt}
+        end
+      else
+        {[], 0}
+      end
+
     # Shift rows up by 1 and append blank bottom row
     shifted =
       for r <- 0..(buf.rows - 2), into: %{} do
@@ -314,7 +377,14 @@ defmodule SSHClient.Terminal.Buffer do
       end
 
     new_lines = Map.put(shifted, buf.rows - 1, blank_row(buf.cols))
-    %{buf | lines: new_lines, cursor_row: buf.rows - 1}
+
+    %{
+      buf
+      | lines: new_lines,
+        cursor_row: buf.rows - 1,
+        scrollback: new_scrollback,
+        scrollback_count: new_count
+    }
   end
 
   defp set_cursor_pos(buf, params) do

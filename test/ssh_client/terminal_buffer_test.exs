@@ -43,11 +43,12 @@ defmodule SSHClient.Terminal.BufferTest do
       assert buf.cursor_col == 3
     end
 
-    test "scrolls lines up when reaching bottom of screen" do
+    test "scrolls lines up when reaching bottom of screen and retains scrollback" do
       buf = Buffer.new(20, 3) |> Buffer.feed("Line1\r\nLine2\r\nLine3\r\nLine4")
-      text = Buffer.to_text(buf)
-      assert text == "Line2\nLine3\nLine4"
+      assert Buffer.to_screen_text(buf) == "Line2\nLine3\nLine4"
+      assert Buffer.to_text(buf) == "Line1\nLine2\nLine3\nLine4"
       assert buf.cursor_row == 2
+      assert buf.scrollback_count == 1
     end
   end
 

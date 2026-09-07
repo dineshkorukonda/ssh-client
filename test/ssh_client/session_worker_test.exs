@@ -47,10 +47,13 @@ defmodule SSHClient.SessionWorkerTest do
       assert status in [:connecting, :reconnecting, :error]
     end
 
-    test "supports manual disconnect and reconnect transitions", %{
+    test "supports manual disconnect and reconnect transitions including :disconnecting", %{
       session_id: session_id,
       server: server
     } do
+      topic = "ssh_client:session:#{session_id}"
+      Phoenix.PubSub.subscribe(SSHClient.PubSub, topic)
+
       {:ok, pid} =
         SessionWorker.start_link(
           session_id: session_id,
@@ -61,9 +64,12 @@ defmodule SSHClient.SessionWorkerTest do
       assert SessionWorker.get_status(pid) == :disconnected
 
       :ok = SessionWorker.disconnect(pid)
+      assert_receive {:session_status, ^session_id, :disconnecting}, 1000
+      assert_receive {:session_status, ^session_id, :disconnected}, 1000
       assert SessionWorker.get_status(pid) == :disconnected
 
       :ok = SessionWorker.reconnect(pid)
+      assert_receive {:session_status, ^session_id, :connecting}, 1000
       status = SessionWorker.get_status(pid)
       assert status in [:connecting, :reconnecting, :error]
     end
@@ -87,10 +93,10 @@ defmodule SSHClient.SessionWorkerTest do
       :ok = SessionWorker.reconnect(pid)
 
       assert_receive {:session_status, ^session_id, status}, 1000
-      assert status in [:connecting, :reconnecting, :error]
+      assert status in [:disconnecting, :connecting, :reconnecting, :error]
     end
 
-    test "broadcasts pty_output when data arrives", %{
+    test "broadcasts pty_output when standard SSH channel message arrives", %{
       session_id: session_id,
       server: server
     } do
@@ -101,11 +107,12 @@ defmodule SSHClient.SessionWorkerTest do
         SessionWorker.start_link(
           session_id: session_id,
           server: server,
-          auto_connect: false
+          auto_connect: false,
+          channel_id: 0
         )
 
-      # Inject simulated pty data directly into worker
-      send(pid, {:simulate_data, "hello world\r\n"})
+      # Send authentic OTP :ssh channel data message
+      send(pid, {:ssh_cm, :fake_conn, {:data, 0, 0, "hello world\r\n"}})
 
       assert_receive {:pty_output, ^session_id, "hello world\r\n"}, 1000
       snapshot = SessionWorker.get_buffer(pid)
@@ -124,13 +131,15 @@ defmodule SSHClient.SessionWorkerTest do
           server: server,
           auto_connect: false,
           cols: 80,
-          rows: 24
+          rows: 24,
+          max_scrollback: 500
         )
 
       snapshot = SessionWorker.get_buffer(pid)
       assert is_map(snapshot)
       assert snapshot.cols == 80
       assert snapshot.rows == 24
+      assert snapshot.scrollback_count == 0
       assert is_binary(snapshot.text)
 
       :ok = SessionWorker.resize(pid, 120, 40)

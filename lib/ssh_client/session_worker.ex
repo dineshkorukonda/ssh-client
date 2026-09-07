@@ -28,7 +28,6 @@ defmodule SSHClient.SessionWorker do
     :connection,
     :channel_id,
     :buffer,
-    :connect_task,
     :reconnect_timer,
     :user,
     :password,
@@ -59,6 +58,7 @@ defmodule SSHClient.SessionWorker do
     - `:password`: Optional override password
     - `:auth_method`: Optional auth method preference
     - `:auto_connect`: Boolean, default true
+    - `:max_scrollback`: Integer max scrollback lines (default: 1000)
   """
   def start_link(opts) when is_list(opts) do
     GenServer.start_link(__MODULE__, opts)
@@ -93,7 +93,8 @@ defmodule SSHClient.SessionWorker do
   end
 
   @doc """
-  Disconnects the active session and cancels any reconnect timers.
+  Disconnects the active session, transitioning through :disconnecting to :disconnected,
+  and cancels any reconnect timers.
   """
   def disconnect(worker) do
     GenServer.call(worker, :disconnect)
@@ -121,7 +122,9 @@ defmodule SSHClient.SessionWorker do
     password = Keyword.get(opts, :password)
     auth_method = Keyword.get(opts, :auth_method)
     auto_connect = Keyword.get(opts, :auto_connect, true)
-    buffer = Buffer.new(cols, rows)
+    max_scrollback = Keyword.get(opts, :max_scrollback, 1000)
+    channel_id = Keyword.get(opts, :channel_id)
+    buffer = Buffer.new(cols, rows, max_scrollback: max_scrollback)
 
     state = %__MODULE__{
       session_id: session_id,
@@ -132,6 +135,7 @@ defmodule SSHClient.SessionWorker do
       user: user,
       password: password,
       auth_method: auth_method,
+      channel_id: channel_id,
       buffer: buffer,
       status: :disconnected,
       reconnect_attempts: 0
@@ -146,7 +150,7 @@ defmodule SSHClient.SessionWorker do
 
   @impl true
   def handle_continue(:connect, state) do
-    {:noreply, initiate_connection(state)}
+    {:noreply, do_connect(state)}
   end
 
   @impl true
@@ -160,7 +164,7 @@ defmodule SSHClient.SessionWorker do
       if state.buffer do
         Buffer.to_snapshot(state.buffer)
       else
-        %{cols: state.cols, rows: state.rows, text: "", html_lines: []}
+        %{cols: state.cols, rows: state.rows, text: "", html_lines: [], scrollback_count: 0}
       end
 
     {:reply, snapshot, state}
@@ -192,84 +196,30 @@ defmodule SSHClient.SessionWorker do
 
   @impl true
   def handle_call(:disconnect, _from, state) do
-    new_state = do_disconnect(state)
-    new_state = set_status(new_state, :disconnected)
-    {:reply, :ok, new_state}
+    # Transition through :disconnecting before teardown
+    state_disconnecting = set_status(state, :disconnecting)
+    cleaned = do_teardown(state_disconnecting)
+    final_state = set_status(cleaned, :disconnected)
+    {:reply, :ok, final_state}
   end
 
   @impl true
   def handle_call(:reconnect, _from, state) do
-    cleaned = do_disconnect(state)
+    state_disconnecting = set_status(state, :disconnecting)
+    cleaned = do_teardown(state_disconnecting)
     cleaned = %{cleaned | reconnect_attempts: 0}
-    new_state = initiate_connection(cleaned)
+    {:noreply, new_state} = handle_continue(:connect, cleaned)
     {:reply, :ok, new_state}
-  end
-
-  # Connect task result handler
-  @impl true
-  def handle_info({ref, result}, %{connect_task: %Task{ref: ref}} = state) do
-    Process.demonitor(ref, [:flush])
-    state = %{state | connect_task: nil}
-
-    case result do
-      {:ok, conn, channel_id} ->
-        target_user = state.user || state.server.user || "default"
-        ActivityLog.info(
-          state.server.id,
-          "Session '#{state.session_id}' connected as '#{target_user}'"
-        )
-
-        new_state =
-          state
-          |> set_status(:connected)
-          |> Map.put(:connection, conn)
-          |> Map.put(:channel_id, channel_id)
-          |> Map.put(:reconnect_attempts, 0)
-          |> Map.put(:error_reason, nil)
-
-        {:noreply, new_state}
-
-      {:error, reason} ->
-        ActivityLog.error(
-          state.server.id,
-          "Session '#{state.session_id}' connect failed: #{inspect(reason)}",
-          reason
-        )
-
-        broadcast_error(state.session_id, reason)
-        new_state = %{state | error_reason: reason}
-        {:noreply, schedule_reconnect(new_state)}
-    end
-  end
-
-  # Connect task crash
-  @impl true
-  def handle_info({:DOWN, ref, :process, _pid, reason}, %{connect_task: %Task{ref: ref}} = state) do
-    state = %{state | connect_task: nil}
-
-    if reason != :normal do
-      ActivityLog.error(
-        state.server.id,
-        "Session '#{state.session_id}' connect task crashed: #{inspect(reason)}",
-        reason
-      )
-
-      broadcast_error(state.session_id, reason)
-      new_state = %{state | error_reason: reason}
-      {:noreply, schedule_reconnect(new_state)}
-    else
-      {:noreply, state}
-    end
   end
 
   # Scheduled reconnect timer tick
   @impl true
   def handle_info(:scheduled_reconnect, state) do
     state = %{state | reconnect_timer: nil}
-    {:noreply, initiate_connection(state)}
+    {:noreply, do_connect(state)}
   end
 
-  # Incoming PTY data from SSH connection
+  # Incoming PTY data from SSH connection (standard OTP :ssh channel message)
   @impl true
   def handle_info({:ssh_cm, _conn_ref, {:data, channel_id, 0, data}}, state) do
     if channel_id == state.channel_id do
@@ -279,14 +229,6 @@ defmodule SSHClient.SessionWorker do
     else
       {:noreply, state}
     end
-  end
-
-  # Simulate incoming data (for unit testing without active SSH socket)
-  @impl true
-  def handle_info({:simulate_data, data}, state) do
-    new_buf = if state.buffer, do: Buffer.feed(state.buffer, data), else: nil
-    broadcast_pty_output(state.session_id, data)
-    {:noreply, %{state | buffer: new_buf}}
   end
 
   # EOF from SSH channel
@@ -309,9 +251,10 @@ defmodule SSHClient.SessionWorker do
       )
     end
 
-    new_state = do_disconnect(state)
-    new_state = set_status(new_state, :disconnected)
-    {:noreply, new_state}
+    state_disconnecting = set_status(state, :disconnecting)
+    cleaned = do_teardown(state_disconnecting)
+    final_state = set_status(cleaned, :disconnected)
+    {:noreply, final_state}
   end
 
   # Remote channel closed unexpectedly
@@ -319,7 +262,8 @@ defmodule SSHClient.SessionWorker do
   def handle_info({:ssh_cm, _conn_ref, {:closed, channel_id}}, state) do
     if channel_id == state.channel_id do
       ActivityLog.info(state.server.id, "Session '#{state.session_id}' remote channel closed")
-      cleaned = do_disconnect(state)
+      state_disconnecting = set_status(state, :disconnecting)
+      cleaned = do_teardown(state_disconnecting)
       {:noreply, schedule_reconnect(cleaned)}
     else
       {:noreply, state}
@@ -333,15 +277,15 @@ defmodule SSHClient.SessionWorker do
 
   @impl true
   def terminate(_reason, state) do
-    do_disconnect(state)
+    do_teardown(state)
     :ok
   end
 
   # ---------------------------------------------------------------------------
-  # Internal Connection & Reconnect Logic
+  # Connection & Reconnect Implementation
   # ---------------------------------------------------------------------------
 
-  defp initiate_connection(state) do
+  defp do_connect(state) do
     # Cancel any pending reconnect timer
     if state.reconnect_timer do
       Process.cancel_timer(state.reconnect_timer)
@@ -357,31 +301,52 @@ defmodule SSHClient.SessionWorker do
     rows = state.rows
     term = state.term
 
-    task =
-      Task.async(fn ->
-        connect_opts =
-          []
-          |> (fn o -> if user, do: [{:user, user} | o], else: o end).()
-          |> (fn o -> if password, do: [{:password, password} | o], else: o end).()
-          |> (fn o -> if auth_method, do: [{:auth_method, auth_method} | o], else: o end).()
+    connect_opts =
+      []
+      |> (fn o -> if user, do: [{:user, user} | o], else: o end).()
+      |> (fn o -> if password, do: [{:password, password} | o], else: o end).()
+      |> (fn o -> if auth_method, do: [{:auth_method, auth_method} | o], else: o end).()
 
-        case SSH.connect(server, connect_opts) do
-          {:ok, conn} ->
-            case SSH.open_pty(conn, cols: cols, rows: rows, term: term) do
-              {:ok, channel_id} ->
-                {:ok, conn, channel_id}
+    # SessionWorker GenServer process initiates SSH connection directly so that
+    # connection ownership, link, and {:ssh_cm, ...} channel messages are bound
+    # to this long-lived GenServer process rather than an ephemeral task.
+    case SSH.connect(server, connect_opts) do
+      {:ok, conn} ->
+        case SSH.open_pty(conn, cols: cols, rows: rows, term: term) do
+          {:ok, channel_id} ->
+            target_user = state.user || state.server.user || "default"
+            ActivityLog.info(
+              state.server.id,
+              "Session '#{state.session_id}' connected as '#{target_user}'"
+            )
 
-              {:error, reason} ->
-                SSH.close(conn)
-                {:error, reason}
-            end
+            state
+            |> set_status(:connected)
+            |> Map.put(:connection, conn)
+            |> Map.put(:channel_id, channel_id)
+            |> Map.put(:reconnect_attempts, 0)
+            |> Map.put(:error_reason, nil)
 
           {:error, reason} ->
-            {:error, reason}
+            SSH.close(conn)
+            handle_connect_error(state, reason)
         end
-      end)
 
-    %{state | connect_task: task, reconnect_timer: nil}
+      {:error, reason} ->
+        handle_connect_error(state, reason)
+    end
+  end
+
+  defp handle_connect_error(state, reason) do
+    ActivityLog.error(
+      state.server.id,
+      "Session '#{state.session_id}' connect failed: #{inspect(reason)}",
+      reason
+    )
+
+    broadcast_error(state.session_id, reason)
+    new_state = %{state | error_reason: reason}
+    schedule_reconnect(new_state)
   end
 
   defp schedule_reconnect(state) do
@@ -398,11 +363,7 @@ defmodule SSHClient.SessionWorker do
     end
   end
 
-  defp do_disconnect(state) do
-    if state.connect_task do
-      Task.shutdown(state.connect_task, :brutal_kill)
-    end
-
+  defp do_teardown(state) do
     if state.reconnect_timer do
       Process.cancel_timer(state.reconnect_timer)
     end
@@ -414,8 +375,7 @@ defmodule SSHClient.SessionWorker do
 
     %{
       state
-      | connect_task: nil,
-        reconnect_timer: nil,
+      | reconnect_timer: nil,
         connection: nil,
         channel_id: nil
     }
