@@ -9,7 +9,8 @@ defmodule SSHClient.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "OTP-based lightweight SSH client and server manager with full-bleed terminal GUI for Windows and Linux.",
+      description:
+        "OTP-based lightweight SSH client and server manager with full-bleed terminal GUI for Windows and Linux.",
       package: package(),
       releases: [
         ssh_client: [
@@ -47,6 +48,8 @@ defmodule SSHClient.MixProject do
       {:bandit, "~> 1.5"},
       {:jason, "~> 1.4"},
       {:plug, "~> 1.16"},
+      {:ecto_sql, "~> 3.13"},
+      {:ecto_sqlite3, "~> 0.24.1"},
       {:floki, ">= 0.30.0", only: :test}
     ]
   end
