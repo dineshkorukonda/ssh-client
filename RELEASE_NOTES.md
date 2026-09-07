@@ -1,6 +1,6 @@
-## ssh-client v0.0.20 (Beta)
+## ssh-client v0.0.21 (Beta)
 
-feat(ui): overhaul application with high performance minimal stark monochrome design
+fix(ui): bundle precompiled Tailwind CSS utilities and DaisyUI into static app.css (#151)
 
 ---
 
@@ -8,16 +8,16 @@ feat(ui): overhaul application with high performance minimal stark monochrome de
 
 | Platform | Format | Package / Asset |
 |---|---|---|
-| Windows x64 | Single-File Installer | [ssh-client-setup-v0.0.20-windows-x64.exe](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.20/ssh-client-setup-v0.0.20-windows-x64.exe) |
-| Windows x64 | Portable ZIP Archive | [ssh-client-windows-x64.zip](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.20/ssh-client-windows-x64.zip) |
-| Linux x64 | Standalone Tarball | [ssh-client-linux-x64.tar.gz](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.20/ssh-client-linux-x64.tar.gz) |
-| Container (Docker) | GitHub Packages (GHCR) | `docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.20` |
+| Windows x64 | Single-File Installer | [ssh-client-setup-v0.0.21-windows-x64.exe](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.21/ssh-client-setup-v0.0.21-windows-x64.exe) |
+| Windows x64 | Portable ZIP Archive | [ssh-client-windows-x64.zip](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.21/ssh-client-windows-x64.zip) |
+| Linux x64 | Standalone Tarball | [ssh-client-linux-x64.tar.gz](https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.21/ssh-client-linux-x64.tar.gz) |
+| Container (Docker) | GitHub Packages (GHCR) | `docker pull ghcr.io/dineshkorukonda/ssh-client:0.0.21` |
 
 ---
 
-### Key Highlights in v0.0.20
+### Key Highlights in v0.0.21
 
-- **Update Notes**: feat(ui): overhaul application with high performance minimal stark monochrome design
+- **Update Notes**: fix(ui): bundle precompiled Tailwind CSS utilities and DaisyUI into static app.css (#151)
 - **Editorial Stark Dark UI**: Zero-emoji monochrome interface with high-contrast typography and real-time telemetry.
 - **Master Vault**: PBKDF2 with AES-256-GCM encryption.
 - **Integrated SFTP Explorer & Multi-Tab Terminal**: Remote directory explorer and embedded full-bleed xterm.js terminal.
