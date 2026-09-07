@@ -8,7 +8,7 @@ defmodule SSHClient.Updater do
 
   require Logger
 
-  @current_version "0.0.16"
+  @current_version "0.0.17"
   @repo_owner "dineshkorukonda"
   @repo_name "ssh-client"
   @api_url "https://api.github.com/repos/#{@repo_owner}/#{@repo_name}/releases/latest"

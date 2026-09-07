@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.17] - 2026-09-07
+
+### Changed
+- fix(updater): resolve release root directory and robust detached Windows restart (#147)
+
+---
+
 ## [0.0.16] - 2026-09-07
 
 ### Changed
