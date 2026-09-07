@@ -8,72 +8,130 @@ defmodule SSHClientWeb.SFTPLive do
 
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
 
+  import SSHClientWeb.CoreComponents
+
   alias SSHClient.Config
   alias SSHClient.Config.Server
   alias SSHClient.LocalFS
   alias SSHClient.ServerManager
   alias SSHClient.SFTP
   alias SSHClient.SSH
+  alias SSHClient.SSH.ConfigImporter
   alias SSHClient.Vault
 
   @impl true
-  def mount(%{"id" => server_id}, _session, socket) do
+  def mount(params, _session, socket) do
     if not Vault.unlocked?() do
       {:ok, push_navigate(socket, to: "/lock")}
     else
-      server = resolve_server_struct(server_id)
-      local_start = LocalFS.default_path()
+      server_id = params["id"]
+      servers = list_all_servers()
+      online_count = count_online_servers()
 
-      socket =
-        socket
-        |> assign(:page_title, "SFTP — #{server_id}")
-        |> assign(:server_id, server_id)
-        |> assign(:server, server)
-        |> assign(:conn, nil)
-        |> assign(:sftp_pid, nil)
-        # Theme
-        |> assign(:theme, "dark")
-        # Local State
-        |> assign(:local_path, local_start)
-        |> assign(:local_entries, [])
-        |> assign(:local_filter, "")
-        |> assign(:selected_local, nil)
-        |> assign(:local_loading, false)
-        # Remote State
-        |> assign(:remote_path, "/root")
-        |> assign(:remote_entries, [])
-        |> assign(:remote_filter, "")
-        |> assign(:selected_remote, nil)
-        |> assign(:remote_loading, true)
-        |> assign(:error, nil)
-        # Active Transfers & Queue
-        |> assign(:transfers, [])
-        |> assign(:active_transfer, nil)
-        |> assign(:transfer_progress, 0)
-        # Modals
-        |> assign(:editor_open, false)
-        |> assign(:editor_target, nil) # :local or :remote
-        |> assign(:editor_path, nil)
-        |> assign(:editor_content, "")
-        |> assign(:editor_saving, false)
-        |> assign(:chmod_modal, false)
-        |> assign(:chmod_entry, nil)
-        |> assign(:chmod_octal, "0755")
-        |> assign(:new_folder_modal, false)
-        |> assign(:new_folder_target, :remote) # :local or :remote
-        |> assign(:new_folder_name, "")
-        |> assign(:delete_modal, false)
-        |> assign(:delete_target, nil) # :local or :remote
-        |> assign(:delete_path, nil)
-        |> assign(:target_user, nil)
+      if is_nil(server_id) or server_id == "" do
+        socket =
+          socket
+          |> assign(:page_title, "SFTP File Explorer")
+          |> assign(:server_id, nil)
+          |> assign(:server, nil)
+          |> assign(:servers, servers)
+          |> assign(:online_count, online_count)
+          |> assign(:conn, nil)
+          |> assign(:sftp_pid, nil)
+          # Theme
+          |> assign(:theme, "dark")
+          # Local State
+          |> assign(:local_path, LocalFS.default_path())
+          |> assign(:local_entries, [])
+          |> assign(:local_filter, "")
+          |> assign(:selected_local, nil)
+          |> assign(:local_loading, false)
+          # Remote State
+          |> assign(:remote_path, "/root")
+          |> assign(:remote_entries, [])
+          |> assign(:remote_filter, "")
+          |> assign(:selected_remote, nil)
+          |> assign(:remote_loading, false)
+          |> assign(:error, nil)
+          # Active Transfers & Queue
+          |> assign(:transfers, [])
+          |> assign(:active_transfer, nil)
+          |> assign(:transfer_progress, 0)
+          # Modals
+          |> assign(:editor_open, false)
+          |> assign(:editor_target, nil)
+          |> assign(:editor_path, nil)
+          |> assign(:editor_content, "")
+          |> assign(:editor_saving, false)
+          |> assign(:chmod_modal, false)
+          |> assign(:chmod_entry, nil)
+          |> assign(:chmod_octal, "0755")
+          |> assign(:new_folder_modal, false)
+          |> assign(:new_folder_target, :remote)
+          |> assign(:new_folder_name, "")
+          |> assign(:delete_modal, false)
+          |> assign(:delete_target, nil)
+          |> assign(:delete_path, nil)
+          |> assign(:target_user, nil)
 
-      socket = load_local_dir(socket, local_start)
+        {:ok, socket}
+      else
+        server = resolve_server_struct(server_id)
+        local_start = LocalFS.default_path()
 
-      if connected?(socket) do
-        send(self(), :connect_sftp)
+        socket =
+          socket
+          |> assign(:page_title, "SFTP — #{server_id}")
+          |> assign(:server_id, server_id)
+          |> assign(:server, server)
+          |> assign(:servers, servers)
+          |> assign(:online_count, online_count)
+          |> assign(:conn, nil)
+          |> assign(:sftp_pid, nil)
+          # Theme
+          |> assign(:theme, "dark")
+          # Local State
+          |> assign(:local_path, local_start)
+          |> assign(:local_entries, [])
+          |> assign(:local_filter, "")
+          |> assign(:selected_local, nil)
+          |> assign(:local_loading, false)
+          # Remote State
+          |> assign(:remote_path, "/root")
+          |> assign(:remote_entries, [])
+          |> assign(:remote_filter, "")
+          |> assign(:selected_remote, nil)
+          |> assign(:remote_loading, true)
+          |> assign(:error, nil)
+          # Active Transfers & Queue
+          |> assign(:transfers, [])
+          |> assign(:active_transfer, nil)
+          |> assign(:transfer_progress, 0)
+          # Modals
+          |> assign(:editor_open, false)
+          |> assign(:editor_target, nil)
+          |> assign(:editor_path, nil)
+          |> assign(:editor_content, "")
+          |> assign(:editor_saving, false)
+          |> assign(:chmod_modal, false)
+          |> assign(:chmod_entry, nil)
+          |> assign(:chmod_octal, "0755")
+          |> assign(:new_folder_modal, false)
+          |> assign(:new_folder_target, :remote)
+          |> assign(:new_folder_name, "")
+          |> assign(:delete_modal, false)
+          |> assign(:delete_target, nil)
+          |> assign(:delete_path, nil)
+          |> assign(:target_user, nil)
+
+        socket = load_local_dir(socket, local_start)
+
+        if connected?(socket) do
+          send(self(), :connect_sftp)
+        end
+
+        {:ok, socket}
       end
-
-      {:ok, socket}
     end
   end
 
@@ -423,11 +481,184 @@ defmodule SSHClientWeb.SFTPLive do
     {:noreply, socket |> assign(:theme, new_theme) |> push_event("toggle_theme", %{theme: new_theme})}
   end
 
+  def handle_event("lock_vault", _params, socket) do
+    Vault.lock()
+    {:noreply, push_navigate(socket, to: "/lock")}
+  end
+
+  def handle_event("scan_and_import_ssh_config", _params, socket) do
+    case ConfigImporter.import_file() do
+      {:ok, hosts} ->
+        existing = ServerManager.list_servers()
+        new_hosts = ConfigImporter.deduplicate(hosts, existing)
+
+        Enum.each(new_hosts, fn host ->
+          server_map = %{
+            "id" => host.id,
+            "name" => host.name || host.id,
+            "host" => host.address,
+            "user" => host.user,
+            "port" => host.port || 22,
+            "identity_file" => host.identity_file,
+            "proxy_jump" => host.jump_host
+          }
+
+          ServerManager.add_server(server_map)
+        end)
+
+        msg =
+          if new_hosts == [] do
+            "No new hosts found in ~/.ssh/config (all #{length(hosts)} registered or none present)."
+          else
+            "Successfully imported #{length(new_hosts)} host(s) from ~/.ssh/config!"
+          end
+
+        servers = list_all_servers()
+        socket =
+          socket
+          |> put_flash(:info, msg)
+          |> assign(:servers, servers)
+          |> assign(:online_count, count_online_servers())
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to scan ~/.ssh/config: #{reason}")}
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Render
   # ---------------------------------------------------------------------------
 
   @impl true
+  def render(%{server_id: nil} = assigns) do
+    ~H"""
+    <div class="min-h-screen bg-background text-foreground flex flex-col font-sans">
+      <.top_navigation
+        current_tab={:sftp}
+        servers_count={length(@servers)}
+        online_count={@online_count}
+      />
+
+      <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <span>SFTP File Explorer</span>
+            </h1>
+            <p class="text-sm text-muted-foreground mt-1">
+              Browse local and remote filesystems side-by-side, transfer files seamlessly, and manage file permissions.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2.5">
+            <button
+              phx-click="scan_and_import_ssh_config"
+              class="h-9 px-3.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-mono text-xs rounded-md shadow-sm transition-colors inline-flex items-center gap-2"
+              title="Scan and import hosts from ~/.ssh/config"
+            >
+              <span>Import ~/.ssh/config</span>
+            </button>
+
+            <a
+              href="/?action=new"
+              class="h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs rounded-md shadow-sm transition-colors inline-flex items-center gap-1.5 font-medium"
+            >
+              <span>+ Add Host</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Flash alerts -->
+        <%= if flash = Phoenix.Flash.get(@flash, :info) do %>
+          <div class="p-3.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-mono text-primary flex items-center justify-between">
+            <span><%= flash %></span>
+          </div>
+        <% end %>
+        <%= if flash = Phoenix.Flash.get(@flash, :error) do %>
+          <div class="p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-mono text-destructive flex items-center justify-between">
+            <span><%= flash %></span>
+          </div>
+        <% end %>
+
+        <!-- Server Cards or Empty State -->
+        <%= if length(@servers) == 0 do %>
+          <div class="shadcn-card p-12 text-center flex flex-col items-center justify-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center font-mono font-bold text-base text-muted-foreground">
+              &lt;/&gt;
+            </div>
+            <div class="space-y-1">
+              <h3 class="text-base font-semibold text-foreground">No Hosts Configured</h3>
+              <p class="text-xs text-muted-foreground max-w-sm">
+                Add a host manually or import your existing SSH config from ~/.ssh/config to browse files over SFTP.
+              </p>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+              <button
+                phx-click="scan_and_import_ssh_config"
+                class="h-9 px-4 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-mono text-xs rounded-md shadow-sm transition-colors"
+              >
+                Import ~/.ssh/config
+              </button>
+              <a
+                href="/?action=new"
+                class="h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs rounded-md shadow-sm transition-colors font-medium"
+              >
+                + Add Host
+              </a>
+            </div>
+          </div>
+        <% else %>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <%= for s <- @servers do %>
+              <div class="shadcn-card p-5 flex flex-col justify-between gap-4 transition-all hover:border-muted-foreground/30">
+                <div>
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class={["w-2 h-2 rounded-full shrink-0", if(s[:status] in ["online", "healthy", :online, :healthy], do: "bg-emerald-500", else: "bg-muted-foreground/40")]}></span>
+                      <h3 class="font-semibold text-sm text-foreground truncate"><%= s[:name] || s[:id] || s["name"] || s["id"] %></h3>
+                    </div>
+                    <span class="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border shrink-0">
+                      Port <%= s[:port] || s["port"] || 22 %>
+                    </span>
+                  </div>
+                  <div class="mt-2 space-y-1">
+                    <div class="text-xs font-mono text-muted-foreground flex items-center gap-1 truncate">
+                      <span><%= (s[:user] || s["user"] || "root") %>@<%= (s[:host] || s["host"] || "localhost") %></span>
+                    </div>
+                    <%= if s[:proxy_jump] || s["proxy_jump"] do %>
+                      <div class="text-[11px] font-mono text-muted-foreground/80 flex items-center gap-1 truncate">
+                        <span>Jump: <%= s[:proxy_jump] || s["proxy_jump"] %></span>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-border flex items-center justify-between gap-2">
+                  <a
+                    href={"/terminal/#{s[:id] || s["id"]}"}
+                    class="h-8 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-mono text-xs rounded transition-colors inline-flex items-center"
+                  >
+                    Terminal
+                  </a>
+                  <a
+                    href={"/sftp/#{s[:id] || s["id"]}"}
+                    class="h-8 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs font-medium rounded shadow-sm transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <span>Open SFTP &rarr;</span>
+                  </a>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </main>
+    </div>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none font-sans" id="dual-pane-sftp" phx-hook="DualPaneSFTPHook">
@@ -998,6 +1229,30 @@ defmodule SSHClientWeb.SFTPLive do
           {:ok, cfg} -> Enum.find(cfg.servers, &(&1.id == id))
           _ -> nil
         end
+    end
+  end
+
+  defp list_all_servers do
+    try do
+      ServerManager.list_servers()
+    rescue
+      _ -> []
+    catch
+      :exit, _ -> []
+    end
+  end
+
+  defp count_online_servers do
+    try do
+      ServerManager.list_servers()
+      |> Enum.count(fn s ->
+        status = s[:status] || s["status"]
+        status in ["online", "healthy", :online, :healthy]
+      end)
+    rescue
+      _ -> 0
+    catch
+      :exit, _ -> 0
     end
   end
 end

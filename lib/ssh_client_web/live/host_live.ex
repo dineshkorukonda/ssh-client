@@ -10,11 +10,11 @@ defmodule SSHClientWeb.HostLive do
   alias SSHClient.Keychain
   alias SSHClient.ServerManager
   alias SSHClient.ServerWorker
+  alias SSHClient.SSH.ConfigImporter
+  alias SSHClient.Updater
   alias SSHClient.Vault
 
   @refresh_interval 5_000
-
-  alias SSHClient.Updater
 
   # ---------------------------------------------------------------------------
   # Mount
@@ -359,6 +359,45 @@ defmodule SSHClientWeb.HostLive do
     end
   end
 
+  def handle_event("scan_and_import_ssh_config", _params, socket) do
+    case ConfigImporter.import_file() do
+      {:ok, hosts} ->
+        existing = ServerManager.list_servers()
+        new_hosts = ConfigImporter.deduplicate(hosts, existing)
+
+        Enum.each(new_hosts, fn host ->
+          server_map = %{
+            "id" => host.id,
+            "name" => host.name || host.id,
+            "host" => host.address,
+            "user" => host.user,
+            "port" => host.port || 22,
+            "identity_file" => host.identity_file,
+            "proxy_jump" => host.jump_host
+          }
+
+          ServerManager.add_server(server_map)
+        end)
+
+        msg =
+          if new_hosts == [] do
+            "No new hosts found in ~/.ssh/config (all #{length(hosts)} registered or none present)."
+          else
+            "Successfully imported #{length(new_hosts)} host(s) from ~/.ssh/config!"
+          end
+
+        socket =
+          socket
+          |> put_flash(:info, msg)
+          |> load_servers()
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to scan ~/.ssh/config: #{reason}")}
+    end
+  end
+
   def handle_event("remove_server", %{"id" => id}, socket) do
     case ServerManager.remove_server(id) do
       {:ok, _} ->
@@ -427,7 +466,7 @@ defmodule SSHClientWeb.HostLive do
             </p>
           </div>
 
-          <div class="flex items-center gap-2.5">
+          <div class="flex items-center gap-2.5 flex-wrap">
             <div class="relative">
               <input
                 type="text"
@@ -435,9 +474,19 @@ defmodule SSHClientWeb.HostLive do
                 placeholder="Filter servers (name, IP)..."
                 phx-keyup="search"
                 phx-value-value={@filter}
-                class="h-9 pl-3 pr-8 bg-card border border-border rounded-md text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-56 sm:w-64 font-mono transition-colors shadow-sm"
+                class="h-9 pl-3 pr-8 bg-card border border-border rounded-md text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-48 sm:w-56 font-mono transition-colors shadow-sm"
               />
             </div>
+            <button
+              phx-click="scan_and_import_ssh_config"
+              class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm inline-flex items-center gap-1.5"
+              title="Scan and import hosts from ~/.ssh/config"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Import ~/.ssh/config
+            </button>
             <button
               phx-click="poll_all"
               class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
@@ -493,14 +542,39 @@ defmodule SSHClientWeb.HostLive do
           </div>
 
           <%= if @filtered_servers == [] do %>
-            <div class="flex flex-col items-center justify-center py-20 gap-3 text-center">
-              <span class="text-muted-foreground text-xs font-mono">No host endpoints match your filter</span>
-              <button
-                phx-click="open_add_modal"
-                class="px-3 py-1.5 bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border text-xs font-mono rounded-md transition-colors mt-2"
-              >
-                + Add New Server
-              </button>
+            <div class="flex flex-col items-center justify-center py-16 px-4 gap-3 text-center">
+              <div class="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-muted-foreground mb-1">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                </svg>
+              </div>
+              <h3 class="text-sm font-semibold text-foreground">
+                <%= if @servers == [], do: "No SSH Hosts Configured", else: "No matching endpoints found" %>
+              </h3>
+              <p class="text-xs text-muted-foreground font-mono max-w-sm">
+                <%= if @servers == [] do %>
+                  Add your remote servers manually or automatically import existing hosts from your local OpenSSH config file.
+                <% else %>
+                  Try refining your search filter above to locate the target server.
+                <% end %>
+              </p>
+              <div class="flex items-center gap-2.5 pt-2">
+                <button
+                  phx-click="scan_and_import_ssh_config"
+                  class="px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border text-xs font-mono font-medium rounded-md transition-colors inline-flex items-center gap-1.5"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Import from ~/.ssh/config
+                </button>
+                <button
+                  phx-click="open_add_modal"
+                  class="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-semibold rounded-md transition-colors"
+                >
+                  + Add New Server
+                </button>
+              </div>
             </div>
           <% else %>
             <div class="overflow-x-auto">

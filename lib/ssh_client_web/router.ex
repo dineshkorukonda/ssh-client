@@ -20,7 +20,9 @@ defmodule SSHClientWeb.Router do
     live "/", HostLive, :index
     live "/hosts", HostLive, :index
     live "/lock", LockLive, :index
+    live "/terminal", TerminalLive, :index
     live "/terminal/:id", TerminalLive, :show
+    live "/sftp", SFTPLive, :index
     live "/sftp/:id", SFTPLive, :show
     live "/settings", SettingsLive, :index
     live "/logs", LogsLive, :index
