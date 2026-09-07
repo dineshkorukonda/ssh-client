@@ -11,21 +11,14 @@
     <link rel="icon" type="image/png" href="/images/icon.png" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Poppins font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-
     <!-- Precompiled Tailwind CSS & DaisyUI Stark Monochrome Stylesheet -->
     <link rel="stylesheet" href="/css/app.css" />
 
     <!-- xterm.js -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <link rel="stylesheet" href="/css/xterm.min.css" />
+    <script src="/js/xterm.min.js"></script>
+    <script src="/js/xterm-addon-fit.min.js"></script>
+    <script src="/js/xterm-addon-search.min.js"></script>
     <script>
       // Apply theme before render to avoid flash
       (function() {
@@ -107,7 +100,7 @@
             cursorBlink: true,
             fontSize: currentFontSize,
             lineHeight: 1.25,
-            fontFamily: "'JetBrains Mono', 'Menlo', 'Consolas', 'Courier New', monospace",
+            fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
             allowTransparency: true,
             scrollback: 10000,
             theme: getTerminalTheme(isLight)
@@ -115,6 +108,9 @@
 
           const fitAddon = (typeof FitAddon !== 'undefined') ? new FitAddon.FitAddon() : null;
           if (fitAddon) term.loadAddon(fitAddon);
+
+          const searchAddon = (typeof SearchAddon !== 'undefined') ? new SearchAddon.SearchAddon() : null;
+          if (searchAddon) term.loadAddon(searchAddon);
 
           term.open(el);
 
@@ -359,7 +355,7 @@
 
     <style>
       html, body {
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
         background-color: hsl(var(--background));
         color: hsl(var(--foreground));
         height: 100%;
@@ -369,7 +365,7 @@
       }
 
       code, pre, .mono {
-        font-family: 'JetBrains Mono', monospace;
+        font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
       }
 
       .xterm {
@@ -390,8 +386,8 @@
     {@inner_content}
 
     <!-- Phoenix & LiveView JS client -->
-    <script src="https://cdn.jsdelivr.net/npm/phoenix@1.8.13/priv/static/phoenix.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/phoenix_live_view@1.2.11/priv/static/phoenix_live_view.min.js"></script>
+    <script src="/js/phoenix.min.js"></script>
+    <script src="/js/phoenix_live_view.min.js"></script>
     <script>
       (function() {
         const csrfToken = document.querySelector("meta[name='csrf-token']") ? document.querySelector("meta[name='csrf-token']").getAttribute("content") : "";
