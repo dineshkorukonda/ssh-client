@@ -5,7 +5,8 @@ Runs all repository checks in sequence:
   1. Zero-emoji aesthetic compliance
   2. Release metadata version synchronization
   3. Release script unit tests
-  4. Elixir unit test suite (mix test)
+  4. Release workflow regression tests
+  5. Elixir unit test suite (mix test)
 """
 
 import os
@@ -74,7 +75,14 @@ def main():
         env=env
     )
 
-    # Step 4: Mix test suite
+    # Step 4: Release workflow regression tests
+    run_step(
+        "Release Workflow Regression Tests",
+        [sys.executable, os.path.join(REPO_ROOT, "scripts", "test_release_workflows.py"), "-v"],
+        env=env
+    )
+
+    # Step 5: Mix test suite
     mix_cmd = resolve_mix_command(env=env)
     run_step(
         "Elixir Unit Tests (mix test)",

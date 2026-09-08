@@ -7,6 +7,7 @@ on:
     branches: [ "main" ]
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -79,3 +80,11 @@ jobs:
           git push origin main
           git tag "v${NEW_VER}"
           git push origin "v${NEW_VER}"
+
+      - name: Dispatch Release Workflow
+        if: steps.bump.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VER="${{ steps.bump.outputs.version }}"
+          gh workflow run ci.yml --ref "v${NEW_VER}"
