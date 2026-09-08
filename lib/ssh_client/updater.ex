@@ -6,7 +6,7 @@ defmodule SSHClient.Updater do
   and extraction, and seamless zero-wizard in-place restart updates on Windows and Linux.
   """
 
-  @current_version "0.0.30"
+  @current_version "0.0.31"
   @repo_owner "dineshkorukonda"
   @repo_name "ssh-client"
   @api_url "https://api.github.com/repos/#{@repo_owner}/#{@repo_name}/releases/latest"
