@@ -107,6 +107,10 @@ class TestCIWorkflow(unittest.TestCase):
         self.assertIn("ghcr.io/${{ github.repository }}:latest", container)
         self.assertRegex(release, r"(?m)^          make_latest:\s*true\s*$")
 
+    def test_release_download_excludes_build_metadata_artifacts(self):
+        release = job_block(self.workflow, "release")
+        self.assertRegex(release, r"(?m)^          pattern:\s*ssh-client-\*\s*$")
+
 
 if __name__ == "__main__":
     unittest.main()
