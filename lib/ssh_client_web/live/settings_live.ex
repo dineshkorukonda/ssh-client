@@ -15,6 +15,7 @@ defmodule SSHClientWeb.SettingsLive do
   alias SSHClient.SSH.HostKeyVerifier
   alias SSHClient.Updater
   alias SSHClient.Vault
+  alias SSHClient.Diagnostics
 
   @impl true
   def mount(_params, _session, socket) do
@@ -52,6 +53,7 @@ defmodule SSHClientWeb.SettingsLive do
         |> assign(:install_error, nil)
         |> assign(:import_candidates, [])
         |> assign(:import_status, nil)
+        |> assign(:diagnostics_json, nil)
 
       {:ok, socket}
     end
@@ -59,7 +61,13 @@ defmodule SSHClientWeb.SettingsLive do
 
   @impl true
   def handle_event("check_update", _params, socket) do
-    socket = assign(socket, checking_update: true, update_error: nil, install_status: nil, install_error: nil)
+    socket =
+      assign(socket,
+        checking_update: true,
+        update_error: nil,
+        install_status: nil,
+        install_error: nil
+      )
 
     case Updater.check_update() do
       {:ok, info} ->
@@ -105,7 +113,8 @@ defmodule SSHClientWeb.SettingsLive do
          install_message: "Downloading update package in background..."
        )}
     else
-      {:noreply, assign(socket, install_error: "No download asset found for current operating system.")}
+      {:noreply,
+       assign(socket, install_error: "No download asset found for current operating system.")}
     end
   end
 
@@ -133,6 +142,10 @@ defmodule SSHClientWeb.SettingsLive do
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_event("export_diagnostics", _params, socket) do
+    {:noreply, assign(socket, :diagnostics_json, Diagnostics.export_json())}
   end
 
   def handle_event("scan_ssh_config", _params, socket) do
@@ -177,7 +190,10 @@ defmodule SSHClientWeb.SettingsLive do
     {:noreply,
      socket
      |> assign(:import_candidates, [])
-     |> assign(:import_status, "Successfully imported #{length(candidates)} host(s) into ssh-client!")
+     |> assign(
+       :import_status,
+       "Successfully imported #{length(candidates)} host(s) into ssh-client!"
+     )
      |> assign(:active_servers_count, length(active))}
   end
 
@@ -191,7 +207,10 @@ defmodule SSHClientWeb.SettingsLive do
     {:noreply, assign(socket, download_progress: percent)}
   end
 
-  def handle_info({:update_stage_complete, {:ok, %{staged_dir: staged, archive_path: path}}}, socket) do
+  def handle_info(
+        {:update_stage_complete, {:ok, %{staged_dir: staged, archive_path: path}}},
+        socket
+      ) do
     {:noreply,
      assign(socket,
        downloading_update: false,
@@ -272,7 +291,9 @@ defmodule SSHClientWeb.SettingsLive do
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
           <div>
-            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">Settings & System Diagnostics</h1>
+            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">
+              Settings & System Diagnostics
+            </h1>
             <p class="text-xs text-muted-foreground font-mono mt-0.5">
               Manage application telemetry, release updates, SSH key discovery, and host imports.
             </p>
@@ -288,7 +309,12 @@ defmodule SSHClientWeb.SettingsLive do
                 Checking...
               <% else %>
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
                 Check for Updates
               <% end %>
@@ -298,22 +324,33 @@ defmodule SSHClientWeb.SettingsLive do
 
         <!-- Update Status Card (if checked) -->
         <%= if @update_info do %>
-          <div class={["p-6 rounded-xl border transition-all shadow-xs",
-            if(@update_info.update_available?, do: "bg-primary/5 border-primary/40", else: "bg-card border-border")]}>
+          <div class={[
+            "p-6 rounded-xl border transition-all shadow-xs",
+            if(@update_info.update_available?,
+              do: "bg-primary/5 border-primary/40",
+              else: "bg-card border-border"
+            )
+          ]}>
             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div class="space-y-1">
                 <div class="flex items-center gap-2.5">
-                  <span class={["w-2.5 h-2.5 rounded-full", if(@update_info.update_available?, do: "bg-primary animate-pulse", else: "bg-emerald-500")]}></span>
+                  <span class={[
+                    "w-2.5 h-2.5 rounded-full",
+                    if(@update_info.update_available?,
+                      do: "bg-primary animate-pulse",
+                      else: "bg-emerald-500"
+                    )
+                  ]}></span>
                   <h3 class="text-base font-semibold text-foreground">
                     <%= if @update_info.update_available? do %>
-                      New Release Available: <%= @update_info.tag_name %>
+                      New Release Available: {@update_info.tag_name}
                     <% else %>
-                      ssh-client is up to date (v<%= @version %>)
+                      ssh-client is up to date (v{@version})
                     <% end %>
                   </h3>
                 </div>
                 <p class="text-xs text-muted-foreground font-mono">
-                  Current installed: v<%= @version %> &bull; Latest release: <%= @update_info.tag_name %>
+                  Current installed: v{@version} &bull; Latest release: {@update_info.tag_name}
                 </p>
               </div>
 
@@ -322,7 +359,7 @@ defmodule SSHClientWeb.SettingsLive do
                   <%= if @downloading_update do %>
                     <div class="px-4 py-2 bg-primary/20 border border-primary/40 rounded-lg text-xs font-mono text-primary flex items-center gap-2">
                       <span class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
-                      Downloading (<%= @download_progress %>%)
+                      Downloading ({@download_progress}%)
                     </div>
                   <% else %>
                     <button
@@ -348,10 +385,14 @@ defmodule SSHClientWeb.SettingsLive do
               <div class="mt-4 pt-4 border-t border-border space-y-2">
                 <div class="flex justify-between text-xs font-mono text-primary">
                   <span>Downloading update payload...</span>
-                  <span><%= @download_progress %>%</span>
+                  <span>{@download_progress}%</span>
                 </div>
                 <div class="w-full h-2 bg-muted rounded-full overflow-hidden border border-border">
-                  <div class="h-full bg-primary transition-all duration-300 rounded-full" style={"width: #{@download_progress}%"}></div>
+                  <div
+                    class="h-full bg-primary transition-all duration-300 rounded-full"
+                    style={"width: #{@download_progress}%"}
+                  >
+                  </div>
                 </div>
               </div>
             <% end %>
@@ -361,7 +402,7 @@ defmodule SSHClientWeb.SettingsLive do
               <div class="mt-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <span class="font-semibold block text-foreground">Update Ready:</span>
-                  <%= @install_message %>
+                  {@install_message}
                 </div>
                 <button
                   phx-click="restart_and_apply"
@@ -376,7 +417,7 @@ defmodule SSHClientWeb.SettingsLive do
             <%= if @install_status == :restarting do %>
               <div class="mt-4 p-4 rounded-lg bg-primary/10 border border-primary/30 text-primary text-xs font-mono flex items-center gap-2.5">
                 <span class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
-                <span><%= @install_message %></span>
+                <span>{@install_message}</span>
               </div>
             <% end %>
 
@@ -385,7 +426,7 @@ defmodule SSHClientWeb.SettingsLive do
               <div class="mt-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono flex items-center justify-between gap-3">
                 <div>
                   <span class="font-semibold block text-foreground">Update Ready:</span>
-                  <%= @install_message %>
+                  {@install_message}
                 </div>
                 <%= if @download_path do %>
                   <button
@@ -400,7 +441,7 @@ defmodule SSHClientWeb.SettingsLive do
 
             <%= if @install_error do %>
               <div class="mt-4 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs font-mono">
-                <%= @install_error %>
+                {@install_error}
               </div>
             <% end %>
 
@@ -416,8 +457,8 @@ defmodule SSHClientWeb.SettingsLive do
                       phx-value-name={asset.name}
                       class="px-3 py-1.5 bg-background hover:bg-muted border border-border hover:border-input text-xs text-foreground font-mono rounded-md transition-colors inline-flex items-center gap-2 text-left"
                     >
-                      <span class="font-medium"><%= asset.name %></span>
-                      <span class="text-muted-foreground text-[10px]">(<%= format_bytes(asset.size) %>)</span>
+                      <span class="font-medium">{asset.name}</span>
+                      <span class="text-muted-foreground text-[10px]">({format_bytes(asset.size)})</span>
                     </button>
                   <% end %>
                 </div>
@@ -428,7 +469,7 @@ defmodule SSHClientWeb.SettingsLive do
 
         <%= if @update_error do %>
           <div class="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono">
-            Update check failed: <%= @update_error %>
+            Update check failed: {@update_error}
           </div>
         <% end %>
 
@@ -441,24 +482,49 @@ defmodule SSHClientWeb.SettingsLive do
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
             <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1">
               <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Platform Architecture</span>
-              <span class="text-foreground font-semibold"><%= @platform %></span>
+              <span class="text-foreground font-semibold">{@platform}</span>
             </div>
             <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1">
               <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Application Release</span>
-              <span class="text-foreground font-semibold">v<%= @version %></span>
+              <span class="text-foreground font-semibold">v{@version}</span>
             </div>
             <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1 md:col-span-2">
               <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Local Store File Path</span>
-              <span class="text-foreground break-all"><%= @config_path %></span>
+              <span class="text-foreground break-all">{@config_path}</span>
             </div>
             <div class="p-3.5 bg-muted/40 border border-border/60 rounded-lg space-y-1 md:col-span-2">
               <div class="flex items-center justify-between">
                 <span class="text-muted-foreground uppercase tracking-wider text-[10px] block font-sans font-semibold">Known Hosts Path</span>
-                <span class="text-[11px] text-muted-foreground"><%= @known_hosts_count %> verified fingerprints</span>
+                <span class="text-[11px] text-muted-foreground">{@known_hosts_count} verified fingerprints</span>
               </div>
-              <span class="text-foreground break-all"><%= @known_hosts_path %></span>
+              <span class="text-foreground break-all">{@known_hosts_path}</span>
             </div>
           </div>
+        </div>
+
+        <div class="bg-card border border-border rounded-xl p-6 space-y-4 shadow-xs">
+          <div class="flex items-center justify-between pb-2 border-b border-border/60">
+            <div>
+              <h2 class="text-sm font-semibold text-foreground">Redacted Diagnostics</h2>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                Export a crash report with passwords, tokens, and keys removed.
+              </p>
+            </div>
+            <button
+              phx-click="export_diagnostics"
+              class="h-8 px-3 rounded-md bg-secondary hover:bg-secondary/80 border border-border text-xs font-mono"
+            >
+              Generate report
+            </button>
+          </div>
+          <%= if @diagnostics_json do %>
+            <textarea
+              readonly
+              class="w-full h-48 text-[11px] font-mono bg-background border border-border rounded-lg p-3"
+            ><%= @diagnostics_json %></textarea>
+          <% else %>
+            <p class="text-xs text-muted-foreground font-mono">No report generated yet.</p>
+          <% end %>
         </div>
 
         <!-- SSH Key Discovery -->
@@ -466,9 +532,11 @@ defmodule SSHClientWeb.SettingsLive do
           <div class="flex items-center justify-between pb-2 border-b border-border/60">
             <div>
               <h2 class="text-sm font-semibold text-foreground">Discovered SSH Private Keys</h2>
-              <p class="text-xs text-muted-foreground mt-0.5">Identities discovered in ~/.ssh used automatically for public-key authentication.</p>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                Identities discovered in ~/.ssh used automatically for public-key authentication.
+              </p>
             </div>
-            <span class="text-[11px] text-muted-foreground font-mono"><%= length(@discovered_keys) %> detected</span>
+            <span class="text-[11px] text-muted-foreground font-mono">{length(@discovered_keys)} detected</span>
           </div>
 
           <%= if @discovered_keys == [] do %>
@@ -479,7 +547,7 @@ defmodule SSHClientWeb.SettingsLive do
             <div class="space-y-2">
               <%= for key_path <- @discovered_keys do %>
                 <div class="flex items-center justify-between p-3 bg-muted/30 border border-border rounded-lg text-xs font-mono">
-                  <span class="text-foreground font-medium"><%= key_path %></span>
+                  <span class="text-foreground font-medium">{key_path}</span>
                   <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold uppercase">ready</span>
                 </div>
               <% end %>
@@ -492,14 +560,21 @@ defmodule SSHClientWeb.SettingsLive do
           <div class="flex items-center justify-between pb-2 border-b border-border/60">
             <div>
               <h2 class="text-sm font-semibold text-foreground">Import from OpenSSH ~/.ssh/config</h2>
-              <p class="text-xs text-muted-foreground mt-0.5">Scan existing SSH client configurations and register hosts automatically.</p>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                Scan existing SSH client configurations and register hosts automatically.
+              </p>
             </div>
             <button
               phx-click="scan_ssh_config"
               class="h-8 px-3 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-medium inline-flex items-center gap-1.5"
             >
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
               Scan ~/.ssh/config
             </button>
@@ -507,7 +582,7 @@ defmodule SSHClientWeb.SettingsLive do
 
           <%= if @import_status do %>
             <div class="p-3 bg-muted/40 border border-border rounded-lg text-xs text-foreground font-mono">
-              <%= @import_status %>
+              {@import_status}
             </div>
           <% end %>
 
@@ -519,15 +594,15 @@ defmodule SSHClientWeb.SettingsLive do
                   phx-click="import_all_candidates"
                   class="h-8 px-4 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium rounded-md shadow-xs transition-colors"
                 >
-                  Import <%= length(@import_candidates) %> Hosts
+                  Import {length(@import_candidates)} Hosts
                 </button>
               </div>
 
               <div class="space-y-1.5 max-h-48 overflow-auto border border-border rounded-lg p-2 bg-muted/20">
                 <%= for cand <- @import_candidates do %>
                   <div class="flex items-center justify-between p-2 rounded-md bg-card border border-border/50 text-xs font-mono">
-                    <span class="text-foreground font-medium"><%= cand.id %></span>
-                    <span class="text-muted-foreground"><%= cand.user %>@<%= cand.address %>:<%= cand.port || 22 %></span>
+                    <span class="text-foreground font-medium">{cand.id}</span>
+                    <span class="text-muted-foreground">{cand.user}@{cand.address}:{cand.port || 22}</span>
                   </div>
                 <% end %>
               </div>
@@ -582,4 +657,3 @@ defmodule SSHClientWeb.SettingsLive do
 
   defp format_bytes(_), do: "0 B"
 end
-

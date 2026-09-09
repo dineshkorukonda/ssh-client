@@ -99,7 +99,10 @@ defmodule SSHClient.SSH.ConfigImporter do
 
       Enum.map(aliases, fn host_alias ->
         address = Map.get(params, "hostname", host_alias)
-        user = Map.get(params, "user", System.get_env("USER") || System.get_env("USERNAME") || "root")
+
+        user =
+          Map.get(params, "user", System.get_env("USER") || System.get_env("USERNAME") || "root")
+
         port = Map.get(params, "port", 22)
         identity_file = Map.get(params, "identityfile")
         jump_host = Map.get(params, "proxyjump")

@@ -3,6 +3,7 @@ defmodule SSHClient.ConfigTest do
 
   alias SSHClient.Config
   alias SSHClient.Config.Check
+  alias SSHClient.Config.Server
 
   @valid_yaml """
   servers:
@@ -258,6 +259,46 @@ defmodule SSHClient.ConfigTest do
       assert hd(loaded.servers).user == "root"
       assert hd(loaded.servers).proxy_jump == "jump.internal"
       assert length(hd(loaded.servers).checks) == 1
+    end
+
+    test "round-trip saves and loads extended server attributes (users, auth_method, tags, notes, favorite, identity_file)" do
+      server = %Server{
+        id: "full-featured-node",
+        name: "Full Featured Node",
+        host: "node.internal",
+        user: "admin",
+        users: ["admin", "root", "dev"],
+        default_auth_method: :password,
+        identity_file: "~/.ssh/custom_id",
+        tags: ["prod", "eu-west", "k8s"],
+        notes: "Primary cluster controller",
+        favorite: true,
+        last_connected_at: "2026-09-09T10:00:00Z",
+        port: 2222
+      }
+
+      path =
+        Path.join(
+          System.tmp_dir!(),
+          "extended_save_test_#{System.unique_integer([:positive])}.json"
+        )
+
+      on_exit(fn -> File.rm(path) end)
+
+      assert :ok = Config.save_file([server], path)
+      assert {:ok, loaded} = Config.load_file(path)
+      assert length(loaded.servers) == 1
+
+      s = hd(loaded.servers)
+      assert s.id == "full-featured-node"
+      assert s.users == ["admin", "root", "dev"]
+      assert s.default_auth_method == :password
+      assert s.identity_file == "~/.ssh/custom_id"
+      assert s.tags == ["prod", "eu-west", "k8s"]
+      assert s.notes == "Primary cluster controller"
+      assert s.favorite == true
+      assert s.last_connected_at == "2026-09-09T10:00:00Z"
+      assert s.port == 2222
     end
 
     test "default_config_path/0 returns a path" do

@@ -6,6 +6,7 @@ defmodule SSHClient.SessionWorkerTest do
 
   setup do
     session_id = "sess_test_#{System.unique_integer([:positive])}"
+
     server = %Server{
       id: "srv_test",
       host: "127.0.0.1",

@@ -37,7 +37,10 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
 
   describe "verify/4 and persistence" do
     test "detects first-connect when host is not in known_hosts" do
-      res = HostKeyVerifier.verify(@sample_key_1, "192.168.1.10", 22, known_hosts_file: @known_hosts_file)
+      res =
+        HostKeyVerifier.verify(@sample_key_1, "192.168.1.10", 22,
+          known_hosts_file: @known_hosts_file
+        )
 
       assert {:error, {:first_connect, details}} = res
       assert details.host == "192.168.1.10"
@@ -46,17 +49,30 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
     end
 
     test "persists key and recognizes trusted host on subsequent connection" do
-      assert :ok = HostKeyVerifier.save_host_key("192.168.1.10", 22, @sample_key_1, known_hosts_file: @known_hosts_file)
+      assert :ok =
+               HostKeyVerifier.save_host_key("192.168.1.10", 22, @sample_key_1,
+                 known_hosts_file: @known_hosts_file
+               )
 
-      res = HostKeyVerifier.verify(@sample_key_1, "192.168.1.10", 22, known_hosts_file: @known_hosts_file)
+      res =
+        HostKeyVerifier.verify(@sample_key_1, "192.168.1.10", 22,
+          known_hosts_file: @known_hosts_file
+        )
+
       assert {:ok, :trusted, details} = res
       assert details.fingerprint == HostKeyVerifier.fingerprint(@sample_key_1)
     end
 
     test "detects changed host key with old and new fingerprint diff" do
-      assert :ok = HostKeyVerifier.save_host_key("192.168.1.10", 22, @sample_key_1, known_hosts_file: @known_hosts_file)
+      assert :ok =
+               HostKeyVerifier.save_host_key("192.168.1.10", 22, @sample_key_1,
+                 known_hosts_file: @known_hosts_file
+               )
 
-      res = HostKeyVerifier.verify(@sample_key_2, "192.168.1.10", 22, known_hosts_file: @known_hosts_file)
+      res =
+        HostKeyVerifier.verify(@sample_key_2, "192.168.1.10", 22,
+          known_hosts_file: @known_hosts_file
+        )
 
       assert {:error, {:host_key_changed, details}} = res
       assert details.host == "192.168.1.10"
@@ -66,10 +82,21 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
     end
 
     test "update_host_key replaces previous fingerprint with explicit confirmation" do
-      assert :ok = HostKeyVerifier.save_host_key("192.168.1.10", 22, @sample_key_1, known_hosts_file: @known_hosts_file)
-      assert :ok = HostKeyVerifier.update_host_key("192.168.1.10", 22, @sample_key_2, known_hosts_file: @known_hosts_file)
+      assert :ok =
+               HostKeyVerifier.save_host_key("192.168.1.10", 22, @sample_key_1,
+                 known_hosts_file: @known_hosts_file
+               )
 
-      res = HostKeyVerifier.verify(@sample_key_2, "192.168.1.10", 22, known_hosts_file: @known_hosts_file)
+      assert :ok =
+               HostKeyVerifier.update_host_key("192.168.1.10", 22, @sample_key_2,
+                 known_hosts_file: @known_hosts_file
+               )
+
+      res =
+        HostKeyVerifier.verify(@sample_key_2, "192.168.1.10", 22,
+          known_hosts_file: @known_hosts_file
+        )
+
       assert {:ok, :trusted, _} = res
     end
   end
@@ -104,7 +131,10 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
       assert result == true
 
       # Should now be trusted
-      assert {:ok, :trusted, _} = HostKeyVerifier.verify(@sample_key_1, "10.0.0.5", 22, known_hosts_file: @known_hosts_file)
+      assert {:ok, :trusted, _} =
+               HostKeyVerifier.verify(@sample_key_1, "10.0.0.5", 22,
+                 known_hosts_file: @known_hosts_file
+               )
     end
   end
 end

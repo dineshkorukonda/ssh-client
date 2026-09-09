@@ -128,6 +128,27 @@ defmodule SSHClient.ServerManager do
     GenServer.call(manager, {:remove_server, server_id})
   end
 
+  @doc """
+  Updates an existing server config and persists it without dropping the worker if possible.
+  """
+  def update_server(server_or_map) do
+    GenServer.call(@name, {:update_server, server_or_map})
+  end
+
+  @doc """
+  Duplicates a server entry with a new id.
+  """
+  def duplicate_server(server_id) do
+    GenServer.call(@name, {:duplicate_server, to_string(server_id)})
+  end
+
+  @doc """
+  Records last-connected time for a host.
+  """
+  def mark_connected(server_id) do
+    GenServer.cast(@name, {:mark_connected, to_string(server_id)})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -180,13 +201,14 @@ defmodule SSHClient.ServerManager do
   def handle_call(:list_servers, _from, state) do
     servers =
       state.workers
-      |> Enum.map(fn {_id, pid} ->
+      |> Enum.map(fn {id, pid} ->
         try do
-          ServerWorker.get_state(pid)
+          ServerWorker.get_state(pid, 1000)
         rescue
-          _ -> nil
+          _ -> %{id: id, name: id, host: id, status: :connecting, metrics: %{}, checks: %{}}
         catch
-          :exit, _ -> nil
+          :exit, _ ->
+            %{id: id, name: id, host: id, status: :connecting, metrics: %{}, checks: %{}}
         end
       end)
       |> Enum.reject(&is_nil/1)
@@ -199,7 +221,7 @@ defmodule SSHClient.ServerManager do
     case Map.get(state.workers, server_id) do
       pid when is_pid(pid) ->
         try do
-          {:reply, {:ok, ServerWorker.get_state(pid)}, state}
+          {:reply, {:ok, ServerWorker.get_state(pid, 1000)}, state}
         rescue
           _ -> {:reply, {:error, :worker_unavailable}, state}
         catch
@@ -242,6 +264,92 @@ defmodule SSHClient.ServerManager do
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
+  end
+
+  def handle_call({:update_server, server_or_map}, _from, state) do
+    path = state.config_path || Config.default_config_path()
+
+    case parse_server_input(server_or_map) do
+      {:ok, %Server{} = incoming} ->
+        server = merge_existing_server(path, incoming)
+        persist_server_addition(path, server)
+
+        if pid = Map.get(state.workers, server.id) do
+          try do
+            SSHClient.ServerWorker.replace_config(pid, server)
+          rescue
+            _ -> :ok
+          catch
+            :exit, _ -> :ok
+          end
+        end
+
+        {:reply, {:ok, server.id}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:duplicate_server, server_id}, _from, state) do
+    path = state.config_path || Config.default_config_path()
+
+    case Config.load_file(path) do
+      {:ok, %Config{servers: servers}} ->
+        case Enum.find(servers, &(&1.id == server_id)) do
+          nil ->
+            {:reply, {:error, :not_found}, state}
+
+          %Server{} = original ->
+            copy = %{
+              original
+              | id: original.id <> "-copy",
+                name: (original.name || original.id) <> " copy"
+            }
+
+            case do_add_server(state, copy, []) do
+              {:ok, new_state, result} -> {:reply, {:ok, result}, new_state}
+              {:error, reason} -> {:reply, {:error, reason}, state}
+            end
+        end
+
+      _ ->
+        {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  @impl true
+  def handle_cast({:mark_connected, server_id}, state) do
+    path = state.config_path || Config.default_config_path()
+    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+    case Config.load_file(path) do
+      {:ok, %Config{servers: servers}} ->
+        updated =
+          Enum.map(servers, fn s ->
+            if s.id == server_id, do: %{s | last_connected_at: now}, else: s
+          end)
+
+        Config.save_file(updated, path)
+
+        if pid = Map.get(state.workers, server_id) do
+          try do
+            SSHClient.ServerWorker.replace_config(
+              pid,
+              Enum.find(updated, &(&1.id == server_id))
+            )
+          rescue
+            _ -> :ok
+          catch
+            :exit, _ -> :ok
+          end
+        end
+
+      _ ->
+        :ok
+    end
+
+    {:noreply, state}
   end
 
   # Internal Logic
@@ -399,6 +507,46 @@ defmodule SSHClient.ServerManager do
 
       _ ->
         false
+    end
+  end
+
+  defp merge_existing_server(path, %Server{} = incoming) do
+    case Config.load_file(path) do
+      {:ok, %Config{servers: servers}} ->
+        case Enum.find(servers, &(&1.id == incoming.id)) do
+          nil ->
+            incoming
+
+          %Server{} = existing ->
+            %{
+              existing
+              | name: incoming.name || existing.name,
+                host: incoming.host || existing.host,
+                user: incoming.user || existing.user,
+                users: if(incoming.users in [nil, []], do: existing.users, else: incoming.users),
+                port: incoming.port || existing.port,
+                proxy_jump: incoming.proxy_jump || existing.proxy_jump,
+                identity_file: incoming.identity_file || existing.identity_file,
+                tags:
+                  if(incoming.tags == [] and existing.tags != [],
+                    do: existing.tags,
+                    else: incoming.tags
+                  ),
+                notes:
+                  if(incoming.notes in [nil, ""] and existing.notes not in [nil, ""],
+                    do: existing.notes,
+                    else: incoming.notes
+                  ),
+                favorite: incoming.favorite,
+                last_connected_at: incoming.last_connected_at || existing.last_connected_at,
+                auth_order: incoming.auth_order || existing.auth_order,
+                default_auth_method: incoming.default_auth_method || existing.default_auth_method,
+                checks: if(incoming.checks == [], do: existing.checks, else: incoming.checks)
+            }
+        end
+
+      _ ->
+        incoming
     end
   end
 

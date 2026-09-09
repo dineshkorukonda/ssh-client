@@ -70,8 +70,8 @@ defmodule SSHClient.ServerWorker do
   @doc """
   Returns the full snapshot state of a server worker.
   """
-  def get_state(worker) do
-    GenServer.call(resolve_worker(worker), :get_state)
+  def get_state(worker, timeout \\ 5000) do
+    GenServer.call(resolve_worker(worker), :get_state, timeout)
   end
 
   @doc """
@@ -100,6 +100,10 @@ defmodule SSHClient.ServerWorker do
   """
   def get_server_config(worker) do
     GenServer.call(resolve_worker(worker), :get_server_config)
+  end
+
+  def replace_config(worker, server) do
+    GenServer.call(resolve_worker(worker), {:replace_config, server})
   end
 
   @doc """
@@ -179,7 +183,11 @@ defmodule SSHClient.ServerWorker do
       checks: state.checks,
       init_system: state.init_system,
       last_error: state.last_error,
-      updated_at: state.updated_at
+      updated_at: state.updated_at,
+      tags: state.server.tags || [],
+      notes: state.server.notes || "",
+      favorite: state.server.favorite || false,
+      last_connected_at: state.server.last_connected_at
     }
 
     {:reply, snapshot, state}
@@ -188,6 +196,10 @@ defmodule SSHClient.ServerWorker do
   @impl true
   def handle_call(:get_server_config, _from, state) do
     {:reply, state.server, state}
+  end
+
+  def handle_call({:replace_config, server}, _from, state) do
+    {:reply, :ok, %{state | server: server}}
   end
 
   @impl true

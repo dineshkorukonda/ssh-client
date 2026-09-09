@@ -33,8 +33,12 @@ defmodule SSHClient.SSH.AuthTest do
 
       assert length(identities) == 3
       assert Path.expand(Enum.at(identities, 0)) == Path.expand(custom_key)
-      assert Path.expand(Enum.at(identities, 1)) == Path.expand(Path.join(@temp_dir, "test_id_ed25519"))
-      assert Path.expand(Enum.at(identities, 2)) == Path.expand(Path.join(@temp_dir, "test_id_rsa"))
+
+      assert Path.expand(Enum.at(identities, 1)) ==
+               Path.expand(Path.join(@temp_dir, "test_id_ed25519"))
+
+      assert Path.expand(Enum.at(identities, 2)) ==
+               Path.expand(Path.join(@temp_dir, "test_id_rsa"))
     end
 
     test "resolves standard identities in order when no custom key is provided" do
@@ -143,7 +147,9 @@ defmodule SSHClient.SSH.AuthTest do
 
       assert Keyword.get(opts, :auth_methods) == ~c"keyboard-interactive,password"
       assert Keyword.get(opts, :password) == ~c"temp_password"
-      assert Path.expand(to_string(Keyword.get(opts, :user_dir))) == Path.expand(Path.dirname(custom_key))
+
+      assert Path.expand(to_string(Keyword.get(opts, :user_dir))) ==
+               Path.expand(Path.dirname(custom_key))
     end
 
     test "resolves password from PassphraseCache if cached in memory" do

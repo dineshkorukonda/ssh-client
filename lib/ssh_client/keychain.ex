@@ -88,7 +88,15 @@ defmodule SSHClient.Keychain do
         store_memory(account, secret)
 
       path ->
-        args = ["store", "--label=ssh-client:#{account}", "service", @service_name, "account", account]
+        args = [
+          "store",
+          "--label=ssh-client:#{account}",
+          "service",
+          @service_name,
+          "account",
+          account
+        ]
+
         port = Port.open({:spawn_executable, path}, [:stream, :binary, :use_stdio, args: args])
         Port.command(port, secret)
         send(port, {self(), :close})
@@ -103,6 +111,7 @@ defmodule SSHClient.Keychain do
 
       path ->
         args = ["lookup", "service", @service_name, "account", account]
+
         case System.cmd(path, args, stderr_to_stdout: true) do
           {"", 0} -> {:error, :not_found}
           {secret, 0} -> {:ok, String.trim_trailing(secret, "\n")}
@@ -123,71 +132,166 @@ defmodule SSHClient.Keychain do
     end
   end
 
-  # Windows Credential Manager via cmdkey and PowerShell Credential Manager API
-  defp store_windows(account, secret) do
-    target = "#{@service_name}:#{account}"
+  # Windows DPAPI and Credential Manager storage
+  defp dpapi_store_path do
+    base_dir =
+      try do
+        SSHClient.Config.os_config_dir()
+      rescue
+        _ -> System.tmp_dir!()
+      end
 
-    case System.find_executable("cmdkey") do
-      nil ->
-        store_memory(account, secret)
+    Path.join(base_dir, "credentials.enc")
+  end
 
-      cmdkey_path ->
-        # Store using cmdkey: /generic:target /user:account /pass:secret
-        args = ["/generic:#{target}", "/user:#{account}", "/pass:#{secret}"]
+  defp load_dpapi_store do
+    path = dpapi_store_path()
 
-        case System.cmd(cmdkey_path, args, stderr_to_stdout: true) do
-          {_out, 0} ->
-            store_memory(account, secret)
-            :ok
+    if File.exists?(path) do
+      case File.read(path) do
+        {:ok, content} ->
+          case Jason.decode(content) do
+            {:ok, map} when is_map(map) -> map
+            _ -> %{}
+          end
 
-          _ ->
-            store_memory(account, secret)
-            :ok
-        end
+        _ ->
+          %{}
+      end
+    else
+      %{}
     end
   end
 
+  defp save_dpapi_store(store_map) when is_map(store_map) do
+    path = dpapi_store_path()
+
+    with :ok <- File.mkdir_p(Path.dirname(path)),
+         {:ok, json} <- Jason.encode(store_map, pretty: true),
+         :ok <- File.write(path, json) do
+      :ok
+    else
+      _ -> :error
+    end
+  end
+
+  defp dpapi_protect(plaintext) when is_binary(plaintext) do
+    b64_plain = Base.encode64(plaintext)
+
+    ps_cmd =
+      "Add-Type -AssemblyName System.Security; " <>
+        "$bytes = [System.Convert]::FromBase64String('#{b64_plain}'); " <>
+        "$enc = [System.Security.Cryptography.ProtectedData]::Protect($bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser); " <>
+        "[System.Convert]::ToBase64String($enc)"
+
+    case System.cmd("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+           stderr_to_stdout: true
+         ) do
+      {out, 0} ->
+        cleaned = String.trim(out)
+        if cleaned != "", do: {:ok, cleaned}, else: {:error, :empty_output}
+
+      {err, _} ->
+        {:error, err}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp dpapi_unprotect(ciphertext_b64) when is_binary(ciphertext_b64) do
+    cleaned = String.trim(ciphertext_b64)
+
+    ps_cmd =
+      "Add-Type -AssemblyName System.Security; " <>
+        "$bytes = [System.Convert]::FromBase64String('#{cleaned}'); " <>
+        "$dec = [System.Security.Cryptography.ProtectedData]::Unprotect($bytes, $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser); " <>
+        "[System.Convert]::ToBase64String($dec)"
+
+    case System.cmd("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+           stderr_to_stdout: true
+         ) do
+      {out, 0} ->
+        case Base.decode64(String.trim(out)) do
+          {:ok, plaintext} -> {:ok, plaintext}
+          _ -> {:error, :decode_failed}
+        end
+
+      {err, _} ->
+        {:error, err}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp store_windows(account, secret) do
+    store_memory(account, secret)
+
+    # Persist encrypted secret using Windows DPAPI
+    case dpapi_protect(secret) do
+      {:ok, encrypted_b64} ->
+        current_store = load_dpapi_store()
+        updated_store = Map.put(current_store, account, encrypted_b64)
+        save_dpapi_store(updated_store)
+
+      _ ->
+        :ok
+    end
+
+    # Optional: also register generic target in Windows Credential Manager
+    target = "#{@service_name}:#{account}"
+
+    if cmdkey_path = System.find_executable("cmdkey") do
+      System.cmd(cmdkey_path, ["/generic:#{target}", "/user:#{account}", "/pass:#{secret}"],
+        stderr_to_stdout: true
+      )
+    end
+
+    :ok
+  end
+
   defp retrieve_windows(account) do
-    # First check in-memory cache, then cmdkey lookup
     case retrieve_memory(account) do
-      {:ok, secret} ->
+      {:ok, secret} when is_binary(secret) and secret != "" ->
         {:ok, secret}
 
-      {:error, :not_found} ->
-        target = "#{@service_name}:#{account}"
+      _ ->
+        # Check DPAPI encrypted credentials store
+        store_map = load_dpapi_store()
 
-        case System.find_executable("cmdkey") do
-          nil ->
-            {:error, :not_found}
-
-          cmdkey_path ->
-            case System.cmd(cmdkey_path, ["/list:#{target}"], stderr_to_stdout: true) do
-              {output, 0} ->
-                if String.contains?(output, target) do
-                  {:ok, ""}
-                else
-                  {:error, :not_found}
-                end
+        case Map.get(store_map, account) do
+          encrypted_b64 when is_binary(encrypted_b64) and encrypted_b64 != "" ->
+            case dpapi_unprotect(encrypted_b64) do
+              {:ok, secret} when is_binary(secret) ->
+                store_memory(account, secret)
+                {:ok, secret}
 
               _ ->
                 {:error, :not_found}
             end
+
+          _ ->
+            {:error, :not_found}
         end
     end
   end
 
   defp delete_windows(account) do
-    target = "#{@service_name}:#{account}"
     delete_memory(account)
 
-    case System.find_executable("cmdkey") do
-      nil ->
-        :ok
+    current_store = load_dpapi_store()
 
-      cmdkey_path ->
-        System.cmd(cmdkey_path, ["/delete:#{target}"], stderr_to_stdout: true)
-        :ok
+    if Map.has_key?(current_store, account) do
+      updated_store = Map.delete(current_store, account)
+      save_dpapi_store(updated_store)
     end
+
+    target = "#{@service_name}:#{account}"
+
+    if cmdkey_path = System.find_executable("cmdkey") do
+      System.cmd(cmdkey_path, ["/delete:#{target}"], stderr_to_stdout: true)
+    end
+
+    :ok
   end
 
   # In-memory storage (ETS table for testing/headless/fallback)
@@ -201,6 +305,7 @@ defmodule SSHClient.Keychain do
         _ -> :ok
       end
     end
+
     :ok
   end
 
@@ -212,6 +317,7 @@ defmodule SSHClient.Keychain do
 
   defp retrieve_memory(account) do
     ensure_memory_table()
+
     case :ets.lookup(table_name(), account) do
       [{^account, secret}] -> {:ok, secret}
       [] -> {:error, :not_found}

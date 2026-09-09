@@ -40,7 +40,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       assert {:noreply, updated} =
-               HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+               HostLive.handle_event(
+                 "open_terminal",
+                 %{"id" => server.id, "auto_connect" => false},
+                 socket
+               )
 
       assert length(updated.assigns.tabs) == 1
       tab = hd(updated.assigns.tabs)
@@ -59,11 +63,17 @@ defmodule SSHClientWeb.SplitTerminalTest do
       end)
     end
 
-    test "split_right creates a new independent SessionWorker and updates layout to split_h", %{server: server} do
+    test "split_right creates a new independent SessionWorker and updates layout to split_h", %{
+      server: server
+    } do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       initial_tab = hd(socket.assigns.tabs)
       sess_1 = Layout.active_pane(initial_tab.layout)
@@ -90,11 +100,17 @@ defmodule SSHClientWeb.SplitTerminalTest do
       end)
     end
 
-    test "split_down creates a new independent SessionWorker and updates layout to split_v", %{server: server} do
+    test "split_down creates a new independent SessionWorker and updates layout to split_v", %{
+      server: server
+    } do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       initial_tab = hd(socket.assigns.tabs)
       sess_1 = Layout.active_pane(initial_tab.layout)
@@ -123,7 +139,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
         HostLive.handle_event("split_right", %{"auto_connect" => false}, socket)
@@ -154,7 +174,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
         HostLive.handle_event("split_right", %{"auto_connect" => false}, socket)
@@ -162,7 +186,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       [sess_1, sess_2] = Layout.panes(hd(socket.assigns.tabs).layout)
 
       assert {:noreply, socket} =
-               HostLive.handle_event("swap_panes", %{"pane_a" => sess_1, "pane_b" => sess_2}, socket)
+               HostLive.handle_event(
+                 "swap_panes",
+                 %{"pane_a" => sess_1, "pane_b" => sess_2},
+                 socket
+               )
 
       assert Layout.panes(hd(socket.assigns.tabs).layout) == [sess_2, sess_1]
 
@@ -176,7 +204,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
         HostLive.handle_event("split_right", %{"auto_connect" => false}, socket)
@@ -209,10 +241,18 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server, server2]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
-        HostLive.handle_event("new_tab", %{"server_id" => server2.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "new_tab",
+          %{"server_id" => server2.id, "auto_connect" => false},
+          socket
+        )
 
       assert length(socket.assigns.tabs) == 2
       assert socket.assigns.active_tab_id == 2
@@ -239,7 +279,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       pane_id = socket.assigns.active_pane_id
 
@@ -260,7 +304,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       pane_id = socket.assigns.active_pane_id
 

@@ -15,6 +15,7 @@ defmodule SSHClientWeb.SFTPLive do
   alias SSHClient.LocalFS
   alias SSHClient.ServerManager
   alias SSHClient.SFTP
+  alias SSHClient.SFTP.TransferManager
   alias SSHClient.SSH
   alias SSHClient.SSH.ConfigImporter
   alias SSHClient.Vault
@@ -44,6 +45,7 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:local_path, LocalFS.default_path())
           |> assign(:local_entries, [])
           |> assign(:local_filter, "")
+          |> assign(:show_hidden, false)
           |> assign(:selected_local, nil)
           |> assign(:local_loading, false)
           # Remote State
@@ -72,6 +74,10 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:delete_modal, false)
           |> assign(:delete_target, nil)
           |> assign(:delete_path, nil)
+          |> assign(:rename_modal, false)
+          |> assign(:rename_target, nil)
+          |> assign(:rename_path, nil)
+          |> assign(:rename_name, "")
           |> assign(:target_user, nil)
 
         {:ok, socket}
@@ -94,6 +100,7 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:local_path, local_start)
           |> assign(:local_entries, [])
           |> assign(:local_filter, "")
+          |> assign(:show_hidden, false)
           |> assign(:selected_local, nil)
           |> assign(:local_loading, false)
           # Remote State
@@ -122,11 +129,16 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:delete_modal, false)
           |> assign(:delete_target, nil)
           |> assign(:delete_path, nil)
+          |> assign(:rename_modal, false)
+          |> assign(:rename_target, nil)
+          |> assign(:rename_path, nil)
+          |> assign(:rename_name, "")
           |> assign(:target_user, nil)
 
         socket = load_local_dir(socket, local_start)
 
         if connected?(socket) do
+          Phoenix.PubSub.subscribe(SSHClient.PubSub, "ssh_client:transfers")
           send(self(), :connect_sftp)
         end
 
@@ -150,7 +162,11 @@ defmodule SSHClientWeb.SFTPLive do
     server = socket.assigns.server
 
     if is_nil(server) do
-      {:noreply, assign(socket, remote_loading: false, error: "Host '#{socket.assigns.server_id}' not found in configuration.")}
+      {:noreply,
+       assign(socket,
+         remote_loading: false,
+         error: "Host '#{socket.assigns.server_id}' not found in configuration."
+       )}
     else
       connect_opts =
         if socket.assigns[:target_user] && socket.assigns[:target_user] != "" do
@@ -165,6 +181,7 @@ defmodule SSHClientWeb.SFTPLive do
             {:ok, sftp_pid} ->
               target_u = socket.assigns[:target_user] || server.user
               start_path = if target_u == "root", do: "/root", else: "/home/#{target_u || "user"}"
+
               socket =
                 socket
                 |> assign(conn: conn, sftp_pid: sftp_pid, remote_path: start_path)
@@ -173,11 +190,19 @@ defmodule SSHClientWeb.SFTPLive do
               {:noreply, socket}
 
             {:error, reason} ->
-              {:noreply, assign(socket, remote_loading: false, error: "Failed to open SFTP channel: #{inspect(reason)}")}
+              {:noreply,
+               assign(socket,
+                 remote_loading: false,
+                 error: "Failed to open SFTP channel: #{inspect(reason)}"
+               )}
           end
 
         {:error, reason} ->
-          {:noreply, assign(socket, remote_loading: false, error: "SSH connection failed: #{inspect(reason)}")}
+          {:noreply,
+           assign(socket,
+             remote_loading: false,
+             error: "SSH connection failed: #{inspect(reason)}"
+           )}
       end
     end
   end
@@ -187,7 +212,6 @@ defmodule SSHClientWeb.SFTPLive do
   end
 
   def handle_info({:transfer_done, result, transfer_id}, socket) do
-    # Update transfer queue status
     transfers =
       Enum.map(socket.assigns.transfers, fn t ->
         if t.id == transfer_id do
@@ -200,12 +224,20 @@ defmodule SSHClientWeb.SFTPLive do
         end
       end)
 
-    # Refresh both directories
+    {:noreply, assign(socket, transfers: transfers, active_transfer: nil, transfer_progress: 0)}
+  end
+
+  def handle_info({:transfer_update, transfer}, socket) when is_map(transfer) do
+    socket = refresh_transfers(socket)
+
     socket =
-      socket
-      |> assign(transfers: transfers, active_transfer: nil, transfer_progress: 0)
-      |> load_local_dir(socket.assigns.local_path)
-      |> load_remote_dir(socket.assigns.remote_path)
+      if transfer.status in [:completed, :failed] do
+        socket
+        |> load_local_dir(socket.assigns.local_path)
+        |> load_remote_dir(socket.assigns.remote_path)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
@@ -277,6 +309,7 @@ defmodule SSHClientWeb.SFTPLive do
 
   def handle_event("remote_open", %{"path" => path, "type" => _file}, socket) do
     pid = socket.assigns.sftp_pid
+
     case SFTP.read_file(pid, path) do
       {:ok, data} ->
         {:noreply,
@@ -329,9 +362,71 @@ defmodule SSHClientWeb.SFTPLive do
     execute_upload(socket, local_path, remote_dest, filename)
   end
 
-  def handle_event("drop_download", %{"remote_path" => remote_path, "filename" => filename}, socket) do
+  def handle_event(
+        "drop_download",
+        %{"remote_path" => remote_path, "filename" => filename},
+        socket
+      ) do
     local_dest = Path.join(socket.assigns.local_path, filename)
     execute_download(socket, remote_path, local_dest, filename)
+  end
+
+  def handle_event("toggle_hidden", _params, socket) do
+    {:noreply, assign(socket, :show_hidden, !socket.assigns.show_hidden)}
+  end
+
+  def handle_event("cancel_transfer", %{"id" => id}, socket) do
+    TransferManager.cancel_transfer(id)
+    {:noreply, refresh_transfers(socket)}
+  end
+
+  def handle_event("retry_transfer", %{"id" => id}, socket) do
+    TransferManager.retry_transfer(id)
+    {:noreply, refresh_transfers(socket)}
+  end
+
+  def handle_event("open_rename", %{"target" => target, "path" => path}, socket) do
+    {:noreply,
+     assign(socket,
+       rename_modal: true,
+       rename_target: if(target == "local", do: :local, else: :remote),
+       rename_path: path,
+       rename_name: Path.basename(path)
+     )}
+  end
+
+  def handle_event("update_rename_name", %{"name" => name}, socket) do
+    {:noreply, assign(socket, :rename_name, name)}
+  end
+
+  def handle_event("confirm_rename", _params, socket) do
+    name = String.trim(socket.assigns.rename_name || "")
+    path = socket.assigns.rename_path
+    dest = Path.join(Path.dirname(path), name)
+
+    result =
+      case socket.assigns.rename_target do
+        :local -> File.rename(path, dest)
+        :remote -> SFTP.rename(socket.assigns.sftp_pid, path, dest)
+        _ -> {:error, :invalid}
+      end
+
+    socket = assign(socket, rename_modal: false, rename_path: nil, rename_name: "")
+
+    case result do
+      :ok ->
+        socket =
+          if socket.assigns.rename_target == :local do
+            load_local_dir(socket, socket.assigns.local_path)
+          else
+            load_remote_dir(socket, socket.assigns.remote_path)
+          end
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, assign(socket, :error, "Rename failed: #{inspect(reason)}")}
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -357,11 +452,13 @@ defmodule SSHClientWeb.SFTPLive do
              |> load_local_dir(socket.assigns.local_path)}
 
           {:error, reason} ->
-            {:noreply, assign(socket, editor_saving: false, error: "Save local failed: #{inspect(reason)}")}
+            {:noreply,
+             assign(socket, editor_saving: false, error: "Save local failed: #{inspect(reason)}")}
         end
 
       :remote ->
         pid = socket.assigns.sftp_pid
+
         case SFTP.write_file(pid, path, content) do
           :ok ->
             {:noreply,
@@ -370,7 +467,8 @@ defmodule SSHClientWeb.SFTPLive do
              |> load_remote_dir(socket.assigns.remote_path)}
 
           {:error, reason} ->
-            {:noreply, assign(socket, editor_saving: false, error: "Save remote failed: #{inspect(reason)}")}
+            {:noreply,
+             assign(socket, editor_saving: false, error: "Save remote failed: #{inspect(reason)}")}
         end
     end
   end
@@ -385,7 +483,9 @@ defmodule SSHClientWeb.SFTPLive do
 
   def handle_event("open_new_folder", %{"target" => target}, socket) do
     target_atom = if target == "local", do: :local, else: :remote
-    {:noreply, assign(socket, new_folder_modal: true, new_folder_target: target_atom, new_folder_name: "")}
+
+    {:noreply,
+     assign(socket, new_folder_modal: true, new_folder_target: target_atom, new_folder_name: "")}
   end
 
   def handle_event("update_new_folder_name", %{"name" => name}, socket) do
@@ -401,13 +501,19 @@ defmodule SSHClientWeb.SFTPLive do
         :local ->
           dest = Path.join(socket.assigns.local_path, name)
           LocalFS.make_dir(dest)
-          {:noreply, socket |> assign(new_folder_modal: false) |> load_local_dir(socket.assigns.local_path)}
+
+          {:noreply,
+           socket |> assign(new_folder_modal: false) |> load_local_dir(socket.assigns.local_path)}
 
         :remote ->
           dest = Path.join(socket.assigns.remote_path, name)
           pid = socket.assigns.sftp_pid
           SFTP.make_dir(pid, dest)
-          {:noreply, socket |> assign(new_folder_modal: false) |> load_remote_dir(socket.assigns.remote_path)}
+
+          {:noreply,
+           socket
+           |> assign(new_folder_modal: false)
+           |> load_remote_dir(socket.assigns.remote_path)}
       end
     else
       {:noreply, assign(socket, new_folder_modal: false)}
@@ -420,6 +526,7 @@ defmodule SSHClientWeb.SFTPLive do
        new_folder_modal: false,
        chmod_modal: false,
        delete_modal: false,
+       rename_modal: false,
        error: nil
      )}
   end
@@ -440,7 +547,9 @@ defmodule SSHClientWeb.SFTPLive do
       {_mode, _} ->
         # set mode via command or ssh_sftp
         SSH.exec(socket.assigns.conn, "chmod #{octal_str} \"#{path}\"")
-        {:noreply, socket |> assign(chmod_modal: false) |> load_remote_dir(socket.assigns.remote_path)}
+
+        {:noreply,
+         socket |> assign(chmod_modal: false) |> load_remote_dir(socket.assigns.remote_path)}
 
       :error ->
         {:noreply, assign(socket, :error, "Invalid octal permission: #{octal_str}")}
@@ -459,7 +568,9 @@ defmodule SSHClientWeb.SFTPLive do
     case target do
       :local ->
         LocalFS.delete_path(path)
-        {:noreply, socket |> assign(delete_modal: false) |> load_local_dir(socket.assigns.local_path)}
+
+        {:noreply,
+         socket |> assign(delete_modal: false) |> load_local_dir(socket.assigns.local_path)}
 
       :remote ->
         pid = socket.assigns.sftp_pid
@@ -468,7 +579,9 @@ defmodule SSHClientWeb.SFTPLive do
           :ok -> :ok
           _ -> SFTP.delete_dir(pid, path)
         end
-        {:noreply, socket |> assign(delete_modal: false) |> load_remote_dir(socket.assigns.remote_path)}
+
+        {:noreply,
+         socket |> assign(delete_modal: false) |> load_remote_dir(socket.assigns.remote_path)}
     end
   end
 
@@ -478,7 +591,9 @@ defmodule SSHClientWeb.SFTPLive do
 
   def handle_event("toggle_theme", _params, socket) do
     new_theme = if socket.assigns.theme == "dark", do: "light", else: "dark"
-    {:noreply, socket |> assign(:theme, new_theme) |> push_event("toggle_theme", %{theme: new_theme})}
+
+    {:noreply,
+     socket |> assign(:theme, new_theme) |> push_event("toggle_theme", %{theme: new_theme})}
   end
 
   def handle_event("lock_vault", _params, socket) do
@@ -514,6 +629,7 @@ defmodule SSHClientWeb.SFTPLive do
           end
 
         servers = list_all_servers()
+
         socket =
           socket
           |> put_flash(:info, msg)
@@ -574,12 +690,12 @@ defmodule SSHClientWeb.SFTPLive do
         <!-- Flash alerts -->
         <%= if flash = Phoenix.Flash.get(@flash, :info) do %>
           <div class="p-3.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-mono text-primary flex items-center justify-between">
-            <span><%= flash %></span>
+            <span>{flash}</span>
           </div>
         <% end %>
         <%= if flash = Phoenix.Flash.get(@flash, :error) do %>
           <div class="p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-mono text-destructive flex items-center justify-between">
-            <span><%= flash %></span>
+            <span>{flash}</span>
           </div>
         <% end %>
 
@@ -617,20 +733,28 @@ defmodule SSHClientWeb.SFTPLive do
                 <div>
                   <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
-                      <span class={["w-2 h-2 rounded-full shrink-0", if(s[:status] in ["online", "healthy", :online, :healthy], do: "bg-emerald-500", else: "bg-muted-foreground/40")]}></span>
-                      <h3 class="font-semibold text-sm text-foreground truncate"><%= s[:name] || s[:id] || s["name"] || s["id"] %></h3>
+                      <span class={[
+                        "w-2 h-2 rounded-full shrink-0",
+                        if(s[:status] in ["online", "healthy", :online, :healthy],
+                          do: "bg-emerald-500",
+                          else: "bg-muted-foreground/40"
+                        )
+                      ]}></span>
+                      <h3 class="font-semibold text-sm text-foreground truncate">
+                        {s[:name] || s[:id] || s["name"] || s["id"]}
+                      </h3>
                     </div>
                     <span class="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border shrink-0">
-                      Port <%= s[:port] || s["port"] || 22 %>
+                      Port {s[:port] || s["port"] || 22}
                     </span>
                   </div>
                   <div class="mt-2 space-y-1">
                     <div class="text-xs font-mono text-muted-foreground flex items-center gap-1 truncate">
-                      <span><%= (s[:user] || s["user"] || "root") %>@<%= (s[:host] || s["host"] || "localhost") %></span>
+                      <span>{s[:user] || s["user"] || "root"}@{s[:host] || s["host"] || "localhost"}</span>
                     </div>
                     <%= if s[:proxy_jump] || s["proxy_jump"] do %>
                       <div class="text-[11px] font-mono text-muted-foreground/80 flex items-center gap-1 truncate">
-                        <span>Jump: <%= s[:proxy_jump] || s["proxy_jump"] %></span>
+                        <span>Jump: {s[:proxy_jump] || s["proxy_jump"]}</span>
                       </div>
                     <% end %>
                   </div>
@@ -661,7 +785,11 @@ defmodule SSHClientWeb.SFTPLive do
 
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none font-sans" id="dual-pane-sftp" phx-hook="DualPaneSFTPHook">
+    <div
+      class="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none font-sans"
+      id="dual-pane-sftp"
+      phx-hook="DualPaneSFTPHook"
+    >
       <!-- Topbar Header -->
       <header class="h-12 flex items-center justify-between px-4 bg-card/90 border-b border-border shrink-0 z-20">
         <div class="flex items-center gap-3 min-w-0">
@@ -680,7 +808,7 @@ defmodule SSHClientWeb.SFTPLive do
             <span class="px-1.5 py-0.2 text-[8px] font-mono font-bold tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
           </div>
           <span class="text-border">|</span>
-          <span class="text-xs font-mono font-semibold truncate text-foreground"><%= @server_id %></span>
+          <span class="text-xs font-mono font-semibold truncate text-foreground">{@server_id}</span>
           <span class="text-muted-foreground text-[11px] font-mono hidden md:inline">Dual-Pane SFTP</span>
         </div>
 
@@ -709,9 +837,13 @@ defmodule SSHClientWeb.SFTPLive do
           <div class="flex items-center gap-2 min-w-0">
             <span class="w-2 h-2 rounded-full bg-destructive animate-pulse shrink-0"></span>
             <span class="font-bold shrink-0">Notice:</span>
-            <span class="truncate"><%= @error %></span>
+            <span class="truncate">{@error}</span>
           </div>
-          <button phx-click="clear_error" class="text-destructive hover:text-destructive/80 font-bold px-2 py-0.5 rounded hover:bg-destructive/10 shrink-0" title="Dismiss">
+          <button
+            phx-click="clear_error"
+            class="text-destructive hover:text-destructive/80 font-bold px-2 py-0.5 rounded hover:bg-destructive/10 shrink-0"
+            title="Dismiss"
+          >
             &times;
           </button>
         </div>
@@ -720,7 +852,11 @@ defmodule SSHClientWeb.SFTPLive do
       <!-- Main Dual-Pane Workspace -->
       <div class="flex-1 flex min-h-0 bg-background relative">
         <!-- LEFT PANE: LOCAL FILESYSTEM -->
-        <section class="flex-1 flex flex-col border-r border-border min-w-0" data-drop-side="local" data-drop-path={@local_path}>
+        <section
+          class="flex-1 flex flex-col border-r border-border min-w-0"
+          data-drop-side="local"
+          data-drop-path={@local_path}
+        >
           <!-- Local Pane Header & Path Bar -->
           <div class="p-3 bg-card/50 border-b border-border flex flex-col gap-2">
             <div class="flex items-center justify-between">
@@ -729,6 +865,12 @@ defmodule SSHClientWeb.SFTPLive do
                 <span>LOCAL SYSTEM</span>
               </div>
               <div class="flex items-center gap-1">
+                <button
+                  phx-click="toggle_hidden"
+                  class="px-2 py-0.5 text-[11px] font-mono bg-secondary hover:bg-secondary/80 border border-border rounded text-secondary-foreground transition-colors"
+                >
+                  {if Map.get(assigns, :show_hidden, false), do: "Hide dotfiles", else: "Show hidden"}
+                </button>
                 <button
                   phx-click="open_new_folder"
                   phx-value-target="local"
@@ -780,7 +922,7 @@ defmodule SSHClientWeb.SFTPLive do
                 </tr>
               </thead>
               <tbody class="divide-y divide-border">
-                <%= for entry <- filter_entries(@local_entries, @local_filter) do %>
+                <%= for entry <- filter_entries(@local_entries, @local_filter, Map.get(assigns, :show_hidden, false)) do %>
                   <tr
                     class={"hover:bg-muted/40 cursor-pointer transition-colors #{if @selected_local == entry.path, do: "bg-muted border-l-2 border-primary", else: ""}"}
                     phx-click="local_select"
@@ -797,20 +939,33 @@ defmodule SSHClientWeb.SFTPLive do
                       phx-value-path={entry.path}
                       phx-value-type={to_string(entry.type)}
                     >
-                      <span class={if entry.type == :directory, do: "text-amber-500 font-bold", else: "text-muted-foreground"}>
-                        <%= if entry.type == :directory, do: "[DIR]", else: "[FILE]" %>
+                      <span class={
+                        if entry.type == :directory,
+                          do: "text-amber-500 font-bold",
+                          else: "text-muted-foreground"
+                      }>
+                        {if entry.type == :directory, do: "[DIR]", else: "[FILE]"}
                       </span>
                       <span class={"truncate #{if entry.type == :directory, do: "font-semibold text-foreground", else: "text-muted-foreground"}"}>
-                        <%= entry.name %>
+                        {entry.name}
                       </span>
                     </td>
                     <td class="py-1.5 px-3 text-right text-[11px] text-muted-foreground">
-                      <%= if entry.type == :directory, do: "-", else: LocalFS.format_size(entry.size) %>
+                      {if entry.type == :directory, do: "-", else: LocalFS.format_size(entry.size)}
                     </td>
                     <td class="py-1.5 px-3 text-right text-[10px] text-muted-foreground hidden sm:table-cell">
-                      <%= format_mtime(entry.mtime) %>
+                      {format_mtime(entry.mtime)}
                     </td>
                     <td class="py-1.5 px-2 text-center">
+                      <button
+                        phx-click="open_rename"
+                        phx-value-target="local"
+                        phx-value-path={entry.path}
+                        class="text-muted-foreground hover:text-foreground text-[10px] mr-1"
+                        title="Rename"
+                      >
+                        Ren
+                      </button>
                       <button
                         phx-click="request_delete"
                         phx-value-target="local"
@@ -847,13 +1002,19 @@ defmodule SSHClientWeb.SFTPLive do
         </div>
 
         <!-- RIGHT PANE: REMOTE SFTP FILESYSTEM -->
-        <section class="flex-1 flex flex-col min-w-0" data-drop-side="remote" data-drop-path={@remote_path}>
+        <section
+          class="flex-1 flex flex-col min-w-0"
+          data-drop-side="remote"
+          data-drop-path={@remote_path}
+        >
           <!-- Remote Pane Header & Path Bar -->
           <div class="p-3 bg-card/50 border-b border-border flex flex-col gap-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2 font-mono text-xs font-semibold text-foreground">
                 <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
-                <span>REMOTE SERVER <%= if @server, do: "(#{@server.user}@#{@server.host})", else: "(#{@server_id})" %></span>
+                <span>REMOTE SERVER {if @server,
+                  do: "(#{@server.user}@#{@server.host})",
+                  else: "(#{@server_id})"}</span>
               </div>
               <div class="flex items-center gap-1">
                 <button
@@ -888,7 +1049,11 @@ defmodule SSHClientWeb.SFTPLive do
             <!-- Quick Path Bookmarks -->
             <div class="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground overflow-x-auto pb-0.5">
               <span>Quick:</span>
-              <button phx-click="remote_navigate" phx-value-path="/var/www" class="hover:text-foreground">/var/www</button>
+              <button
+                phx-click="remote_navigate"
+                phx-value-path="/var/www"
+                class="hover:text-foreground"
+              >/var/www</button>
               <span>&bull;</span>
               <button phx-click="remote_navigate" phx-value-path="/etc" class="hover:text-foreground">/etc</button>
               <span>&bull;</span>
@@ -925,7 +1090,7 @@ defmodule SSHClientWeb.SFTPLive do
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
-                  <%= for entry <- filter_entries(@remote_entries, @remote_filter) do %>
+                  <%= for entry <- filter_entries(@remote_entries, @remote_filter, Map.get(assigns, :show_hidden, false)) do %>
                     <tr
                       class={"hover:bg-muted/40 cursor-pointer transition-colors #{if @selected_remote == entry.path, do: "bg-muted border-l-2 border-primary", else: ""}"}
                       phx-click="remote_select"
@@ -942,15 +1107,19 @@ defmodule SSHClientWeb.SFTPLive do
                         phx-value-path={entry.path}
                         phx-value-type={to_string(entry.type)}
                       >
-                        <span class={if entry.type == :directory, do: "text-cyan-500 font-bold", else: "text-muted-foreground"}>
-                          <%= if entry.type == :directory, do: "[DIR]", else: "[FILE]" %>
+                        <span class={
+                          if entry.type == :directory,
+                            do: "text-cyan-500 font-bold",
+                            else: "text-muted-foreground"
+                        }>
+                          {if entry.type == :directory, do: "[DIR]", else: "[FILE]"}
                         </span>
                         <span class={"truncate #{if entry.type == :directory, do: "font-semibold text-foreground", else: "text-muted-foreground"}"}>
-                          <%= entry.name %>
+                          {entry.name}
                         </span>
                       </td>
                       <td class="py-1.5 px-3 text-right text-[11px] text-muted-foreground">
-                        <%= if entry.type == :directory, do: "-", else: SFTP.format_size(entry.size) %>
+                        {if entry.type == :directory, do: "-", else: SFTP.format_size(entry.size)}
                       </td>
                       <td
                         class="py-1.5 px-3 text-left text-[10px] text-muted-foreground hover:text-foreground hidden md:table-cell"
@@ -958,12 +1127,21 @@ defmodule SSHClientWeb.SFTPLive do
                         phx-value-path={entry.path}
                         phx-value-perms={entry.permissions}
                       >
-                        <%= entry.permissions %>
+                        {entry.permissions}
                       </td>
                       <td class="py-1.5 px-3 text-right text-[10px] text-muted-foreground hidden sm:table-cell">
-                        <%= format_mtime(entry.mtime) %>
+                        {format_mtime(entry.mtime)}
                       </td>
                       <td class="py-1.5 px-2 text-center">
+                        <button
+                          phx-click="open_rename"
+                          phx-value-target="remote"
+                          phx-value-path={entry.path}
+                          class="text-muted-foreground hover:text-foreground text-[10px] mr-1"
+                          title="Rename"
+                        >
+                          Ren
+                        </button>
                         <button
                           phx-click="request_delete"
                           phx-value-target="remote"
@@ -989,11 +1167,27 @@ defmodule SSHClientWeb.SFTPLive do
           <span class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider shrink-0">Queue:</span>
           <%= if @active_transfer do %>
             <div class="flex items-center gap-3 min-w-0 flex-1 max-w-xl">
-              <span class="text-foreground text-xs truncate font-semibold"><%= @active_transfer.filename %></span>
+              <span class="text-foreground text-xs truncate font-semibold">{@active_transfer.filename}</span>
               <div class="flex-1 h-2 bg-muted rounded-full overflow-hidden border border-border">
-                <div class="h-full bg-primary transition-all duration-200" style={"width: #{@transfer_progress}%"}></div>
+                <div
+                  class="h-full bg-primary transition-all duration-200"
+                  style={"width: #{@transfer_progress}%"}
+                >
+                </div>
               </div>
-              <span class="text-foreground text-xs shrink-0 font-medium"><%= @transfer_progress %>%</span>
+              <span class="text-foreground text-xs shrink-0 font-medium">{@transfer_progress}%</span>
+              <button
+                phx-click="cancel_transfer"
+                phx-value-id={@active_transfer.id}
+                class="text-[10px] font-mono text-destructive"
+              >Cancel</button>
+              <%= if @active_transfer.status == :failed do %>
+                <button
+                  phx-click="retry_transfer"
+                  phx-value-id={@active_transfer.id}
+                  class="text-[10px] font-mono text-foreground"
+                >Retry</button>
+              <% end %>
             </div>
           <% else %>
             <span class="text-muted-foreground text-xs">Idle — Drag and drop files between panes or click Transfer arrows</span>
@@ -1001,9 +1195,9 @@ defmodule SSHClientWeb.SFTPLive do
         </div>
 
         <div class="flex items-center gap-4 text-[11px] text-muted-foreground">
-          <span><%= length(@local_entries) %> local items</span>
+          <span>{length(@local_entries)} local items</span>
           <span>&bull;</span>
-          <span><%= length(@remote_entries) %> remote items</span>
+          <span>{length(@remote_entries)} remote items</span>
         </div>
       </footer>
 
@@ -1013,8 +1207,10 @@ defmodule SSHClientWeb.SFTPLive do
           <div class="w-full max-w-4xl h-[80vh] bg-card border border-border rounded-xl flex flex-col shadow-2xl overflow-hidden font-mono">
             <div class="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/40">
               <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-foreground"><%= String.upcase(to_string(@editor_target)) %> FILE:</span>
-                <span class="text-xs text-foreground truncate"><%= @editor_path %></span>
+                <span class="text-xs font-bold text-foreground">{String.upcase(
+                  to_string(@editor_target)
+                )} FILE:</span>
+                <span class="text-xs text-foreground truncate">{@editor_path}</span>
               </div>
               <div class="flex items-center gap-2">
                 <button
@@ -1023,7 +1219,7 @@ defmodule SSHClientWeb.SFTPLive do
                   disabled={@editor_saving}
                   class="px-3 py-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-md transition-colors shadow"
                 >
-                  <%= if @editor_saving, do: "Saving...", else: "Save" %>
+                  {if @editor_saving, do: "Saving...", else: "Save"}
                 </button>
                 <button
                   phx-click="close_editor"
@@ -1048,7 +1244,9 @@ defmodule SSHClientWeb.SFTPLive do
       <%= if @new_folder_modal do %>
         <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
-            <h3 class="text-sm font-bold text-foreground">Create Directory on <%= String.upcase(to_string(@new_folder_target)) %></h3>
+            <h3 class="text-sm font-bold text-foreground">
+              Create Directory on {String.upcase(to_string(@new_folder_target))}
+            </h3>
             <input
               type="text"
               placeholder="folder_name"
@@ -1058,8 +1256,36 @@ defmodule SSHClientWeb.SFTPLive do
               autofocus
             />
             <div class="flex justify-end gap-2">
-              <button phx-click="close_modal" class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Cancel</button>
-              <button phx-click="confirm_new_folder" class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium">Create</button>
+              <button
+                phx-click="close_modal"
+                class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >Cancel</button>
+              <button
+                phx-click="confirm_new_folder"
+                class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium"
+              >Create</button>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <%= if Map.get(assigns, :rename_modal, false) do %>
+        <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
+            <h3 class="text-sm font-bold text-foreground">Rename</h3>
+            <input
+              type="text"
+              phx-keyup="update_rename_name"
+              value={@rename_name}
+              class="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none"
+              autofocus
+            />
+            <div class="flex justify-end gap-2">
+              <button phx-click="close_modal" class="px-3 py-1.5 text-xs text-muted-foreground">Cancel</button>
+              <button
+                phx-click="confirm_rename"
+                class="px-4 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg"
+              >Rename</button>
             </div>
           </div>
         </div>
@@ -1070,7 +1296,7 @@ defmodule SSHClientWeb.SFTPLive do
         <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
             <h3 class="text-sm font-bold text-foreground">Change Remote Permissions (chmod)</h3>
-            <p class="text-xs text-muted-foreground truncate"><%= @chmod_entry %></p>
+            <p class="text-xs text-muted-foreground truncate">{@chmod_entry}</p>
             <div class="space-y-2">
               <label class="text-[11px] text-muted-foreground">Octal Notation (e.g. 0755, 0644):</label>
               <input
@@ -1081,8 +1307,14 @@ defmodule SSHClientWeb.SFTPLive do
               />
             </div>
             <div class="flex justify-end gap-2">
-              <button phx-click="close_modal" class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Cancel</button>
-              <button phx-click="confirm_chmod" class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium">Apply</button>
+              <button
+                phx-click="close_modal"
+                class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >Cancel</button>
+              <button
+                phx-click="confirm_chmod"
+                class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium"
+              >Apply</button>
             </div>
           </div>
         </div>
@@ -1093,10 +1325,18 @@ defmodule SSHClientWeb.SFTPLive do
         <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div class="bg-card border border-destructive/30 rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
             <h3 class="text-sm font-bold text-destructive">Confirm Deletion</h3>
-            <p class="text-xs text-muted-foreground break-all">Are you sure you want to delete this <%= @delete_target %> item?<br/><strong class="text-foreground"><%= @delete_path %></strong></p>
+            <p class="text-xs text-muted-foreground break-all">
+              Are you sure you want to delete this {@delete_target} item?<br /><strong class="text-foreground">{@delete_path}</strong>
+            </p>
             <div class="flex justify-end gap-2">
-              <button phx-click="close_modal" class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Cancel</button>
-              <button phx-click="confirm_delete" class="px-4 py-1.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg font-medium">Delete</button>
+              <button
+                phx-click="close_modal"
+                class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >Cancel</button>
+              <button
+                phx-click="confirm_delete"
+                class="px-4 py-1.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg font-medium"
+              >Delete</button>
             </div>
           </div>
         </div>
@@ -1112,7 +1352,12 @@ defmodule SSHClientWeb.SFTPLive do
   defp load_local_dir(socket, path) do
     case LocalFS.list_dir(path) do
       {:ok, entries} ->
-        assign(socket, local_path: path, local_entries: entries, local_loading: false, selected_local: nil)
+        assign(socket,
+          local_path: path,
+          local_entries: entries,
+          local_loading: false,
+          selected_local: nil
+        )
 
       {:error, _} ->
         assign(socket, local_loading: false, error: "Cannot access local directory: #{path}")
@@ -1125,10 +1370,18 @@ defmodule SSHClientWeb.SFTPLive do
     if pid && Process.alive?(pid) do
       case SFTP.list_dir(pid, path) do
         {:ok, entries} ->
-          assign(socket, remote_path: path, remote_entries: entries, remote_loading: false, selected_remote: nil)
+          assign(socket,
+            remote_path: path,
+            remote_entries: entries,
+            remote_loading: false,
+            selected_remote: nil
+          )
 
         {:error, reason} ->
-          assign(socket, remote_loading: false, error: "Cannot read remote path: #{inspect(reason)}")
+          assign(socket,
+            remote_loading: false,
+            error: "Cannot read remote path: #{inspect(reason)}"
+          )
       end
     else
       assign(socket, remote_loading: false)
@@ -1137,59 +1390,64 @@ defmodule SSHClientWeb.SFTPLive do
 
   defp execute_upload(socket, local_path, remote_dest, filename) do
     pid = socket.assigns.sftp_pid
-    transfer_id = "tx-#{System.unique_integer([:positive])}"
-    transfer = %{id: transfer_id, type: :upload, filename: filename, status: :transferring, progress: 0}
-    caller = self()
 
-    Task.start(fn ->
-      result =
-        SFTP.upload_file(pid, local_path, remote_dest, fn %{percent: p} ->
-          send(caller, {:transfer_progress, p})
-        end)
+    case TransferManager.queue_upload(pid, local_path, remote_dest,
+           filename: filename,
+           caller: self(),
+           server: socket.assigns.server
+         ) do
+      {:ok, _id} ->
+        {:noreply, refresh_transfers(socket) |> assign(:error, nil)}
 
-      send(caller, {:transfer_done, result, transfer_id})
-    end)
-
-    {:noreply,
-     assign(socket,
-       active_transfer: transfer,
-       transfers: [transfer | socket.assigns.transfers],
-       transfer_progress: 10
-     )}
+      {:error, reason} ->
+        {:noreply, assign(socket, :error, "Upload failed to queue: #{inspect(reason)}")}
+    end
   end
 
   defp execute_download(socket, remote_path, local_dest, filename) do
     pid = socket.assigns.sftp_pid
-    transfer_id = "tx-#{System.unique_integer([:positive])}"
-    transfer = %{id: transfer_id, type: :download, filename: filename, status: :transferring, progress: 0}
-    caller = self()
 
-    Task.start(fn ->
-      result =
-        SFTP.download_file(pid, remote_path, local_dest, fn %{percent: p} ->
-          send(caller, {:transfer_progress, p})
-        end)
+    case TransferManager.queue_download(pid, remote_path, local_dest,
+           filename: filename,
+           caller: self(),
+           server: socket.assigns.server
+         ) do
+      {:ok, _id} ->
+        {:noreply, refresh_transfers(socket) |> assign(:error, nil)}
 
-      send(caller, {:transfer_done, result, transfer_id})
-    end)
-
-    {:noreply,
-     assign(socket,
-       active_transfer: transfer,
-       transfers: [transfer | socket.assigns.transfers],
-       transfer_progress: 10
-     )}
+      {:error, reason} ->
+        {:noreply, assign(socket, :error, "Download failed to queue: #{inspect(reason)}")}
+    end
   end
 
-  def filter_entries(entries, ""), do: entries
-  def filter_entries(entries, filter) do
-    q = String.downcase(filter)
-    Enum.filter(entries, fn e -> String.contains?(String.downcase(e.name), q) end)
+  defp refresh_transfers(socket) do
+    transfers = TransferManager.list_transfers()
+    active = Enum.find(transfers, &(&1.status in [:queued, :transferring]))
+    progress = if active, do: active.progress || 0, else: socket.assigns[:transfer_progress] || 0
+
+    assign(socket, transfers: transfers, active_transfer: active, transfer_progress: progress)
+  end
+
+  def filter_entries(entries, filter, show_hidden \\ true) do
+    entries
+    |> Enum.reject(fn e ->
+      hidden? = String.starts_with?(e.name || "", ".")
+      hidden? and not show_hidden
+    end)
+    |> then(fn list ->
+      if filter in [nil, ""] do
+        list
+      else
+        q = String.downcase(filter)
+        Enum.filter(list, fn e -> String.contains?(String.downcase(e.name || ""), q) end)
+      end
+    end)
   end
 
   def format_mtime({{year, month, day}, {hour, minute, _sec}}) do
     "#{year}-#{pad(month)}-#{pad(day)} #{pad(hour)}:#{pad(minute)}"
   end
+
   def format_mtime(_), do: "-"
 
   def pad(n) when n < 10, do: "0#{n}"

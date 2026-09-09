@@ -8,15 +8,18 @@ defmodule SSHClientWeb.HostLive do
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
   import SSHClientWeb.CoreComponents
 
+  alias SSHClient.CommandPalette
   alias SSHClient.Keychain
   alias SSHClient.ServerManager
   alias SSHClient.ServerWorker
   alias SSHClient.SessionManager
   alias SSHClient.SessionWorker
   alias SSHClient.SSH.ConfigImporter
+  alias SSHClient.SSH.Forwarding
   alias SSHClient.Terminal.Layout
   alias SSHClient.Updater
   alias SSHClient.Vault
+  alias SSHClient.Workspace
 
   @refresh_interval 5_000
 
@@ -63,6 +66,19 @@ defmodule SSHClientWeb.HostLive do
         |> assign(:cols, 80)
         |> assign(:rows, 24)
         |> assign(:error, nil)
+        |> assign(:command_palette_open, false)
+        |> assign(:command_palette_query, "")
+        |> assign(:command_palette_index, 0)
+        |> assign(:workspaces, [])
+        |> assign(:workspace_name, "")
+        |> assign(:workspace_modal, false)
+        |> assign(:forwards, [])
+        |> assign(:fwd_modal, false)
+        |> assign(:fwd_type, "local")
+        |> assign(:fwd_server_id, "")
+        |> assign(:fwd_listen, "18080")
+        |> assign(:fwd_dest_host, "127.0.0.1")
+        |> assign(:fwd_dest_port, "3000")
         |> load_servers()
 
       {:ok, socket}
@@ -137,7 +153,10 @@ defmodule SSHClientWeb.HostLive do
 
         has_saved_pwd =
           if primary_user != "" do
-            match?({:ok, secret} when is_binary(secret) and secret != "", Keychain.retrieve("#{primary_user}@#{server.id}"))
+            match?(
+              {:ok, secret} when is_binary(secret) and secret != "",
+              Keychain.retrieve("#{primary_user}@#{server.id}")
+            )
           else
             false
           end
@@ -166,8 +185,11 @@ defmodule SSHClientWeb.HostLive do
     server = socket.assigns.connect_server
 
     has_saved_pwd =
-      if server && user != "" and user != "custom" do
-        match?({:ok, secret} when is_binary(secret) and secret != "", Keychain.retrieve("#{user}@#{server.id}"))
+      if (server && user != "") and user != "custom" do
+        match?(
+          {:ok, secret} when is_binary(secret) and secret != "",
+          Keychain.retrieve("#{user}@#{server.id}")
+        )
       else
         false
       end
@@ -281,9 +303,17 @@ defmodule SSHClientWeb.HostLive do
     host = String.trim(params["host"] || socket.assigns[:new_host] || "")
     user = String.trim(params["user"] || socket.assigns[:new_user] || "")
     extra_users = String.trim(params["users"] || socket.assigns[:new_users] || "")
-    auth_method = if (params["auth_method"] || socket.assigns[:new_auth_method]) in ["password", :password], do: "password", else: "key"
+
+    auth_method =
+      if (params["auth_method"] || socket.assigns[:new_auth_method]) in ["password", :password],
+        do: "password",
+        else: "key"
+
     password = params["password"] || socket.assigns[:new_password] || ""
-    remember = params["remember_password"] in ["true", true, "on"] or socket.assigns[:new_remember_password] == true
+
+    remember =
+      params["remember_password"] in ["true", true, "on"] or
+        socket.assigns[:new_remember_password] == true
 
     port =
       case Integer.parse(params["port"] || socket.assigns[:new_port] || "22") do
@@ -421,6 +451,121 @@ defmodule SSHClientWeb.HostLive do
     end
   end
 
+  def handle_event("duplicate_server", %{"id" => id}, socket) do
+    case ServerManager.duplicate_server(id) do
+      {:ok, _} -> {:noreply, load_servers(socket)}
+      {:error, reason} -> {:noreply, assign(socket, :error, inspect(reason))}
+    end
+  end
+
+  def handle_event("toggle_favorite", %{"id" => id}, socket) do
+    server = Enum.find(socket.assigns.servers, &(&1.id == id))
+
+    if server do
+      ServerManager.update_server(%{
+        "id" => server.id,
+        "name" => server.name,
+        "host" => server.host,
+        "user" => server.user,
+        "port" => server.port,
+        "favorite" => !server[:favorite]
+      })
+    end
+
+    {:noreply, load_servers(socket)}
+  end
+
+  def handle_event("open_workspace_modal", _params, socket) do
+    {:noreply, assign(socket, workspace_modal: true, workspace_name: "")}
+  end
+
+  def handle_event("close_workspace_modal", _params, socket) do
+    {:noreply, assign(socket, workspace_modal: false)}
+  end
+
+  def handle_event("update_workspace_name", %{"name" => name}, socket) do
+    {:noreply, assign(socket, :workspace_name, name)}
+  end
+
+  def handle_event("create_workspace", params, socket) do
+    name = String.trim(params["name"] || socket.assigns[:workspace_name] || "")
+    ids = Enum.map(socket.assigns.servers, & &1.id)
+
+    socket =
+      if name == "" do
+        assign(socket, :error, "Workspace name is required.")
+      else
+        case Workspace.create(name, ids) do
+          {:ok, _} -> assign(socket, workspace_modal: false, workspace_name: "", error: nil)
+          {:error, reason} -> assign(socket, :error, inspect(reason))
+        end
+      end
+
+    {:noreply, load_servers(socket)}
+  end
+
+  def handle_event("open_workspace", %{"id" => id}, socket) do
+    case Workspace.get(id) do
+      nil ->
+        {:noreply, socket}
+
+      ws ->
+        Enum.reduce(ws["server_ids"] || [], {:noreply, socket}, fn server_id, {:noreply, acc} ->
+          handle_event("open_terminal", %{"id" => server_id, "auto_connect" => false}, acc)
+        end)
+    end
+  end
+
+  def handle_event("delete_workspace", %{"id" => id}, socket) do
+    Workspace.delete(id)
+    {:noreply, load_servers(socket)}
+  end
+
+  def handle_event("open_fwd_modal", _params, socket) do
+    first = List.first(socket.assigns.servers)
+    {:noreply, assign(socket, fwd_modal: true, fwd_server_id: first && first.id)}
+  end
+
+  def handle_event("close_fwd_modal", _params, socket) do
+    {:noreply, assign(socket, fwd_modal: false)}
+  end
+
+  def handle_event("start_forward", params, socket) do
+    server =
+      Enum.find(
+        socket.assigns.servers,
+        &(&1.id == (params["server_id"] || socket.assigns.fwd_server_id))
+      )
+
+    type = if params["type"] == "remote", do: :remote, else: :local
+    listen = parse_int(params["listen"] || socket.assigns.fwd_listen) || 18080
+    dest_host = params["dest_host"] || socket.assigns.fwd_dest_host
+    dest_port = parse_int(params["dest_port"] || socket.assigns.fwd_dest_port) || 3000
+
+    result =
+      if server do
+        cfg = %{id: server.id, host: server.host, port: server.port, user: server.user}
+
+        if type == :remote do
+          Forwarding.start_remote(cfg, listen, dest_host, dest_port)
+        else
+          Forwarding.start_local(cfg, listen, dest_host, dest_port)
+        end
+      else
+        {:error, :no_server}
+      end
+
+    case result do
+      {:ok, _} -> {:noreply, load_servers(assign(socket, fwd_modal: false, error: nil))}
+      {:error, reason} -> {:noreply, assign(socket, :error, "Forward failed: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event("stop_forward", %{"id" => id}, socket) do
+    Forwarding.stop(id)
+    {:noreply, load_servers(socket)}
+  end
+
   def handle_event("lock_vault", _params, socket) do
     Vault.lock()
     {:noreply, push_navigate(socket, to: "/lock")}
@@ -446,11 +591,20 @@ defmodule SSHClientWeb.HostLive do
 
           server_name =
             cond do
-              is_map(server) and Map.has_key?(server, :name) and not is_nil(server.name) -> server.name
-              is_map(server) and Map.has_key?(server, "name") and not is_nil(server["name"]) -> server["name"]
-              is_map(server) and Map.has_key?(server, :id) and not is_nil(server.id) -> server.id
-              is_map(server) and Map.has_key?(server, "id") and not is_nil(server["id"]) -> server["id"]
-              true -> server_id
+              is_map(server) and Map.has_key?(server, :name) and not is_nil(server.name) ->
+                server.name
+
+              is_map(server) and Map.has_key?(server, "name") and not is_nil(server["name"]) ->
+                server["name"]
+
+              is_map(server) and Map.has_key?(server, :id) and not is_nil(server.id) ->
+                server.id
+
+              is_map(server) and Map.has_key?(server, "id") and not is_nil(server["id"]) ->
+                server["id"]
+
+              true ->
+                server_id
             end
 
           tab = %{
@@ -667,13 +821,21 @@ defmodule SSHClientWeb.HostLive do
     end
   end
 
-  def handle_event("terminal_data", %{"data" => data} = params, socket) when is_binary(data) do
-    pane_id = params["pane_id"] || socket.assigns.active_pane_id
+  def handle_event("terminal_data", params, socket), do: send_pane_input(socket, params)
+
+  def handle_event("pane_data", params, socket), do: send_pane_input(socket, params)
+
+  def handle_event("terminal_resize", params, socket), do: resize_pane(socket, params)
+
+  def handle_event("pane_resize", params, socket), do: resize_pane(socket, params)
+
+  def handle_event("reconnect", _params, socket) do
+    pane_id = socket.assigns.active_pane_id
 
     if pane_id do
       case SessionManager.get_session(pane_id) do
         {:ok, pid} when is_pid(pid) ->
-          SessionWorker.send_input(pid, data)
+          SessionWorker.reconnect(pid)
 
         _ ->
           :ok
@@ -683,22 +845,92 @@ defmodule SSHClientWeb.HostLive do
     {:noreply, socket}
   end
 
-  def handle_event("terminal_resize", params, socket) do
-    pane_id = params["pane_id"] || socket.assigns.active_pane_id
-    cols = params["cols"]
-    rows = params["rows"]
+  def handle_event("maximize_pane", _params, socket) do
+    pane_id = socket.assigns.active_pane_id
+    tab = active_tab(socket)
 
-    if pane_id && is_integer(cols) and is_integer(rows) do
-      case SessionManager.get_session(pane_id) do
-        {:ok, pid} when is_pid(pid) ->
-          SessionWorker.resize(pid, cols, rows)
+    if tab && pane_id && tab.layout do
+      tabs =
+        Enum.map(socket.assigns.tabs, fn t ->
+          if t.id == tab.id, do: %{t | layout: Layout.maximize(t.layout, pane_id)}, else: t
+        end)
 
-        _ ->
-          :ok
-      end
+      {:noreply, assign(socket, :tabs, tabs)}
+    else
+      {:noreply, socket}
     end
+  end
 
-    {:noreply, socket}
+  def handle_event("restore_panes", _params, socket) do
+    tab = active_tab(socket)
+
+    if tab && tab.layout do
+      tabs =
+        Enum.map(socket.assigns.tabs, fn t ->
+          if t.id == tab.id, do: %{t | layout: Layout.restore(t.layout)}, else: t
+        end)
+
+      {:noreply, assign(socket, :tabs, tabs)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_command_palette", _params, socket) do
+    open? = !socket.assigns[:command_palette_open]
+
+    {:noreply,
+     socket
+     |> assign(:command_palette_open, open?)
+     |> assign(:command_palette_query, "")
+     |> assign(:command_palette_index, 0)}
+  end
+
+  def handle_event("close_command_palette", _params, socket) do
+    {:noreply,
+     assign(socket,
+       command_palette_open: false,
+       command_palette_query: "",
+       command_palette_index: 0
+     )}
+  end
+
+  def handle_event("command_palette_search", %{"query" => query}, socket) do
+    {:noreply, assign(socket, command_palette_query: query, command_palette_index: 0)}
+  end
+
+  def handle_event("command_palette_move", %{"dir" => dir}, socket) do
+    items = palette_items(socket)
+    idx = socket.assigns[:command_palette_index] || 0
+    max_idx = max(length(items) - 1, 0)
+
+    next =
+      case dir do
+        "up" -> max(idx - 1, 0)
+        _ -> min(idx + 1, max_idx)
+      end
+
+    {:noreply, assign(socket, :command_palette_index, next)}
+  end
+
+  def handle_event("run_palette_command", params, socket) do
+    items = palette_items(socket)
+    idx = socket.assigns[:command_palette_index] || 0
+
+    cmd =
+      cond do
+        is_binary(params["id"]) -> Enum.find(items, &(&1.id == params["id"]))
+        true -> Enum.at(items, idx)
+      end
+
+    socket =
+      assign(socket,
+        command_palette_open: false,
+        command_palette_query: "",
+        command_palette_index: 0
+      )
+
+    dispatch_palette_command(socket, cmd)
   end
 
   def handle_event("handle_key", %{"key" => key, "ctrlKey" => true, "shiftKey" => true}, socket) do
@@ -725,9 +957,35 @@ defmodule SSHClientWeb.HostLive do
     end
   end
 
+  def handle_event("handle_key", %{"key" => key} = params, socket) do
+    ctrl? = params["ctrlKey"] == true or params["metaKey"] == true
+
+    cond do
+      ctrl? and String.downcase(to_string(key)) == "k" ->
+        handle_event("toggle_command_palette", %{}, socket)
+
+      socket.assigns[:command_palette_open] && key == "Escape" ->
+        handle_event("close_command_palette", %{}, socket)
+
+      socket.assigns[:command_palette_open] && key == "ArrowDown" ->
+        handle_event("command_palette_move", %{"dir" => "down"}, socket)
+
+      socket.assigns[:command_palette_open] && key == "ArrowUp" ->
+        handle_event("command_palette_move", %{"dir" => "up"}, socket)
+
+      socket.assigns[:command_palette_open] && key == "Enter" ->
+        handle_event("run_palette_command", %{}, socket)
+
+      true ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("handle_key", _params, socket) do
     {:noreply, socket}
   end
+
+  def handle_event("noop", _params, socket), do: {:noreply, socket}
 
   # ---------------------------------------------------------------------------
   # Info
@@ -740,22 +998,130 @@ defmodule SSHClientWeb.HostLive do
 
   def handle_info({:pty_output, session_id, data}, socket) do
     socket =
-      push_event(socket, "terminal_output:#{session_id}", %{session_id: session_id, data: data})
+      socket
+      |> push_event("terminal_output:#{session_id}", %{session_id: session_id, data: data})
+      |> push_event("terminal_output_#{session_id}", %{data: data})
 
     {:noreply, socket}
   end
 
-  def handle_info({:session_status, _session_id, _status}, socket) do
-    {:noreply, socket}
+  def handle_info({:session_status, session_id, status}, socket) do
+    msg =
+      case status do
+        :connected -> "\r\n\x1b[1;32m[ssh-client]\x1b[0m connected\r\n"
+        :connecting -> "\r\n\x1b[1;34m[ssh-client]\x1b[0m connecting...\r\n"
+        :reconnecting -> "\r\n\x1b[1;33m[ssh-client]\x1b[0m reconnecting...\r\n"
+        :disconnected -> "\r\n\x1b[2m[ssh-client] disconnected\x1b[0m\r\n"
+        :error -> "\r\n\x1b[1;31m[ssh-client]\x1b[0m connection error\r\n"
+        _ -> nil
+      end
+
+    socket =
+      if is_binary(msg) do
+        push_event(socket, "terminal_output:#{session_id}", %{session_id: session_id, data: msg})
+      else
+        socket
+      end
+
+    {:noreply,
+     assign(socket, :error, if(status == :error, do: socket.assigns[:error], else: nil))}
   end
 
-  def handle_info({:session_error, _session_id, _reason}, socket) do
-    {:noreply, socket}
+  def handle_info({:session_error, session_id, reason}, socket) do
+    err = format_session_error(reason)
+    msg = "\r\n\x1b[1;31m[SSH Error]\x1b[0m #{err}\r\n"
+
+    {:noreply,
+     socket
+     |> assign(:error, err)
+     |> push_event("terminal_output:#{session_id}", %{session_id: session_id, data: msg})}
   end
 
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  defp send_pane_input(socket, params) do
+    data = params["data"]
+    pane_id = params["pane_id"] || socket.assigns.active_pane_id
+
+    if is_binary(data) and pane_id do
+      case SessionManager.get_session(pane_id) do
+        {:ok, pid} when is_pid(pid) ->
+          SessionWorker.send_input(pid, data)
+
+        _ ->
+          :ok
+      end
+    end
+
+    {:noreply, socket}
+  end
+
+  defp resize_pane(socket, params) do
+    pane_id = params["pane_id"] || socket.assigns.active_pane_id
+    cols = parse_int(params["cols"])
+    rows = parse_int(params["rows"])
+
+    socket =
+      if is_integer(cols) and is_integer(rows) do
+        assign(socket, cols: cols, rows: rows)
+      else
+        socket
+      end
+
+    if (pane_id && is_integer(cols)) and is_integer(rows) do
+      case SessionManager.get_session(pane_id) do
+        {:ok, pid} when is_pid(pid) ->
+          SessionWorker.resize(pid, cols, rows)
+
+        _ ->
+          :ok
+      end
+    end
+
+    {:noreply, socket}
+  end
+
+  defp parse_int(n) when is_integer(n), do: n
+
+  defp parse_int(n) when is_binary(n) do
+    case Integer.parse(n) do
+      {i, _} -> i
+      _ -> nil
+    end
+  end
+
+  defp parse_int(_), do: nil
+
+  defp palette_items(socket) do
+    CommandPalette.items(
+      socket.assigns[:servers] || [],
+      socket.assigns[:command_palette_query] || ""
+    )
+  end
+
+  defp dispatch_palette_command(socket, nil), do: {:noreply, socket}
+
+  defp dispatch_palette_command(socket, %{path: path}) when is_binary(path) do
+    {:noreply, push_navigate(socket, to: path)}
+  end
+
+  defp dispatch_palette_command(socket, %{event: event}) when is_binary(event) do
+    handle_event(event, %{}, socket)
+  end
+
+  defp dispatch_palette_command(socket, _), do: {:noreply, socket}
+
+  defp format_session_error({:connection_failed, reason}),
+    do: "Connection failed: #{format_session_error(reason)}"
+
+  defp format_session_error(:econnrefused), do: "Connection refused — check host and port"
+  defp format_session_error(:etimedout), do: "Connection timed out"
+  defp format_session_error(:nxdomain), do: "Host name could not be resolved"
+  defp format_session_error(:auth_failed), do: "Authentication failed"
+  defp format_session_error(reason) when is_binary(reason), do: reason
+  defp format_session_error(reason), do: inspect(reason)
 
   defp do_split(socket, direction, params) do
     case active_tab(socket) do
@@ -817,12 +1183,14 @@ defmodule SSHClientWeb.HostLive do
   end
 
   defp parse_id(id) when is_integer(id), do: id
+
   defp parse_id(id) when is_binary(id) do
     case Integer.parse(id) do
       {int, ""} -> int
       _ -> id
     end
   end
+
   defp parse_id(id), do: id
 
   defp subscribe_session(session_id) when is_binary(session_id) do
@@ -852,7 +1220,35 @@ defmodule SSHClientWeb.HostLive do
         :exit, _ -> []
       end
 
-    assign(socket, :servers, servers)
+    online_count =
+      Enum.count(servers, &(&1.status in ["polling", "connected", "online", "healthy"]))
+
+    avg_cpu =
+      case servers do
+        [] -> 0.0
+        list -> Enum.sum(Enum.map(list, & &1.cpu_percent)) / length(list)
+      end
+
+    workspaces =
+      try do
+        Workspace.list()
+      rescue
+        _ -> []
+      end
+
+    forwards =
+      try do
+        Forwarding.list()
+      rescue
+        _ -> []
+      end
+
+    socket
+    |> assign(:servers, servers)
+    |> assign(:online_count, online_count)
+    |> assign(:avg_cpu, avg_cpu)
+    |> assign(:workspaces, workspaces)
+    |> assign(:forwards, forwards)
   end
 
   defp format_server(server) when is_map(server) do
@@ -861,23 +1257,23 @@ defmodule SSHClientWeb.HostLive do
 
     cpu_val =
       get_in(metrics, [:cpu, :used_percent]) ||
-      get_in(metrics, ["cpu", "used_percent"]) ||
-      Map.get(metrics, :cpu_percent, Map.get(metrics, "cpu_percent", 0.0))
+        get_in(metrics, ["cpu", "used_percent"]) ||
+        Map.get(metrics, :cpu_percent, Map.get(metrics, "cpu_percent", 0.0))
 
     ram_val =
       get_in(metrics, [:memory, :used_percent]) ||
-      get_in(metrics, ["memory", "used_percent"]) ||
-      Map.get(metrics, :ram_percent, Map.get(metrics, "ram_percent", 0.0))
+        get_in(metrics, ["memory", "used_percent"]) ||
+        Map.get(metrics, :ram_percent, Map.get(metrics, "ram_percent", 0.0))
 
     disk_val =
       get_in(metrics, [:disk, :used_percent]) ||
-      get_in(metrics, ["disk", "used_percent"]) ||
-      Map.get(metrics, :disk_percent, Map.get(metrics, "disk_percent", 0.0))
+        get_in(metrics, ["disk", "used_percent"]) ||
+        Map.get(metrics, :disk_percent, Map.get(metrics, "disk_percent", 0.0))
 
     load_1 =
       get_in(metrics, [:cpu, :load_1]) ||
-      get_in(metrics, ["cpu", "load_1"]) ||
-      0.0
+        get_in(metrics, ["cpu", "load_1"]) ||
+        0.0
 
     uptime_str = metrics[:uptime] || metrics["uptime"] || nil
 
@@ -891,7 +1287,9 @@ defmodule SSHClientWeb.HostLive do
         true -> []
       end
 
-    primary_user = if raw_user && to_string(raw_user) != "", do: to_string(raw_user), else: List.first(users)
+    primary_user =
+      if raw_user && to_string(raw_user) != "", do: to_string(raw_user), else: List.first(users)
+
     auth_method = server[:default_auth_method] || server[:auth_method] || :key
 
     %{
@@ -908,7 +1306,10 @@ defmodule SSHClientWeb.HostLive do
       ram_percent: to_float(ram_val),
       disk_percent: to_float(disk_val),
       load_1: to_float(load_1),
-      uptime: uptime_str
+      uptime: uptime_str,
+      favorite: server[:favorite] == true,
+      tags: server[:tags] || [],
+      last_connected_at: server[:last_connected_at]
     }
   end
 

@@ -12,11 +12,9 @@ defmodule SSHClient.ActivityLog do
   @name __MODULE__
   @max_entries 500
 
-  defstruct [
-    entries: [],
-    max_entries: @max_entries,
-    subscribers: []
-  ]
+  defstruct entries: [],
+            max_entries: @max_entries,
+            subscribers: []
 
   @type level :: :info | :warn | :error
 
@@ -169,7 +167,9 @@ defmodule SSHClient.ActivityLog do
   defp match_level?(_entry_level, :all), do: true
   defp match_level?(_entry_level, "all"), do: true
   defp match_level?(entry_level, level) when is_atom(level), do: entry_level == level
-  defp match_level?(entry_level, level) when is_binary(level), do: Atom.to_string(entry_level) == level
+
+  defp match_level?(entry_level, level) when is_binary(level),
+    do: Atom.to_string(entry_level) == level
 
   defp match_server?(_entry_server, nil), do: true
   defp match_server?(_entry_server, ""), do: true

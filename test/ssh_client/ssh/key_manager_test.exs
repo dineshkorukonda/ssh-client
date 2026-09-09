@@ -3,7 +3,10 @@ defmodule SSHClient.SSH.KeyManagerTest do
 
   alias SSHClient.SSH.KeyManager
 
-  @temp_dir Path.join(System.tmp_dir!(), "ssh_client_km_test_#{:erlang.unique_integer([:positive])}")
+  @temp_dir Path.join(
+              System.tmp_dir!(),
+              "ssh_client_km_test_#{:erlang.unique_integer([:positive])}"
+            )
 
   setup do
     File.mkdir_p!(@temp_dir)

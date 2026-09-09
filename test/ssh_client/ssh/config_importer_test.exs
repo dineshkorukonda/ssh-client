@@ -55,7 +55,13 @@ defmodule SSHClient.SSH.ConfigImporterTest do
   describe "deduplicate/2" do
     test "filters out newly imported hosts that match existing host ids, names, or endpoints" do
       existing = [
-        %Host{id: "web-prod", name: "Production Web", address: "198.51.100.10", user: "ubuntu", port: 2222}
+        %Host{
+          id: "web-prod",
+          name: "Production Web",
+          address: "198.51.100.10",
+          user: "ubuntu",
+          port: 2222
+        }
       ]
 
       imported = ConfigImporter.parse_string(@sample_config)

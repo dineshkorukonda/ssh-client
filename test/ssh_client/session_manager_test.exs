@@ -72,5 +72,18 @@ defmodule SSHClient.SessionManagerTest do
       assert SessionManager.get_session(session_id) == {:error, :not_found}
       refute Enum.any?(SessionManager.list_sessions(), fn s -> s.session_id == session_id end)
     end
+
+    test "list_for_server filters by host id", %{server: server} do
+      {:ok, session_id} = SessionManager.create_session(server, auto_connect: false)
+      other = %{server | id: server.id <> "-other"}
+      {:ok, other_id} = SessionManager.create_session(other, auto_connect: false)
+
+      ids = Enum.map(SessionManager.list_for_server(server.id), & &1.session_id)
+      assert session_id in ids
+      refute other_id in ids
+
+      SessionManager.close_session(session_id)
+      SessionManager.close_session(other_id)
+    end
   end
 end

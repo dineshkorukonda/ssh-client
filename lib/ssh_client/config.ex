@@ -28,7 +28,8 @@ defmodule SSHClient.Config do
   @spec default_config_path() :: Path.t()
   def default_config_path do
     cond do
-      env_path = System.get_env("SSH_CLIENT_SERVERS_CONFIG") || System.get_env("OMARCHY_SERVERS_CONFIG") ->
+      env_path =
+          System.get_env("SSH_CLIENT_SERVERS_CONFIG") || System.get_env("OMARCHY_SERVERS_CONFIG") ->
         Path.expand(env_path)
 
       File.exists?(Path.join(os_config_dir(), "servers.json")) ->
@@ -96,11 +97,34 @@ defmodule SSHClient.Config do
       end
 
     with :ok <- File.mkdir_p(Path.dirname(path)),
-         :ok <- File.write(path, content) do
+         :ok <- atomic_write(path, content) do
       :ok
     else
-      {:error, reason} ->
+      {:error, reason} when is_atom(reason) ->
         {:error, "failed to write config file '#{path}': #{:file.format_error(reason)}"}
+
+      {:error, reason} ->
+        {:error, "failed to write config file '#{path}': #{reason}"}
+    end
+  end
+
+  defp atomic_write(path, content) do
+    tmp = path <> ".tmp-#{System.unique_integer([:positive])}"
+
+    case File.write(tmp, content) do
+      :ok ->
+        case File.rename(tmp, path) do
+          :ok ->
+            :ok
+
+          {:error, reason} ->
+            _ = File.rm(tmp)
+            {:error, reason}
+        end
+
+      {:error, reason} ->
+        _ = File.rm(tmp)
+        {:error, reason}
     end
   end
 
@@ -122,11 +146,24 @@ defmodule SSHClient.Config do
             "id" => s.id,
             "name" => s.name || s.id,
             "host" => s.host,
-            "port" => s.port || 22
+            "port" => s.port || 22,
+            "users" => s.users || [],
+            "default_auth_method" => to_string(s.default_auth_method || :key),
+            "tags" => s.tags || [],
+            "notes" => s.notes || "",
+            "favorite" => s.favorite || false
           }
 
           base = if s.user, do: Map.put(base, "user", s.user), else: base
           base = if s.proxy_jump, do: Map.put(base, "proxy_jump", s.proxy_jump), else: base
+
+          base =
+            if s.identity_file, do: Map.put(base, "identity_file", s.identity_file), else: base
+
+          base =
+            if s.last_connected_at,
+              do: Map.put(base, "last_connected_at", s.last_connected_at),
+              else: base
 
           if s.checks && s.checks != [] do
             checks_list =
@@ -174,12 +211,51 @@ defmodule SSHClient.Config do
       "  - id: #{s.id}",
       "    name: #{inspect(s.name || s.id)}",
       "    host: #{s.host}",
-      "    port: #{s.port || 22}"
+      "    port: #{s.port || 22}",
+      "    default_auth_method: #{s.default_auth_method || :key}",
+      "    favorite: #{s.favorite || false}"
     ]
 
     fields =
       if s.user do
         fields ++ ["    user: #{s.user}"]
+      else
+        fields
+      end
+
+    fields =
+      if s.users && s.users != [] do
+        users_lines = Enum.map(s.users, fn u -> "      - #{u}" end)
+        fields ++ ["    users:"] ++ users_lines
+      else
+        fields
+      end
+
+    fields =
+      if s.tags && s.tags != [] do
+        tags_lines = Enum.map(s.tags, fn t -> "      - #{t}" end)
+        fields ++ ["    tags:"] ++ tags_lines
+      else
+        fields
+      end
+
+    fields =
+      if s.notes && s.notes != "" do
+        fields ++ ["    notes: #{inspect(s.notes)}"]
+      else
+        fields
+      end
+
+    fields =
+      if s.identity_file do
+        fields ++ ["    identity_file: #{s.identity_file}"]
+      else
+        fields
+      end
+
+    fields =
+      if s.last_connected_at do
+        fields ++ ["    last_connected_at: #{s.last_connected_at}"]
       else
         fields
       end

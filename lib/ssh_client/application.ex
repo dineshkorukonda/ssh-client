@@ -39,13 +39,24 @@ defmodule SSHClient.Application do
       SSHClient.TerminalSupervisor,
       SSHClient.PassphraseCache,
       SSHClient.Vault,
+      {SSHClient.Store, store_opts()},
       SSHClient.SocketAPI,
       SSHClient.SessionSupervisor,
-      SSHClient.SessionManager
+      SSHClient.SessionManager,
+      SSHClient.SFTP.TransferManager,
+      SSHClient.SSH.Forwarding
     ]
 
     opts = [strategy: :one_for_one, name: SSHClient.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp store_opts do
+    if Code.ensure_loaded?(Mix) and Mix.env() == :test do
+      [path: Path.join(System.tmp_dir!(), "ssh-client-test-app-store.json")]
+    else
+      []
+    end
   end
 
   # Required by Phoenix to tell the Endpoint to reload config on hot upgrade

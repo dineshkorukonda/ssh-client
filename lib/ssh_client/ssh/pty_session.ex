@@ -21,6 +21,10 @@ defmodule SSHClient.SSH.PTYSession do
     :user,
     :password,
     :auth_method,
+    :pane_id,
+    raw_history: [],
+    history_bytes: 0,
+    max_history_bytes: 500_000,
     cols: 80,
     rows: 24,
     term: "xterm-256color"
@@ -36,6 +40,7 @@ defmodule SSHClient.SSH.PTYSession do
     - `:user`: Optional override username for session
     - `:password`: Optional password string for authentication
     - `:auth_method`: Optional auth method preference (:key or :password)
+    - `:pane_id`: Optional identifier for the terminal pane
   """
   def start_link({%Server{} = server, opts}) when is_list(opts) do
     GenServer.start_link(__MODULE__, {server, opts})
@@ -71,6 +76,13 @@ defmodule SSHClient.SSH.PTYSession do
   end
 
   @doc """
+  Returns the raw accumulated terminal stream history for session replay.
+  """
+  def get_history(session) do
+    GenServer.call(session, :get_history)
+  end
+
+  @doc """
   Terminates the PTY session and closes the channel.
   """
   def close(session) do
@@ -89,6 +101,7 @@ defmodule SSHClient.SSH.PTYSession do
     user = Keyword.get(opts, :user)
     password = Keyword.get(opts, :password)
     auth_method = Keyword.get(opts, :auth_method)
+    pane_id = Keyword.get(opts, :pane_id)
     buffer = Buffer.new(cols, rows)
 
     state = %__MODULE__{
@@ -101,11 +114,18 @@ defmodule SSHClient.SSH.PTYSession do
       user: user,
       password: password,
       auth_method: auth_method,
-      buffer: buffer
+      pane_id: pane_id,
+      buffer: buffer,
+      raw_history: [],
+      history_bytes: 0
     }
 
     target_user = user || server.user || "default"
-    ActivityLog.info(server.id, "Initiating interactive PTY terminal session as '#{target_user}' (#{cols}x#{rows})")
+
+    ActivityLog.info(
+      server.id,
+      "Initiating interactive PTY terminal session as '#{target_user}' (#{cols}x#{rows})"
+    )
 
     {:ok, state, {:continue, :connect}}
   end
@@ -117,6 +137,7 @@ defmodule SSHClient.SSH.PTYSession do
       |> (fn o -> if state.user, do: [{:user, state.user} | o], else: o end).()
       |> (fn o -> if state.password, do: [{:password, state.password} | o], else: o end).()
       |> (fn o -> if state.auth_method, do: [{:auth_method, state.auth_method} | o], else: o end).()
+      |> (fn o -> [{:host_key_handler, self()} | o] end).()
 
     case SSH.connect(state.server, connect_opts) do
       {:ok, conn} ->
@@ -124,17 +145,42 @@ defmodule SSHClient.SSH.PTYSession do
           {:ok, channel_id} ->
             ActivityLog.info(state.server.id, "Terminal PTY channel established successfully")
             notify_client(state, {:pty_connected, self()})
+
+            if state.pane_id do
+              notify_client(state, {:pty_pane_connected, self(), state.pane_id})
+            end
+
             {:noreply, %{state | connection: conn, channel_id: channel_id}}
 
           {:error, reason} ->
-            ActivityLog.error(state.server.id, "Failed to open PTY channel: #{inspect(reason)}", reason)
+            ActivityLog.error(
+              state.server.id,
+              "Failed to open PTY channel: #{inspect(reason)}",
+              reason
+            )
+
             notify_client(state, {:pty_error, reason})
+
+            if state.pane_id do
+              notify_client(state, {:pty_pane_error, self(), state.pane_id, reason})
+            end
+
             {:stop, {:pty_failed, reason}, state}
         end
 
       {:error, reason} ->
-        ActivityLog.error(state.server.id, "Terminal SSH connection failed: #{inspect(reason)}", reason)
+        ActivityLog.error(
+          state.server.id,
+          "Terminal SSH connection failed: #{inspect(reason)}",
+          reason
+        )
+
         notify_client(state, {:pty_error, reason})
+
+        if state.pane_id do
+          notify_client(state, {:pty_pane_error, self(), state.pane_id, reason})
+        end
+
         {:stop, {:connect_failed, reason}, state}
     end
   end
@@ -143,6 +189,12 @@ defmodule SSHClient.SSH.PTYSession do
   def handle_call(:get_buffer, _from, state) do
     snapshot = if state.buffer, do: Buffer.to_snapshot(state.buffer), else: %{}
     {:reply, snapshot, state}
+  end
+
+  @impl true
+  def handle_call(:get_history, _from, state) do
+    history = IO.iodata_to_binary(Enum.reverse(state.raw_history))
+    {:reply, history, state}
   end
 
   @impl true
@@ -170,8 +222,24 @@ defmodule SSHClient.SSH.PTYSession do
     new_state =
       if channel_id == state.channel_id do
         new_buf = if state.buffer, do: Buffer.feed(state.buffer, data), else: nil
+        data_bytes = byte_size(data)
+        new_history = [data | state.raw_history]
+        new_total = state.history_bytes + data_bytes
+
+        {trimmed_history, trimmed_bytes} =
+          if new_total > state.max_history_bytes do
+            trim_history(new_history, new_total, state.max_history_bytes)
+          else
+            {new_history, new_total}
+          end
+
         notify_client(state, {:pty_data, self(), data})
-        %{state | buffer: new_buf}
+
+        if state.pane_id do
+          notify_client(state, {:pty_pane_data, self(), state.pane_id, data})
+        end
+
+        %{state | buffer: new_buf, raw_history: trimmed_history, history_bytes: trimmed_bytes}
       else
         state
       end
@@ -180,9 +248,19 @@ defmodule SSHClient.SSH.PTYSession do
   end
 
   @impl true
+  def handle_info({:ssh_host_key_event, event_type, details}, state) do
+    notify_client(state, {:ssh_host_key_event, event_type, details, state.pane_id, state.server})
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_info({:ssh_cm, _conn_ref, {:eof, channel_id}}, state) do
     if channel_id == state.channel_id do
       notify_client(state, {:pty_eof, self()})
+
+      if state.pane_id do
+        notify_client(state, {:pty_pane_eof, self(), state.pane_id})
+      end
     end
 
     {:noreply, state}
@@ -192,6 +270,10 @@ defmodule SSHClient.SSH.PTYSession do
   def handle_info({:ssh_cm, _conn_ref, {:exit_status, channel_id, exit_code}}, state) do
     if channel_id == state.channel_id do
       notify_client(state, {:pty_exit, self(), exit_code})
+
+      if state.pane_id do
+        notify_client(state, {:pty_pane_exit, self(), state.pane_id, exit_code})
+      end
     end
 
     {:stop, :normal, state}
@@ -202,6 +284,10 @@ defmodule SSHClient.SSH.PTYSession do
     if channel_id == state.channel_id do
       ActivityLog.info(state.server.id, "Terminal PTY channel closed by remote host")
       notify_client(state, {:pty_closed, self()})
+
+      if state.pane_id do
+        notify_client(state, {:pty_pane_closed, self(), state.pane_id})
+      end
     end
 
     {:stop, :normal, state}
@@ -210,7 +296,11 @@ defmodule SSHClient.SSH.PTYSession do
   # Monitor client process — if client exits, terminate session
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, _reason}, %{client_ref: ref} = state) do
-    ActivityLog.info(state.server.id, "Terminal client LiveView disconnected, closing PTY session")
+    ActivityLog.info(
+      state.server.id,
+      "Terminal client LiveView disconnected, closing PTY session"
+    )
+
     {:stop, :normal, state}
   end
 
@@ -234,4 +324,24 @@ defmodule SSHClient.SSH.PTYSession do
   end
 
   defp notify_client(_state, _msg), do: :ok
+
+  defp trim_history(history, total, max_bytes) when total > max_bytes do
+    reversed = Enum.reverse(history)
+    dropped = drop_oldest(reversed, total - max_bytes)
+    {Enum.reverse(dropped), max_bytes}
+  end
+
+  defp trim_history(history, total, _), do: {history, total}
+
+  defp drop_oldest([head | tail], needed) do
+    head_size = byte_size(head)
+
+    if head_size <= needed do
+      drop_oldest(tail, needed - head_size)
+    else
+      [binary_part(head, needed, head_size - needed) | tail]
+    end
+  end
+
+  defp drop_oldest([], _), do: []
 end
