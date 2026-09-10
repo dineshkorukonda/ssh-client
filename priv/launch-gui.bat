@@ -82,6 +82,24 @@ if not defined BROWSER_EXE (
     )
 )
 
+:: Check Brave browser paths (supports same --app= flags as Chromium)
+if not defined BROWSER_EXE (
+    if exist "%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe" (
+        set "BROWSER_EXE=%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"
+    ) else if exist "%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe" (
+        set "BROWSER_EXE=%ProgramFiles(x86)%\BraveSoftware\Brave-Browser\Application\brave.exe"
+    ) else if exist "%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe" (
+        set "BROWSER_EXE=%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"
+    )
+)
+
+:: Check PATH for brave
+if not defined BROWSER_EXE (
+    for /f "delims=" %%i in ('where brave.exe 2^>nul') do (
+        if not defined BROWSER_EXE set "BROWSER_EXE=%%i"
+    )
+)
+
 :: 3. Launch isolated window or fallback to default browser
 if defined BROWSER_EXE (
     start "" "%BROWSER_EXE%" %APP_FLAGS%
