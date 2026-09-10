@@ -286,6 +286,7 @@ defmodule SSHClientWeb.TerminalLive do
           |> assign(:command_palette_open, false)
           |> assign(:command_palette_query, "")
           |> assign(:command_palette_index, 0)
+          |> assign(:restore_layout, nil)
           |> restore_or_prepare_sessions()
 
         if connected?(socket) do
@@ -323,7 +324,9 @@ defmodule SSHClientWeb.TerminalLive do
           replay_tab_buffer(socket, tab)
 
         true ->
-          start_tab_session(socket, tab.id)
+          socket
+          |> start_tab_session(tab.id)
+          |> maybe_restore_layout_panes()
       end
 
     {:noreply, socket}
@@ -380,6 +383,7 @@ defmodule SSHClientWeb.TerminalLive do
         |> assign(:active_tab_id, tab_id)
         |> assign(:active_pane_id, tab_session_id(new_tab))
         |> replay_tab_buffer(new_tab)
+        |> persist_layout()
 
       {:noreply, socket}
     else
@@ -445,6 +449,7 @@ defmodule SSHClientWeb.TerminalLive do
           active_pane_id: tab_session_id(active_struct)
         )
         |> replay_tab_buffer(active_struct)
+        |> persist_layout()
 
       {:noreply, socket}
     else
@@ -508,7 +513,8 @@ defmodule SSHClientWeb.TerminalLive do
   def handle_event("focus_pane", %{"pane_id" => pane_id}, socket) do
     {:noreply,
      assign(socket, :active_pane_id, pane_id)
-     |> update_active_layout(&Layout.set_active(&1, pane_id))}
+     |> update_active_layout(&Layout.set_active(&1, pane_id))
+     |> persist_layout()}
   end
 
   def handle_event("close_pane", params, socket) do
@@ -534,6 +540,7 @@ defmodule SSHClientWeb.TerminalLive do
             %{t | layout: new_layout, session_id: Layout.active_pane(new_layout)}
           end)
           |> assign(:active_pane_id, Layout.active_pane(new_layout))
+          |> persist_layout()
 
         {:noreply, socket}
     end
@@ -808,7 +815,9 @@ defmodule SSHClientWeb.TerminalLive do
 
     socket =
       if tab && is_nil(tab_session_id(tab)) do
-        start_tab_session(socket, tab.id)
+        socket
+        |> start_tab_session(tab.id)
+        |> maybe_restore_layout_panes()
       else
         socket
       end
@@ -896,7 +905,6 @@ defmodule SSHClientWeb.TerminalLive do
         servers_count={length(@servers)}
         online_count={@online_count}
       />
-
       <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
         <!-- Header Section -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
@@ -904,6 +912,7 @@ defmodule SSHClientWeb.TerminalLive do
             <h1 class="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <span>Terminal Sessions</span>
             </h1>
+
             <p class="text-sm text-muted-foreground mt-1">
               Launch an interactive SSH terminal with multi-tab support, PTY multiplexing, and command autocomplete.
             </p>
@@ -926,31 +935,33 @@ defmodule SSHClientWeb.TerminalLive do
             </a>
           </div>
         </div>
-
         <!-- Flash alerts -->
         <%= if flash = Phoenix.Flash.get(@flash, :info) do %>
           <div class="p-3.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-mono text-primary flex items-center justify-between">
             <span>{flash}</span>
           </div>
         <% end %>
+
         <%= if flash = Phoenix.Flash.get(@flash, :error) do %>
           <div class="p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-mono text-destructive flex items-center justify-between">
             <span>{flash}</span>
           </div>
         <% end %>
-
         <!-- Server Cards or Empty State -->
         <%= if length(@servers) == 0 do %>
           <div class="shadcn-card p-12 text-center flex flex-col items-center justify-center gap-4">
             <div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center font-mono font-bold text-base text-muted-foreground">
               &gt;_
             </div>
+
             <div class="space-y-1">
               <h3 class="text-base font-semibold text-foreground">No Hosts Configured</h3>
+
               <p class="text-xs text-muted-foreground max-w-sm">
                 Add a host manually or import your existing SSH config from ~/.ssh/config to launch a terminal.
               </p>
             </div>
+
             <div class="flex items-center gap-3 pt-2">
               <button
                 phx-click="scan_and_import_ssh_config"
@@ -958,6 +969,7 @@ defmodule SSHClientWeb.TerminalLive do
               >
                 Import ~/.ssh/config
               </button>
+
               <a
                 href="/?action=new"
                 class="h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs rounded-md shadow-sm transition-colors font-medium"
@@ -984,14 +996,17 @@ defmodule SSHClientWeb.TerminalLive do
                         {s[:name] || s[:id] || s["name"] || s["id"]}
                       </h3>
                     </div>
+
                     <span class="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border shrink-0">
                       Port {s[:port] || s["port"] || 22}
                     </span>
                   </div>
+
                   <div class="mt-2 space-y-1">
                     <div class="text-xs font-mono text-muted-foreground flex items-center gap-1 truncate">
                       <span>{s[:user] || s["user"] || "root"}@{s[:host] || s["host"] || "localhost"}</span>
                     </div>
+
                     <%= if s[:proxy_jump] || s["proxy_jump"] do %>
                       <div class="text-[11px] font-mono text-muted-foreground/80 flex items-center gap-1 truncate">
                         <span>Jump: {s[:proxy_jump] || s["proxy_jump"]}</span>
@@ -1007,6 +1022,7 @@ defmodule SSHClientWeb.TerminalLive do
                   >
                     SFTP
                   </a>
+
                   <a
                     href={"/terminal/#{s[:id] || s["id"]}"}
                     class="h-8 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs font-medium rounded shadow-sm transition-colors inline-flex items-center gap-1.5"
@@ -1053,7 +1069,6 @@ defmodule SSHClientWeb.TerminalLive do
           <span class="text-border">|</span>
           <span class="text-foreground text-xs font-mono font-semibold truncate">{@server_id}</span>
           <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
-
           <!-- Multi-Tab workspace pills -->
           <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-border">
             <%= for tab <- @tabs do %>
@@ -1073,9 +1088,9 @@ defmodule SSHClientWeb.TerminalLive do
                   <span class={[
                     "w-1.5 h-1.5 rounded-full",
                     if(tab.connected, do: "bg-emerald-500", else: "bg-muted-foreground")
-                  ]}></span>
-                  <span>{tab.title}</span>
+                  ]}></span> <span>{tab.title}</span>
                 </button>
+
                 <%= if length(@tabs) > 1 do %>
                   <button
                     phx-click="close_tab"
@@ -1088,6 +1103,7 @@ defmodule SSHClientWeb.TerminalLive do
                 <% end %>
               </div>
             <% end %>
+
             <button
               phx-click="new_tab"
               class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
@@ -1095,6 +1111,7 @@ defmodule SSHClientWeb.TerminalLive do
             >
               +
             </button>
+
             <button
               phx-click="split_right"
               class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
@@ -1102,6 +1119,7 @@ defmodule SSHClientWeb.TerminalLive do
             >
               Split Right
             </button>
+
             <button
               phx-click="split_down"
               class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
@@ -1111,7 +1129,6 @@ defmodule SSHClientWeb.TerminalLive do
             </button>
           </div>
         </div>
-
         <!-- Center / Right: Quick Controls & Status -->
         <div class="flex items-center gap-2">
           <!-- Connection badge for active tab -->
@@ -1139,7 +1156,6 @@ defmodule SSHClientWeb.TerminalLive do
           </span>
 
           <span class="text-muted-foreground text-[10px] font-mono hidden lg:inline">{@cols}x{@rows}</span>
-
           <!-- SFTP Quick Link -->
           <a
             href={"/sftp/#{@server_id}"}
@@ -1148,7 +1164,6 @@ defmodule SSHClientWeb.TerminalLive do
           >
             SFTP
           </a>
-
           <!-- Quick Action: Paste -->
           <button
             phx-click="request_paste"
@@ -1157,7 +1172,6 @@ defmodule SSHClientWeb.TerminalLive do
           >
             Paste
           </button>
-
           <!-- Quick Action: Toggle Commands Drawer -->
           <button
             phx-click="toggle_commands"
@@ -1172,7 +1186,6 @@ defmodule SSHClientWeb.TerminalLive do
           >
             Cmds
           </button>
-
           <!-- Quick Action: Switch to Zsh -->
           <button
             phx-click="switch_to_zsh"
@@ -1181,7 +1194,6 @@ defmodule SSHClientWeb.TerminalLive do
           >
             Zsh
           </button>
-
           <!-- Quick Action: Clear Screen -->
           <button
             phx-click="clear_screen"
@@ -1190,7 +1202,6 @@ defmodule SSHClientWeb.TerminalLive do
           >
             Clear
           </button>
-
           <!-- Font Size Adjusters -->
           <div class="hidden sm:flex items-center border border-border rounded-md bg-secondary overflow-hidden">
             <button
@@ -1209,7 +1220,6 @@ defmodule SSHClientWeb.TerminalLive do
               A+
             </button>
           </div>
-
           <!-- Reconnect -->
           <button
             phx-click="reconnect"
@@ -1218,19 +1228,20 @@ defmodule SSHClientWeb.TerminalLive do
           >
             Reconnect
           </button>
+
           <button
             phx-click="maximize_pane"
             class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
           >
             Maximize
           </button>
+
           <button
             phx-click="restore_panes"
             class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
           >
             Restore
           </button>
-
           <!-- Logs -->
           <a
             href="/logs"
@@ -1241,7 +1252,6 @@ defmodule SSHClientWeb.TerminalLive do
           </a>
         </div>
       </div>
-
       <!-- Main Body: Terminal + Docked Command Palette -->
       <div class="flex-1 flex flex-col min-h-0 w-full relative bg-background">
         <% layout = @cur_tab[:layout]
@@ -1293,7 +1303,6 @@ defmodule SSHClientWeb.TerminalLive do
           >
           </div>
         <% end %>
-
         <!-- Slide-out / Docked Command Autocomplete & Suggestions Drawer -->
         <%= if @show_commands do %>
           <div class="absolute bottom-0 inset-x-0 bg-[#0c0c0e]/95 border-t border-[#27272a] backdrop-blur-md shadow-2xl z-30 flex flex-col max-h-[48vh] transition-all animate-in fade-in slide-in-from-bottom duration-150">
@@ -1312,7 +1321,6 @@ defmodule SSHClientWeb.TerminalLive do
                   autofocus
                 />
               </div>
-
               <!-- Category Pills -->
               <div class="hidden md:flex items-center gap-1 text-[11px] font-mono">
                 <button
@@ -1328,6 +1336,7 @@ defmodule SSHClientWeb.TerminalLive do
                 >
                   All
                 </button>
+
                 <button
                   phx-click="select_category"
                   phx-value-cat="zsh"
@@ -1341,6 +1350,7 @@ defmodule SSHClientWeb.TerminalLive do
                 >
                   Zsh
                 </button>
+
                 <button
                   phx-click="select_category"
                   phx-value-cat="sys"
@@ -1354,6 +1364,7 @@ defmodule SSHClientWeb.TerminalLive do
                 >
                   System
                 </button>
+
                 <button
                   phx-click="select_category"
                   phx-value-cat="docker"
@@ -1367,6 +1378,7 @@ defmodule SSHClientWeb.TerminalLive do
                 >
                   Docker
                 </button>
+
                 <button
                   phx-click="select_category"
                   phx-value-cat="services"
@@ -1380,6 +1392,7 @@ defmodule SSHClientWeb.TerminalLive do
                 >
                   Services
                 </button>
+
                 <button
                   phx-click="select_category"
                   phx-value-cat="net"
@@ -1393,6 +1406,7 @@ defmodule SSHClientWeb.TerminalLive do
                 >
                   Network
                 </button>
+
                 <button
                   phx-click="select_category"
                   phx-value-cat="files"
@@ -1407,7 +1421,6 @@ defmodule SSHClientWeb.TerminalLive do
                   Files
                 </button>
               </div>
-
               <!-- Close Button -->
               <button
                 phx-click="toggle_commands"
@@ -1416,7 +1429,6 @@ defmodule SSHClientWeb.TerminalLive do
                 Close
               </button>
             </div>
-
             <!-- Suggestions Grid -->
             <div class="p-3 overflow-y-auto max-h-[36vh] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               <%= for item <- @filtered_commands do %>
@@ -1426,7 +1438,9 @@ defmodule SSHClientWeb.TerminalLive do
                       <span class="text-xs font-medium text-zinc-200 font-mono">{item.label}</span>
                       <span class="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#202024] text-zinc-400 font-mono">{item.cat}</span>
                     </div>
+
                     <p class="text-[11px] text-zinc-500 leading-tight mb-2">{item.desc}</p>
+
                     <code class="text-[11px] font-mono text-blue-400 bg-[#09090b] px-2 py-1 rounded block truncate border border-[#1b1b1f] select-text">
                       {item.cmd}
                     </code>
@@ -1441,6 +1455,7 @@ defmodule SSHClientWeb.TerminalLive do
                     >
                       Insert
                     </button>
+
                     <button
                       phx-click="run_command"
                       phx-value-cmd={item.cmd}
@@ -1452,6 +1467,7 @@ defmodule SSHClientWeb.TerminalLive do
                   </div>
                 </div>
               <% end %>
+
               <%= if Enum.empty?(@filtered_commands) do %>
                 <div class="col-span-full py-8 text-center text-zinc-500 text-xs font-mono">
                   No command suggestions match "{@command_search}"
@@ -1460,7 +1476,6 @@ defmodule SSHClientWeb.TerminalLive do
             </div>
           </div>
         <% end %>
-
         <!-- Auto Deploy SSH Key Prompt Modal -->
         <%= if @show_deploy_modal and @deploy_key_info do %>
           <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
@@ -1470,6 +1485,7 @@ defmodule SSHClientWeb.TerminalLive do
                   <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                   <h3 class="text-sm font-semibold text-zinc-100">Deploy SSH Key</h3>
                 </div>
+
                 <button
                   phx-click="dismiss_deploy_modal"
                   class="text-zinc-500 hover:text-zinc-300 text-xs px-2 py-0.5 rounded hover:bg-[#1f1f23] transition-colors"
@@ -1504,6 +1520,7 @@ defmodule SSHClientWeb.TerminalLive do
                 >
                   Don't Ask Again
                 </button>
+
                 <button
                   type="button"
                   phx-click="deploy_ssh_key"
@@ -1526,6 +1543,7 @@ defmodule SSHClientWeb.TerminalLive do
               do: "Host key changed",
               else: "New host key"}
           </h3>
+
           <p class="text-xs text-muted-foreground">
             Verify this fingerprint before trusting the host. Changed keys can indicate a MITM attack.
           </p>
@@ -1559,6 +1577,7 @@ defmodule SSHClientWeb.TerminalLive do
               class="w-full h-11 px-4 bg-background border-b border-border text-sm font-mono text-foreground focus:outline-none"
             />
           </form>
+
           <div class="max-h-[50vh] overflow-y-auto py-1">
             <%= if items == [] do %>
               <div class="px-4 py-6 text-xs text-muted-foreground font-mono">
@@ -1578,8 +1597,7 @@ defmodule SSHClientWeb.TerminalLive do
                     )
                   ]}
                 >
-                  <span>{item.label}</span>
-                  <span class="text-[10px] opacity-70">{item.hint}</span>
+                  <span>{item.label}</span> <span class="text-[10px] opacity-70">{item.hint}</span>
                 </button>
               <% end %>
             <% end %>
@@ -1742,7 +1760,13 @@ defmodule SSHClientWeb.TerminalLive do
     existing = SessionManager.list_for_server(socket.assigns.server_id)
 
     if existing == [] do
-      socket
+      case Store.get(:sessions, socket.assigns.server_id) do
+        %{"pane_count" => count} = saved when is_integer(count) and count > 1 ->
+          assign(socket, :restore_layout, saved)
+
+        _ ->
+          socket
+      end
     else
       Enum.each(existing, &subscribe_session(&1.session_id))
 
@@ -1808,13 +1832,75 @@ defmodule SSHClientWeb.TerminalLive do
           "layout_type" => to_string(tab.layout.type),
           "pane_ids" => tab.layout.panes,
           "active_pane" => tab.layout.active_pane,
-          "maximized" => tab.layout.maximized
+          "maximized" => tab.layout.maximized,
+          "pane_count" => length(tab.layout.panes),
+          "updated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
         })
     end
 
     socket
   rescue
     _ -> socket
+  end
+
+  defp maybe_restore_layout_panes(socket) do
+    case socket.assigns[:restore_layout] do
+      %{"pane_count" => count, "layout_type" => type} = saved
+      when is_integer(count) and count > 1 ->
+        direction = if type in ["split_v", :split_v], do: :vertical, else: :horizontal
+
+        socket =
+          Enum.reduce(2..count, socket, fn _i, acc ->
+            tab_now = active_tab(acc)
+            server = acc.assigns.server
+
+            if tab_now && server do
+              case SessionManager.create_session(server, session_connect_opts(acc)) do
+                {:ok, new_session_id} ->
+                  subscribe_session(new_session_id)
+
+                  cur_layout =
+                    tab_now.layout || Layout.new(tab_session_id(tab_now) || new_session_id)
+
+                  target = acc.assigns[:active_pane_id] || Layout.active_pane(cur_layout)
+                  new_layout = Layout.split(cur_layout, target, direction, new_session_id)
+
+                  acc
+                  |> update_tab(tab_now.id, fn t -> %{t | layout: new_layout} end)
+                  |> assign(:active_pane_id, new_session_id)
+
+                _ ->
+                  acc
+              end
+            else
+              acc
+            end
+          end)
+
+        socket =
+          if saved["maximized"] do
+            tab_now = active_tab(socket)
+
+            if tab_now && tab_now.layout do
+              max_pane = socket.assigns[:active_pane_id]
+
+              update_tab(socket, tab_now.id, fn t ->
+                %{t | layout: Layout.maximize(t.layout, max_pane)}
+              end)
+            else
+              socket
+            end
+          else
+            socket
+          end
+
+        socket
+        |> assign(:restore_layout, nil)
+        |> persist_layout()
+
+      _ ->
+        socket
+    end
   end
 
   defp layout_from_store(nil, _existing_ids), do: nil

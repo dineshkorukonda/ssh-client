@@ -2,6 +2,10 @@ defmodule SSHClient.SSH.PTYSession do
   @moduledoc """
   Manages an interactive pseudo-terminal (PTY) SSH session, bridging raw byte
   streams between an SSH channel and a client process.
+
+  Note: Deprecated for interactive web terminals in favor of `SSHClient.SessionWorker`
+  and `SSHClient.SessionManager`, which offer ring-buffered history, supervisor recovery,
+  and multi-pane LiveView integration. Maintained for socket API compatibility.
   """
 
   use GenServer, restart: :temporary

@@ -16,6 +16,7 @@ defmodule SSHClientWeb.HostLive do
   alias SSHClient.SessionWorker
   alias SSHClient.SSH.ConfigImporter
   alias SSHClient.SSH.Forwarding
+  alias SSHClient.Store
   alias SSHClient.Terminal.Layout
   alias SSHClient.Updater
   alias SSHClient.Vault
@@ -72,6 +73,8 @@ defmodule SSHClientWeb.HostLive do
         |> assign(:workspaces, [])
         |> assign(:workspace_name, "")
         |> assign(:workspace_modal, false)
+        |> assign(:active_workspace_id, nil)
+        |> assign(:crash_recovery, nil)
         |> assign(:forwards, [])
         |> assign(:fwd_modal, false)
         |> assign(:fwd_type, "local")
@@ -80,6 +83,7 @@ defmodule SSHClientWeb.HostLive do
         |> assign(:fwd_dest_host, "127.0.0.1")
         |> assign(:fwd_dest_port, "3000")
         |> load_servers()
+        |> check_crash_recovery()
 
       {:ok, socket}
     end
@@ -510,9 +514,17 @@ defmodule SSHClientWeb.HostLive do
         {:noreply, socket}
 
       ws ->
-        Enum.reduce(ws["server_ids"] || [], {:noreply, socket}, fn server_id, {:noreply, acc} ->
-          handle_event("open_terminal", %{"id" => server_id, "auto_connect" => false}, acc)
-        end)
+        socket = assign(socket, :active_workspace_id, id)
+
+        socket =
+          Enum.reduce(ws["server_ids"] || [], socket, fn server_id, acc ->
+            case handle_event("open_terminal", %{"id" => server_id, "auto_connect" => false}, acc) do
+              {:noreply, next_socket} -> next_socket
+              next_socket -> next_socket
+            end
+          end)
+
+        {:noreply, persist_layout(socket)}
     end
   end
 
@@ -621,6 +633,7 @@ defmodule SSHClientWeb.HostLive do
             |> assign(:active_tab_id, tab_id)
             |> assign(:active_pane_id, session_id)
             |> assign(:next_tab_id, tab_id + 1)
+            |> persist_layout()
 
           {:noreply, socket}
 
@@ -685,6 +698,7 @@ defmodule SSHClientWeb.HostLive do
           socket
           |> assign(:tabs, tabs)
           |> assign(:active_pane_id, Layout.active_pane(new_layout))
+          |> persist_layout()
 
         {:noreply, socket}
     end
@@ -720,7 +734,12 @@ defmodule SSHClientWeb.HostLive do
             if t.id == tab.id, do: updated_tab, else: t
           end)
 
-        {:noreply, assign(socket, :tabs, tabs)}
+        socket =
+          socket
+          |> assign(:tabs, tabs)
+          |> persist_layout()
+
+        {:noreply, socket}
     end
   end
 
@@ -754,6 +773,7 @@ defmodule SSHClientWeb.HostLive do
               socket
               |> assign(:tabs, tabs)
               |> assign(:active_pane_id, new_active_pane)
+              |> persist_layout()
 
             {:noreply, socket}
           end
@@ -774,6 +794,7 @@ defmodule SSHClientWeb.HostLive do
         socket
         |> assign(:active_tab_id, tab.id)
         |> assign(:active_pane_id, active_pane)
+        |> persist_layout()
 
       {:noreply, socket}
     else
@@ -800,6 +821,7 @@ defmodule SSHClientWeb.HostLive do
             |> assign(:tabs, [])
             |> assign(:active_tab_id, nil)
             |> assign(:active_pane_id, nil)
+            |> assign(:active_workspace_id, nil)
 
           [first | _] ->
             new_active_tab =
@@ -814,6 +836,7 @@ defmodule SSHClientWeb.HostLive do
             |> assign(:active_tab_id, new_active_tab.id)
             |> assign(:active_pane_id, Layout.active_pane(new_active_tab.layout))
         end
+        |> persist_layout()
 
       {:noreply, socket}
     else
@@ -855,7 +878,12 @@ defmodule SSHClientWeb.HostLive do
           if t.id == tab.id, do: %{t | layout: Layout.maximize(t.layout, pane_id)}, else: t
         end)
 
-      {:noreply, assign(socket, :tabs, tabs)}
+      socket =
+        socket
+        |> assign(:tabs, tabs)
+        |> persist_layout()
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -870,10 +898,43 @@ defmodule SSHClientWeb.HostLive do
           if t.id == tab.id, do: %{t | layout: Layout.restore(t.layout)}, else: t
         end)
 
-      {:noreply, assign(socket, :tabs, tabs)}
+      socket =
+        socket
+        |> assign(:tabs, tabs)
+        |> persist_layout()
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_event("restore_crash_session", params, socket) do
+    reconnect =
+      case params["reconnect"] do
+        true -> true
+        "true" -> true
+        _ -> false
+      end
+
+    case socket.assigns[:crash_recovery] do
+      %{tabs: _tabs} = recovery ->
+        socket =
+          socket
+          |> assign(:crash_recovery, nil)
+          |> restore_saved_tabs(recovery, reconnect: reconnect)
+          |> persist_layout()
+
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, assign(socket, :crash_recovery, nil)}
+    end
+  end
+
+  def handle_event("dismiss_crash_recovery", _params, socket) do
+    _ = Store.delete(:sessions, "host_live")
+    {:noreply, assign(socket, :crash_recovery, nil)}
   end
 
   def handle_event("toggle_command_palette", _params, socket) do
@@ -1151,6 +1212,7 @@ defmodule SSHClientWeb.HostLive do
                 socket
                 |> assign(:tabs, tabs)
                 |> assign(:active_pane_id, new_session_id)
+                |> persist_layout()
 
               {:noreply, socket}
 
@@ -1363,6 +1425,200 @@ defmodule SSHClientWeb.HostLive do
       String.starts_with?(target, query) -> 500
       String.contains?(target, query) -> 300
       true -> 0
+    end
+  end
+
+  defp persist_layout(socket) do
+    tabs = socket.assigns.tabs
+
+    if tabs == [] do
+      _ = Store.delete(:sessions, "host_live")
+    else
+      payload = %{
+        "id" => "host_live",
+        "active_tab_id" => socket.assigns[:active_tab_id],
+        "active_pane_id" => socket.assigns[:active_pane_id],
+        "workspace_id" => socket.assigns[:active_workspace_id],
+        "tabs" =>
+          Enum.map(tabs, fn t ->
+            layout = t.layout
+
+            %{
+              "id" => t.id,
+              "title" => t.title,
+              "server_id" => t.server_id,
+              "layout_type" => to_string((layout && layout.type) || :single),
+              "pane_ids" => (layout && layout.panes) || [],
+              "pane_count" => length((layout && layout.panes) || []),
+              "active_pane" => layout && layout.active_pane,
+              "maximized" => layout && layout.maximized
+            }
+          end),
+        "updated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+      }
+
+      _ = Store.put(:sessions, "host_live", payload)
+    end
+
+    socket
+  rescue
+    _ -> socket
+  end
+
+  defp check_crash_recovery(socket) do
+    case Store.get(:sessions, "host_live") do
+      %{"tabs" => saved_tabs} = saved when is_list(saved_tabs) and saved_tabs != [] ->
+        all_live? =
+          Enum.all?(saved_tabs, fn t ->
+            panes = t["pane_ids"] || []
+            panes != [] and Enum.all?(panes, &SessionManager.has_session?/1)
+          end)
+
+        if all_live? do
+          restore_saved_tabs(socket, saved, reconnect: false, live: true)
+        else
+          ws_name =
+            if ws_id = saved["workspace_id"] do
+              case Workspace.get(ws_id) do
+                %{"name" => name} -> name
+                _ -> nil
+              end
+            end
+
+          assign(socket, :crash_recovery, %{
+            tabs: saved_tabs,
+            count: length(saved_tabs),
+            workspace_id: saved["workspace_id"],
+            workspace_name: ws_name,
+            updated_at: saved["updated_at"]
+          })
+        end
+
+      _ ->
+        socket
+    end
+  rescue
+    _ -> socket
+  end
+
+  defp restore_saved_tabs(socket, saved, opts) when is_map(saved) do
+    saved_tabs = saved[:tabs] || saved["tabs"] || []
+    workspace_id = saved[:workspace_id] || saved["workspace_id"]
+    active_tab_id = saved[:active_tab_id] || saved["active_tab_id"]
+
+    live? = Keyword.get(opts, :live, false)
+    reconnect? = Keyword.get(opts, :reconnect, false)
+    auto_connect = if live?, do: false, else: reconnect?
+
+    {new_tabs, _next_id} =
+      Enum.reduce(saved_tabs, {[], 1}, fn tab_info, {tabs_acc, current_tab_id} ->
+        server_id = tab_info[:server_id] || tab_info["server_id"]
+        server = find_server(socket, server_id)
+
+        if is_nil(server) do
+          {tabs_acc, current_tab_id}
+        else
+          layout_type = parse_layout_type(tab_info[:layout_type] || tab_info["layout_type"])
+          pane_ids = tab_info[:pane_ids] || tab_info["pane_ids"] || []
+          pane_count = max(tab_info[:pane_count] || tab_info["pane_count"] || length(pane_ids), 1)
+
+          layout =
+            if live? do
+              Enum.each(pane_ids, &subscribe_session/1)
+
+              %Layout{
+                type: layout_type,
+                panes: pane_ids,
+                active_pane:
+                  tab_info[:active_pane] || tab_info["active_pane"] || List.first(pane_ids),
+                maximized: tab_info[:maximized] || tab_info["maximized"]
+              }
+            else
+              case SessionManager.create_session(server, auto_connect: auto_connect) do
+                {:ok, first_session_id} ->
+                  subscribe_session(first_session_id)
+                  base_layout = Layout.new(first_session_id)
+
+                  if pane_count > 1 do
+                    dir =
+                      if layout_type in [:split_v, "split_v"], do: :vertical, else: :horizontal
+
+                    Enum.reduce(2..pane_count, base_layout, fn _idx, lay ->
+                      case SessionManager.create_session(server, auto_connect: auto_connect) do
+                        {:ok, next_id} ->
+                          subscribe_session(next_id)
+                          Layout.split(lay, Layout.active_pane(lay), dir, next_id)
+
+                        _ ->
+                          lay
+                      end
+                    end)
+                  else
+                    base_layout
+                  end
+
+                _ ->
+                  nil
+              end
+            end
+
+          if layout do
+            title = tab_info[:title] || tab_info["title"] || server_title(server, server_id)
+
+            tab = %{
+              id: current_tab_id,
+              title: title,
+              server_id: server_id,
+              server: server,
+              layout: layout
+            }
+
+            {tabs_acc ++ [tab], current_tab_id + 1}
+          else
+            {tabs_acc, current_tab_id}
+          end
+        end
+      end)
+
+    if new_tabs == [] do
+      socket
+    else
+      first = hd(new_tabs)
+      active_tab = Enum.find(new_tabs, &(&1.id == active_tab_id)) || first
+
+      socket
+      |> assign(:tabs, new_tabs)
+      |> assign(:active_tab_id, active_tab.id)
+      |> assign(:active_pane_id, Layout.active_pane(active_tab.layout))
+      |> assign(:next_tab_id, length(new_tabs) + 1)
+      |> assign(:active_workspace_id, workspace_id)
+    end
+  end
+
+  defp parse_layout_type("split_h"), do: :split_h
+  defp parse_layout_type("split_v"), do: :split_v
+  defp parse_layout_type("grid"), do: :grid
+  defp parse_layout_type(:split_h), do: :split_h
+  defp parse_layout_type(:split_v), do: :split_v
+  defp parse_layout_type(:grid), do: :grid
+  defp parse_layout_type(_), do: :single
+
+  defp server_title(server, fallback) do
+    cond do
+      is_map(server) and Map.has_key?(server, :name) and not is_nil(server.name) ->
+        server.name
+
+      is_map(server) and Map.has_key?(server, "name") and not is_nil(server["name"]) ->
+        server["name"]
+
+      is_map(server) and Map.has_key?(server, :id) and not is_nil(server.id) ->
+        server.id
+
+      is_map(server) and Map.has_key?(server, "id") and not is_nil(server["id"]) ->
+        server["id"]
+
+      true ->
+        fallback
     end
   end
 end

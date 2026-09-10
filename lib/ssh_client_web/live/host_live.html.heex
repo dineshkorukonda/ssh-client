@@ -1,5 +1,4 @@
 <% filtered_servers = filter_servers(@servers, @filter) %>
-
 <div
   class="flex flex-col h-full min-h-screen bg-background text-foreground antialiased"
   phx-window-keydown="handle_key"
@@ -11,7 +10,6 @@
     servers_count={length(@servers)}
     online_count={@online_count}
   />
-
   <!-- Main Workspace Canvas -->
   <main class="flex-1 overflow-auto p-6 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
     <!-- Sub-Header / Command Toolbar -->
@@ -20,6 +18,7 @@
         <h1 class="text-xl font-semibold text-foreground tracking-tight">
           Managed Infrastructure
         </h1>
+
         <p class="text-xs text-muted-foreground font-mono mt-0.5">
           {length(filtered_servers)} endpoints configured across clusters
         </p>
@@ -36,6 +35,7 @@
             class="h-9 pl-3 pr-8 bg-card border border-border rounded-md text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-48 sm:w-56 font-mono transition-colors shadow-sm"
           />
         </div>
+
         <button
           phx-click="scan_and_import_ssh_config"
           class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm inline-flex items-center gap-1.5"
@@ -51,6 +51,7 @@
           </svg>
           Import ~/.ssh/config
         </button>
+
         <button
           phx-click="poll_all"
           class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
@@ -58,18 +59,21 @@
         >
           Poll All
         </button>
+
         <button
           phx-click="open_workspace_modal"
           class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
         >
           Save Workspace
         </button>
+
         <button
           phx-click="open_fwd_modal"
           class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
         >
           Port Forward
         </button>
+
         <button
           phx-click="open_add_modal"
           class="h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-semibold rounded-md transition-colors shadow-sm"
@@ -85,6 +89,7 @@
           <h2 class="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">
             Workspaces
           </h2>
+
           <%= for ws <- @workspaces || [] do %>
             <div class="flex items-center justify-between py-1.5 text-xs font-mono">
               <span class="text-foreground">{ws["name"]}</span>
@@ -103,10 +108,12 @@
             </div>
           <% end %>
         </div>
+
         <div class="shadcn-card p-4">
           <h2 class="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">
             Port Forwards
           </h2>
+
           <%= for fwd <- @forwards || [] do %>
             <div class="flex items-center justify-between py-1.5 text-xs font-mono">
               <span class="text-foreground">{fwd.type} :{fwd.listen_port} -&gt; {fwd.dest_host}:{fwd.dest_port}</span>
@@ -121,6 +128,59 @@
       </div>
     <% end %>
 
+    <%= if @crash_recovery do %>
+      <div
+        id="crash-recovery-banner"
+        class="shadcn-card mb-4 p-3 border border-border bg-card/90 rounded-lg flex items-center justify-between gap-4 flex-wrap"
+      >
+        <div class="flex items-center gap-3">
+          <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+
+          <div class="text-xs font-mono">
+            <span class="text-foreground font-semibold">Previous session detected</span>
+            <span class="text-muted-foreground ml-2">
+              <%= if @crash_recovery[:workspace_name] do %>
+                Workspace: {@crash_recovery.workspace_name} ({@crash_recovery.count} tab{if @crash_recovery.count !=
+                                                                                              1,
+                                                                                            do:
+                                                                                              "s"})
+              <% else %>
+                {@crash_recovery.count} open tab{if @crash_recovery.count != 1, do: "s"} from last session
+              <% end %>
+            </span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            phx-click="restore_crash_session"
+            phx-value-reconnect="true"
+            class="h-7 px-3 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-mono rounded transition-colors"
+          >
+            Restore and Reconnect
+          </button>
+
+          <button
+            type="button"
+            phx-click="restore_crash_session"
+            phx-value-reconnect="false"
+            class="h-7 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono rounded transition-colors"
+          >
+            Restore Disconnected
+          </button>
+
+          <button
+            type="button"
+            phx-click="dismiss_crash_recovery"
+            class="h-7 px-2 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            title="Dismiss"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    <% end %>
     <!-- Terminal Multi-Tab and Split-Pane Workspace -->
     <%= if @tabs != [] do %>
       <div
@@ -146,6 +206,7 @@
                   <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                   <span>{tab.title}</span>
                 </button>
+
                 <button
                   type="button"
                   phx-click="close_tab"
@@ -167,7 +228,6 @@
               + New Tab
             </button>
           </div>
-
           <!-- Split and Pane Controls -->
           <div class="flex items-center gap-1">
             <button
@@ -221,6 +281,7 @@
             >
               Close Pane
             </button>
+
             <button
               type="button"
               phx-click="reconnect"
@@ -229,6 +290,7 @@
             >
               Reconnect
             </button>
+
             <button
               type="button"
               phx-click="maximize_pane"
@@ -237,6 +299,7 @@
             >
               Maximize
             </button>
+
             <button
               type="button"
               phx-click="restore_panes"
@@ -247,7 +310,6 @@
             </button>
           </div>
         </div>
-
         <!-- Active Tab Split Layout Panes -->
         <%= if active_tab = Enum.find(@tabs, &(&1.id == @active_tab_id)) do %>
           <% layout = active_tab.layout
@@ -291,6 +353,7 @@
                     <span class="font-medium">{active_tab.title}</span>
                     <span class="text-muted-foreground opacity-75">({String.slice(pane_id, 0..7)})</span>
                   </div>
+
                   <div class="flex items-center gap-1">
                     <button
                       type="button"
@@ -303,7 +366,6 @@
                     </button>
                   </div>
                 </div>
-
                 <!-- Terminal Pane Container -->
                 <div
                   id={"terminal-pane-#{pane_id}"}
@@ -322,7 +384,6 @@
         <% end %>
       </div>
     <% end %>
-
     <!-- 4 Overview Stat Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <.stat_card
@@ -330,20 +391,17 @@
         value={length(@servers)}
         subtext="Configured SSH endpoints"
       />
-
       <.stat_card
         title="Online & Polling"
         value={"#{@online_count} / #{length(@servers)}"}
         subtext="Responding to healthchecks"
         accent={if(@online_count > 0, do: "text-emerald-500", else: "text-muted-foreground")}
       />
-
       <.stat_card
         title="Average CPU Load"
         value={format_pct(@avg_cpu)}
         subtext="Aggregate cluster compute"
       />
-
       <.stat_card
         title="Telemetry Status"
         value="Active"
@@ -351,7 +409,6 @@
         accent="text-emerald-500"
       />
     </div>
-
     <!-- Server List Data Table -->
     <div class="shadcn-card overflow-hidden">
       <div class="px-6 py-4 border-b border-border bg-card/50 flex items-center justify-between">
@@ -375,9 +432,11 @@
               />
             </svg>
           </div>
+
           <h3 class="text-sm font-semibold text-foreground">
             {if @servers == [], do: "No SSH Hosts Configured", else: "No matching endpoints found"}
           </h3>
+
           <p class="text-xs text-muted-foreground font-mono max-w-sm">
             <%= if @servers == [] do %>
               Add your remote servers manually or automatically import existing hosts from your local OpenSSH config file.
@@ -385,6 +444,7 @@
               Try refining your search filter above to locate the target server.
             <% end %>
           </p>
+
           <div class="flex items-center gap-2.5 pt-2">
             <button
               phx-click="scan_and_import_ssh_config"
@@ -400,6 +460,7 @@
               </svg>
               Import from ~/.ssh/config
             </button>
+
             <button
               phx-click="open_add_modal"
               class="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-semibold rounded-md transition-colors"
@@ -414,14 +475,21 @@
             <thead>
               <tr class="border-b border-border text-muted-foreground text-[11px] uppercase tracking-wider bg-muted/20">
                 <th class="py-3 px-5 font-medium">Server Name</th>
+
                 <th class="py-3 px-5 font-medium">Endpoint</th>
+
                 <th class="py-3 px-5 font-medium">Status</th>
+
                 <th class="py-3 px-5 font-medium">CPU</th>
+
                 <th class="py-3 px-5 font-medium">Memory</th>
+
                 <th class="py-3 px-5 font-medium">Disk</th>
+
                 <th class="py-3 px-5 font-medium text-right">Actions</th>
               </tr>
             </thead>
+
             <tbody class="divide-y divide-border">
               <%= for server <- filtered_servers do %>
                 <tr class="hover:bg-muted/40 transition-colors">
@@ -434,8 +502,10 @@
                       <% end %>
                     </div>
                   </td>
+
                   <td class="py-3.5 px-5">
                     <div class="text-foreground font-mono">{server.host}:{server.port}</div>
+
                     <div class="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
                       <span>{server.user}</span>
                       <%= if length(server.users || []) > 1 do %>
@@ -448,6 +518,7 @@
                           +{length(server.users) - 1}
                         </button>
                       <% end %>
+
                       <%= if server.default_auth_method == :password do %>
                         <span class="text-[10px] px-1 py-0.2 bg-muted text-muted-foreground border border-border rounded">
                           pwd
@@ -455,9 +526,11 @@
                       <% end %>
                     </div>
                   </td>
+
                   <td class="py-3.5 px-5">
                     <.status_badge status={server.status} />
                   </td>
+
                   <td class="py-3.5 px-5">
                     <div class="flex items-center gap-2">
                       <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
@@ -470,11 +543,13 @@
                         >
                         </div>
                       </div>
+
                       <span class={["text-[11px] font-mono", metric_color(server.cpu_percent)]}>
                         {format_pct(server.cpu_percent)}
                       </span>
                     </div>
                   </td>
+
                   <td class="py-3.5 px-5">
                     <div class="flex items-center gap-2">
                       <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
@@ -487,11 +562,13 @@
                         >
                         </div>
                       </div>
+
                       <span class={["text-[11px] font-mono", metric_color(server.ram_percent)]}>
                         {format_pct(server.ram_percent)}
                       </span>
                     </div>
                   </td>
+
                   <td class="py-3.5 px-5">
                     <div class="flex items-center gap-2">
                       <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
@@ -504,11 +581,13 @@
                         >
                         </div>
                       </div>
+
                       <span class={["text-[11px] font-mono", metric_color(server.disk_percent)]}>
                         {format_pct(server.disk_percent)}
                       </span>
                     </div>
                   </td>
+
                   <td class="py-3.5 px-5 text-right">
                     <div class="flex items-center justify-end gap-1.5">
                       <button
@@ -519,6 +598,7 @@
                       >
                         Terminal
                       </button>
+
                       <button
                         phx-click="open_connect_modal"
                         phx-value-id={server.id}
@@ -527,6 +607,7 @@
                       >
                         Connect
                       </button>
+
                       <a
                         href={"/sftp/#{server.id}"}
                         class="h-7 px-2.5 flex items-center bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono rounded transition-colors"
@@ -534,6 +615,7 @@
                       >
                         SFTP
                       </a>
+
                       <button
                         phx-click="poll_now"
                         phx-value-id={server.id}
@@ -542,6 +624,7 @@
                       >
                         Poll
                       </button>
+
                       <button
                         phx-click="toggle_favorite"
                         phx-value-id={server.id}
@@ -550,6 +633,7 @@
                       >
                         Pin
                       </button>
+
                       <button
                         phx-click="duplicate_server"
                         phx-value-id={server.id}
@@ -558,6 +642,7 @@
                       >
                         Dup
                       </button>
+
                       <button
                         phx-click="remove_server"
                         phx-value-id={server.id}
@@ -578,7 +663,6 @@
     </div>
   </main>
 </div>
-
 <!-- Add Host Modal -->
 <%= if @add_modal do %>
   <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -587,6 +671,7 @@
         <h2 class="text-sm font-semibold text-foreground uppercase tracking-wider">
           Register SSH Host
         </h2>
+
         <button
           phx-click="close_add_modal"
           class="text-muted-foreground hover:text-foreground transition-colors text-lg leading-none"
@@ -617,6 +702,7 @@
             class="w-full h-8 px-3 bg-background border border-border focus:border-ring focus:outline-none rounded text-foreground text-xs"
           />
         </div>
+
         <div>
           <label class="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Host / IP Address</label>
           <input
@@ -629,6 +715,7 @@
             class="w-full h-8 px-3 bg-background border border-border focus:border-ring focus:outline-none rounded text-foreground text-xs"
           />
         </div>
+
         <div class="grid grid-cols-3 gap-2">
           <div class="col-span-2">
             <label class="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Default User</label>
@@ -642,6 +729,7 @@
               class="w-full h-8 px-3 bg-background border border-border focus:border-ring focus:outline-none rounded text-foreground text-xs"
             />
           </div>
+
           <div>
             <label class="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Port</label>
             <input
@@ -655,6 +743,7 @@
             />
           </div>
         </div>
+
         <div>
           <label class="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Additional Users (comma-separated)</label>
           <input
@@ -667,6 +756,7 @@
             class="w-full h-8 px-3 bg-background border border-border focus:border-ring focus:outline-none rounded text-foreground text-xs"
           />
         </div>
+
         <div>
           <label class="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Authentication Method</label>
           <select
@@ -676,17 +766,20 @@
             <option value="key" selected={@new_auth_method == "key"}>
               SSH Key Authentication
             </option>
+
             <option value="password" selected={@new_auth_method == "password"}>
               Password Authentication
             </option>
           </select>
         </div>
+
         <div>
           <label class="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
             Password {if @new_auth_method == "password",
               do: "(Required for password auth)",
               else: "(Optional, saved in vault)"}
           </label>
+
           <input
             type="password"
             name="password"
@@ -697,6 +790,7 @@
             class="w-full h-8 px-3 bg-background border border-border focus:border-ring focus:outline-none rounded text-foreground text-xs"
           />
         </div>
+
         <div class="flex items-center gap-2 pt-1">
           <input
             type="checkbox"
@@ -713,6 +807,7 @@
             Store password securely in OS Keychain
           </label>
         </div>
+
         <div class="flex gap-2 pt-3 border-t border-border">
           <button
             type="button"
@@ -721,6 +816,7 @@
           >
             Cancel
           </button>
+
           <button
             type="submit"
             class="h-8 flex-1 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-medium rounded transition-colors shadow-sm"
@@ -732,7 +828,6 @@
     </div>
   </div>
 <% end %>
-
 <!-- Connect Modal -->
 <%= if @connect_modal and @connect_server do %>
   <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -742,10 +837,12 @@
           <h2 class="text-sm font-semibold text-foreground uppercase tracking-wider">
             Connect: {@connect_server.name}
           </h2>
+
           <p class="text-[11px] text-muted-foreground mt-0.5">
             {@connect_server.host}:{@connect_server.port}
           </p>
         </div>
+
         <button
           phx-click="close_connect_modal"
           class="text-muted-foreground hover:text-foreground transition-colors text-lg leading-none"
@@ -773,6 +870,7 @@
                 {u}
               </button>
             <% end %>
+
             <button
               type="button"
               phx-click="select_connect_user"
@@ -789,9 +887,7 @@
               + Other
             </button>
           </div>
-
           <input type="hidden" name="user" value={@connect_user} />
-
           <%= if @connect_user == "custom" do %>
             <input
               type="text"
@@ -820,6 +916,7 @@
             >
               SSH Key
             </button>
+
             <button
               type="button"
               phx-click="set_connect_auth_method"
@@ -852,6 +949,7 @@
                   do: "Override Password (optional)",
                   else: "Server Password"}
               </label>
+
               <input
                 type="password"
                 name="password"
@@ -893,6 +991,7 @@
           >
             Launch Terminal
           </button>
+
           <button
             type="submit"
             name="action"
@@ -901,6 +1000,7 @@
           >
             SFTP
           </button>
+
           <button
             type="button"
             phx-click="close_connect_modal"
@@ -918,9 +1018,11 @@
   <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
     <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 font-mono">
       <h3 class="text-sm font-semibold">Save workspace</h3>
+
       <p class="text-xs text-muted-foreground">
         Groups all currently configured hosts so you can reopen them together.
       </p>
+
       <input
         type="text"
         phx-keyup="update_workspace_name"
@@ -946,6 +1048,7 @@
       class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-3 font-mono"
     >
       <h3 class="text-sm font-semibold">Port forward</h3>
+
       <select
         name="server_id"
         class="w-full h-9 bg-background border border-border rounded text-xs px-2"
@@ -954,13 +1057,16 @@
           <option value={s.id}>{s.name}</option>
         <% end %>
       </select>
+
       <select
         name="type"
         class="w-full h-9 bg-background border border-border rounded text-xs px-2"
       >
         <option value="local">Local forward</option>
+
         <option value="remote">Remote forward</option>
       </select>
+
       <input
         name="listen"
         value={@fwd_listen}
@@ -1002,6 +1108,7 @@
           class="w-full h-11 px-4 bg-background border-b border-border text-sm font-mono text-foreground focus:outline-none"
         />
       </form>
+
       <div class="max-h-[50vh] overflow-y-auto py-1">
         <%= if items == [] do %>
           <div class="px-4 py-6 text-xs text-muted-foreground font-mono">
@@ -1021,12 +1128,12 @@
                 )
               ]}
             >
-              <span>{item.label}</span>
-              <span class="text-[10px] opacity-70">{item.hint}</span>
+              <span>{item.label}</span> <span class="text-[10px] opacity-70">{item.hint}</span>
             </button>
           <% end %>
         <% end %>
       </div>
+
       <div class="px-4 py-2 border-t border-border text-[10px] font-mono text-muted-foreground">
         Ctrl+K to toggle · Enter to run · Esc to close
       </div>
