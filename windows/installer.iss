@@ -47,12 +47,12 @@ Source: "..\priv\launch-gui.bat"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\priv\launch-gui.vbs"; DestDir: "{app}\bin"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"
+Name: "{group}\{#AppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; WorkingDir: "{app}\bin"; IconFilename: "{app}\app.ico"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#AppName}"; Filename: "wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; Tasks: desktopicon; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"
+Name: "{commondesktop}\{#AppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; Tasks: desktopicon; WorkingDir: "{app}\bin"; IconFilename: "{app}\app.ico"
 
 [Run]
-Filename: "wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
+Filename: "{sys}\wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}\bin"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "{app}\bin\{#AppExeName}"; Parameters: "stop"; RunOnceId: "StopService"; Flags: nowait
