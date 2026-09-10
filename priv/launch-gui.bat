@@ -14,6 +14,13 @@ set "APP_FLAGS=--app=%URL% --user-data-dir="%USER_DATA_DIR%" --window-size=1120,
 :: 1. Health check & background daemon startup
 powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%URL%' -UseBasicParsing -TimeoutSec 1; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
+    :: Clear any stuck Erlang/OTP processes from a previous failed launch.
+    :: Without this, a zombie erl.exe causes "node name in use" and blocks every
+    :: subsequent start attempt, manifesting as the 20-second timeout error.
+    taskkill /F /IM erl.exe /T >nul 2>&1
+    taskkill /F /IM epmd.exe /T >nul 2>&1
+    timeout /t 2 /nobreak >nul
+
     set "DAEMON_BAT="
     if exist "%~dp0ssh_client.bat" (
         set "DAEMON_BAT=%~dp0ssh_client.bat"
