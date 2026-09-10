@@ -13,7 +13,8 @@ defmodule SSHClient.Vault do
   @key_len 32
   @iv_len 12
   @tag_len 16
-  @default_lock_timeout 15 * 60 * 1000 # 15 minutes
+  # 15 minutes
+  @default_lock_timeout 15 * 60 * 1000
 
   defstruct [
     :vault_file,
@@ -47,7 +48,8 @@ defmodule SSHClient.Vault do
   def status do
     GenServer.call(__MODULE__, :status)
   rescue
-    _ -> :unlocked # Fallback if GenServer not started in test env
+    # Fallback if GenServer not started in test env
+    _ -> :unlocked
   end
 
   @doc "Returns true if the vault is unlocked or uninitialized (when vault is not enforced)"
@@ -239,6 +241,7 @@ defmodule SSHClient.Vault do
     try do
       payload = Base.decode64!(ciphertext_b64)
       <<iv::binary-size(@iv_len), tag::binary-size(@tag_len), ciphertext::binary>> = payload
+
       case :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, ciphertext, "", tag, false) do
         plaintext when is_binary(plaintext) -> {:ok, plaintext}
         _ -> {:error, :decryption_failed}

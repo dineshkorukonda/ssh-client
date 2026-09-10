@@ -9,7 +9,12 @@ defmodule SSHClient.SSH.KeyDeployerTest do
 
     assert String.contains?(script, "mkdir -p ~/.ssh")
     assert String.contains?(script, "chmod 700 ~/.ssh")
-    assert String.contains?(script, "grep -qxF 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGf user@box'")
+
+    assert String.contains?(
+             script,
+             "grep -qxF 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGf user@box'"
+           )
+
     assert String.contains?(script, "chmod 600 ~/.ssh/authorized_keys")
   end
 

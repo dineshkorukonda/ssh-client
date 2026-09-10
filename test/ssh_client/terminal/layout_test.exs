@@ -169,4 +169,36 @@ defmodule SSHClient.Terminal.LayoutTest do
       assert Layout.next_pane(layout) == "sess_3"
     end
   end
+
+  describe "maximize/2 and restore/1" do
+    test "maximizes an existing pane and restores" do
+      layout =
+        Layout.new("sess_1")
+        |> Layout.split("sess_1", :horizontal, "sess_2")
+        |> Layout.maximize("sess_2")
+
+      assert layout.maximized == "sess_2"
+      assert Layout.active_pane(layout) == "sess_2"
+
+      restored = Layout.restore(layout)
+      assert restored.maximized == nil
+      assert Layout.panes(restored) == ["sess_1", "sess_2"]
+    end
+
+    test "ignores maximize of unknown pane" do
+      layout = Layout.new("sess_1") |> Layout.maximize("missing")
+      assert layout.maximized == nil
+    end
+
+    test "closing the maximized pane clears maximized" do
+      layout =
+        Layout.new("sess_1")
+        |> Layout.split("sess_1", :horizontal, "sess_2")
+        |> Layout.maximize("sess_2")
+        |> Layout.close_pane("sess_2")
+
+      assert layout.maximized == nil
+      assert Layout.panes(layout) == ["sess_1"]
+    end
+  end
 end

@@ -40,7 +40,8 @@ defmodule SSHClient.SessionWorker do
     term: "xterm-256color"
   ]
 
-  @type status :: :disconnected | :connecting | :connected | :reconnecting | :disconnecting | :error
+  @type status ::
+          :disconnected | :connecting | :connected | :reconnecting | :disconnecting | :error
 
   # ---------------------------------------------------------------------------
   # Client API
@@ -171,7 +172,12 @@ defmodule SSHClient.SessionWorker do
   end
 
   @impl true
-  def handle_call({:send_input, data}, _from, %{connection: %SSH.Connection{} = conn, channel_id: channel_id, status: :connected} = state)
+  def handle_call(
+        {:send_input, data},
+        _from,
+        %{connection: %SSH.Connection{} = conn, channel_id: channel_id, status: :connected} =
+          state
+      )
       when is_binary(data) and not is_nil(channel_id) do
     SSH.send_pty_data(conn, channel_id, data)
     {:reply, :ok, state}
@@ -182,14 +188,20 @@ defmodule SSHClient.SessionWorker do
   end
 
   @impl true
-  def handle_call({:resize, cols, rows}, _from, %{connection: %SSH.Connection{} = conn, channel_id: channel_id, status: :connected} = state)
+  def handle_call(
+        {:resize, cols, rows},
+        _from,
+        %{connection: %SSH.Connection{} = conn, channel_id: channel_id, status: :connected} =
+          state
+      )
       when is_integer(cols) and is_integer(rows) and not is_nil(channel_id) do
     SSH.resize_pty(conn, channel_id, cols, rows)
     new_buf = if state.buffer, do: Buffer.resize(state.buffer, cols, rows), else: nil
     {:reply, :ok, %{state | cols: cols, rows: rows, buffer: new_buf}}
   end
 
-  def handle_call({:resize, cols, rows}, _from, state) when is_integer(cols) and is_integer(rows) do
+  def handle_call({:resize, cols, rows}, _from, state)
+      when is_integer(cols) and is_integer(rows) do
     new_buf = if state.buffer, do: Buffer.resize(state.buffer, cols, rows), else: nil
     {:reply, :ok, %{state | cols: cols, rows: rows, buffer: new_buf}}
   end
@@ -270,6 +282,47 @@ defmodule SSHClient.SessionWorker do
     end
   end
 
+  # Connection completed message from background connection Task
+  @impl true
+  def handle_info({:connect_completed, result}, state) do
+    case result do
+      {:ok, conn, channel_id} ->
+        target_user = state.user || state.server.user || "default"
+
+        ActivityLog.info(
+          state.server.id,
+          "Session '#{state.session_id}' connected as '#{target_user}'"
+        )
+
+        new_state =
+          state
+          |> set_status(:connected)
+          |> Map.put(:connection, conn)
+          |> Map.put(:channel_id, channel_id)
+          |> Map.put(:reconnect_attempts, 0)
+          |> Map.put(:error_reason, nil)
+
+        try do
+          SSHClient.ServerManager.mark_connected(state.server.id)
+        rescue
+          _ -> :ok
+        catch
+          :exit, _ -> :ok
+        end
+
+        {:noreply, new_state}
+
+      {:error, reason} ->
+        {:noreply, handle_connect_error(state, reason)}
+    end
+  end
+
+  @impl true
+  def handle_info({:ssh_host_key_event, event_type, details}, state) do
+    broadcast(state.session_id, {:ssh_host_key_event, state.session_id, event_type, details})
+    {:noreply, state}
+  end
+
   @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
@@ -300,41 +353,36 @@ defmodule SSHClient.SessionWorker do
     cols = state.cols
     rows = state.rows
     term = state.term
+    worker_pid = self()
 
     connect_opts =
       []
       |> (fn o -> if user, do: [{:user, user} | o], else: o end).()
       |> (fn o -> if password, do: [{:password, password} | o], else: o end).()
       |> (fn o -> if auth_method, do: [{:auth_method, auth_method} | o], else: o end).()
+      |> (fn o -> [{:host_key_handler, worker_pid} | o] end).()
 
-    # SessionWorker GenServer process initiates SSH connection directly so that
-    # connection ownership, link, and {:ssh_cm, ...} channel messages are bound
-    # to this long-lived GenServer process rather than an ephemeral task.
-    case SSH.connect(server, connect_opts) do
-      {:ok, conn} ->
-        case SSH.open_pty(conn, cols: cols, rows: rows, term: term) do
-          {:ok, channel_id} ->
-            target_user = state.user || state.server.user || "default"
-            ActivityLog.info(
-              state.server.id,
-              "Session '#{state.session_id}' connected as '#{target_user}'"
-            )
+    Task.start(fn ->
+      result =
+        case SSH.connect(server, connect_opts) do
+          {:ok, conn} ->
+            case SSH.open_pty(conn, cols: cols, rows: rows, term: term) do
+              {:ok, channel_id} ->
+                {:ok, conn, channel_id}
 
-            state
-            |> set_status(:connected)
-            |> Map.put(:connection, conn)
-            |> Map.put(:channel_id, channel_id)
-            |> Map.put(:reconnect_attempts, 0)
-            |> Map.put(:error_reason, nil)
+              {:error, reason} ->
+                SSH.close(conn)
+                {:error, reason}
+            end
 
           {:error, reason} ->
-            SSH.close(conn)
-            handle_connect_error(state, reason)
+            {:error, reason}
         end
 
-      {:error, reason} ->
-        handle_connect_error(state, reason)
-    end
+      send(worker_pid, {:connect_completed, result})
+    end)
+
+    state
   end
 
   defp handle_connect_error(state, reason) do

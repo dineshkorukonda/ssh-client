@@ -23,7 +23,7 @@ defmodule SSHClientWeb.CoreComponents do
           </div>
           <div class="flex items-center gap-2">
             <span class="text-foreground font-semibold text-sm tracking-tight">ssh-client</span>
-            <span class="text-[10px] font-mono text-muted-foreground">v<%= @version %></span>
+            <span class="text-[10px] font-mono text-muted-foreground">v{@version}</span>
           </div>
         </a>
         <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">
@@ -47,9 +47,12 @@ defmodule SSHClientWeb.CoreComponents do
           <%= if @servers_count > 0 do %>
             <span class={[
               "px-1.5 py-0.2 text-[10px] rounded-full font-mono",
-              if(@current_tab == :hosts, do: "bg-secondary text-secondary-foreground", else: "bg-muted text-muted-foreground")
+              if(@current_tab == :hosts,
+                do: "bg-secondary text-secondary-foreground",
+                else: "bg-muted text-muted-foreground"
+              )
             ]}>
-              <%= @servers_count %>
+              {@servers_count}
             </span>
           <% end %>
         </a>
@@ -112,7 +115,7 @@ defmodule SSHClientWeb.CoreComponents do
         <%= if @servers_count > 0 do %>
           <div class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-muted/60 border border-border text-xs font-mono">
             <span class={"status-dot " <> if(@online_count > 0, do: "online", else: "offline")}></span>
-            <span class="text-muted-foreground text-[11px]"><%= @online_count %>/<%= @servers_count %> Online</span>
+            <span class="text-muted-foreground text-[11px]">{@online_count}/{@servers_count} Online</span>
           </div>
         <% end %>
 
@@ -125,11 +128,21 @@ defmodule SSHClientWeb.CoreComponents do
         >
           <!-- Sun Icon (shown in dark mode) -->
           <svg class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 9h1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            />
           </svg>
           <!-- Moon Icon (shown in light mode) -->
           <svg class="w-4 h-4 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            />
           </svg>
         </button>
 
@@ -140,7 +153,12 @@ defmodule SSHClientWeb.CoreComponents do
           title="Lock Master Vault"
         >
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
           </svg>
           <span class="hidden md:inline">Lock</span>
         </button>
@@ -159,13 +177,13 @@ defmodule SSHClientWeb.CoreComponents do
     ~H"""
     <div class="shadcn-card p-5 transition-colors hover:border-muted-foreground/30">
       <div class="flex items-center justify-between text-xs font-mono text-muted-foreground uppercase tracking-wider font-medium">
-        <span><%= @title %></span>
+        <span>{@title}</span>
       </div>
       <div class={["text-2xl font-bold font-mono tracking-tight mt-2 text-foreground", @accent]}>
-        <%= @value %>
+        {@value}
       </div>
       <div class="text-[11px] text-muted-foreground font-mono mt-1">
-        <%= @subtext %>
+        {@subtext}
       </div>
     </div>
     """
@@ -180,16 +198,23 @@ defmodule SSHClientWeb.CoreComponents do
       "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium font-mono tracking-wide uppercase",
       badge_class(@status)
     ]}>
-      <%= @status %>
+      {@status}
     </span>
     """
   end
 
-  defp badge_class("polling"), do: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-  defp badge_class("connected"), do: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+  defp badge_class("polling"),
+    do: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+
+  defp badge_class("connected"),
+    do: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+
   defp badge_class("connecting"), do: "bg-blue-500/10 text-blue-500 border border-blue-500/20"
   defp badge_class("degraded"), do: "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-  defp badge_class("reconnecting"), do: "bg-purple-500/10 text-purple-500 border border-purple-500/20"
+
+  defp badge_class("reconnecting"),
+    do: "bg-purple-500/10 text-purple-500 border border-purple-500/20"
+
   defp badge_class(_), do: "bg-muted text-muted-foreground border border-border"
 
   @doc "Metric bar component"
@@ -199,7 +224,7 @@ defmodule SSHClientWeb.CoreComponents do
   def metric_bar(assigns) do
     ~H"""
     <div class="flex items-center gap-2">
-      <span class="text-[11px] text-muted-foreground w-8 font-mono"><%= @label %></span>
+      <span class="text-[11px] text-muted-foreground w-8 font-mono">{@label}</span>
       <div class="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div
           class={["h-full rounded-full transition-all duration-500", bar_color(@value)]}
@@ -207,7 +232,7 @@ defmodule SSHClientWeb.CoreComponents do
         />
       </div>
       <span class="text-[11px] text-foreground w-10 text-right font-mono font-medium">
-        <%= :erlang.float_to_binary(@value + 0.0, decimals: 1) %>%
+        {:erlang.float_to_binary(@value + 0.0, decimals: 1)}%
       </span>
     </div>
     """

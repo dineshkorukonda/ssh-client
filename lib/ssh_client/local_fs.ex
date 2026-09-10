@@ -7,7 +7,9 @@ defmodule SSHClient.LocalFS do
   @doc "Returns the default starting local directory (User Home or Current Working Dir)"
   def default_path do
     case System.user_home() do
-      nil -> File.cwd!()
+      nil ->
+        File.cwd!()
+
       home ->
         downloads = Path.join(home, "Downloads")
         if File.dir?(downloads), do: downloads, else: home
@@ -91,11 +93,19 @@ defmodule SSHClient.LocalFS do
   @doc "Deletes a local file or directory"
   def delete_path(path) when is_binary(path) do
     norm = Path.expand(path)
+
     if File.dir?(norm) do
       File.rm_rf(norm)
     else
       File.rm(norm)
     end
+  end
+
+  @doc "Renames a local file or directory"
+  def rename(old_path, new_path) when is_binary(old_path) and is_binary(new_path) do
+    norm_old = Path.expand(old_path)
+    norm_new = Path.expand(new_path)
+    File.rename(norm_old, norm_new)
   end
 
   @doc "Formats bytes into human readable format"
@@ -107,11 +117,13 @@ defmodule SSHClient.LocalFS do
       true -> "#{bytes} B"
     end
   end
+
   def format_size(_), do: "0 B"
 
   defp format_mode(mode) when is_integer(mode) do
     octal = Integer.to_string(Bitwise.band(mode, 0o777), 8)
     "0" <> octal
   end
+
   defp format_mode(_), do: "0644"
 end

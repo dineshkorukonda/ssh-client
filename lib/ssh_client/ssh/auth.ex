@@ -129,7 +129,8 @@ defmodule SSHClient.SSH.Auth do
   def build_options(host_or_map, extra_opts \\ [])
 
   def build_options(%Host{} = host, extra_opts) do
-    explicit_method = Keyword.get(extra_opts, :auth_method) || host.default_auth_method || host.auth_method
+    explicit_method =
+      Keyword.get(extra_opts, :auth_method) || host.default_auth_method || host.auth_method
 
     default_order =
       if explicit_method in [:password, "password"] or Keyword.has_key?(extra_opts, :password) do
@@ -140,7 +141,7 @@ defmodule SSHClient.SSH.Auth do
 
     order =
       Keyword.get(extra_opts, :auth_order) ||
-        (if explicit_method in [:password, "password"], do: default_order, else: host.auth_order) ||
+        if(explicit_method in [:password, "password"], do: default_order, else: host.auth_order) ||
         default_order
 
     identity = host.identity_file
@@ -171,7 +172,10 @@ defmodule SSHClient.SSH.Auth do
 
     order =
       Keyword.get(extra_opts, :auth_order) ||
-        (if explicit_method in [:password, "password"], do: default_order, else: Map.get(map, :auth_order) || Map.get(map, "auth_order")) ||
+        if(explicit_method in [:password, "password"],
+          do: default_order,
+          else: Map.get(map, :auth_order) || Map.get(map, "auth_order")
+        ) ||
         default_order
 
     identity = Map.get(map, :identity_file) || Map.get(map, "identity_file")

@@ -47,7 +47,10 @@ defmodule SSHClient.UpdaterTest do
     test "selects windows zip archive for windows platform" do
       assets = [
         %{name: "ssh-client-linux-x64.tar.gz", browser_download_url: "https://example.com/linux"},
-        %{name: "ssh-client-setup-v0.0.1-windows-x64.exe", browser_download_url: "https://example.com/win_exe"},
+        %{
+          name: "ssh-client-setup-v0.0.1-windows-x64.exe",
+          browser_download_url: "https://example.com/win_exe"
+        },
         %{name: "ssh-client-windows-x64.zip", browser_download_url: "https://example.com/win_zip"}
       ]
 
@@ -57,7 +60,10 @@ defmodule SSHClient.UpdaterTest do
 
     test "selects tarball for linux platform" do
       assets = [
-        %{name: "ssh-client-setup-v0.0.1-windows-x64.exe", browser_download_url: "https://example.com/win_exe"},
+        %{
+          name: "ssh-client-setup-v0.0.1-windows-x64.exe",
+          browser_download_url: "https://example.com/win_exe"
+        },
         %{name: "ssh-client-linux-x64.tar.gz", browser_download_url: "https://example.com/linux"}
       ]
 
@@ -68,7 +74,13 @@ defmodule SSHClient.UpdaterTest do
 
   describe "build_windows_update_script/4" do
     test "generates robust script with process wait, logging, and non-interactive delay" do
-      script = Updater.build_windows_update_script("C:\\staging", "C:\\app", "C:\\staging\\update.log", 1234)
+      script =
+        Updater.build_windows_update_script(
+          "C:\\staging",
+          "C:\\app",
+          "C:\\staging\\update.log",
+          1234
+        )
 
       # 1. Non-interactive delay (no timeout command)
       refute script =~ "timeout "
@@ -97,7 +109,9 @@ defmodule SSHClient.UpdaterTest do
 
   describe "resolve_staged_payload_dir/1" do
     test "resolves directory when bin is directly inside" do
-      temp_dir = Path.join(System.tmp_dir!(), "test_stage_direct_#{:erlang.unique_integer([:positive])}")
+      temp_dir =
+        Path.join(System.tmp_dir!(), "test_stage_direct_#{:erlang.unique_integer([:positive])}")
+
       File.mkdir_p!(Path.join(temp_dir, "bin"))
       on_exit(fn -> File.rm_rf(temp_dir) end)
 
@@ -105,7 +119,9 @@ defmodule SSHClient.UpdaterTest do
     end
 
     test "resolves nested directory when archive wraps inside a root folder" do
-      temp_dir = Path.join(System.tmp_dir!(), "test_stage_nested_#{:erlang.unique_integer([:positive])}")
+      temp_dir =
+        Path.join(System.tmp_dir!(), "test_stage_nested_#{:erlang.unique_integer([:positive])}")
+
       nested_dir = Path.join(temp_dir, "ssh_client_release")
       File.mkdir_p!(Path.join(nested_dir, "bin"))
       on_exit(fn -> File.rm_rf(temp_dir) end)

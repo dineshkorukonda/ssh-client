@@ -51,6 +51,7 @@ defmodule SSHClient.SSH.KeyCallback do
   end
 
   defp normalize_host_param(host) when is_binary(host), do: host
+
   defp normalize_host_param(host) when is_list(host) do
     case host do
       [first | _] when is_binary(first) ->
@@ -67,6 +68,7 @@ defmodule SSHClient.SSH.KeyCallback do
         end
     end
   end
+
   defp normalize_host_param(host), do: to_string(host)
 
   defp extract_extra_opts(connect_opts) when is_list(connect_opts) do

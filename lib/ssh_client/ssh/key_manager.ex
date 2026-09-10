@@ -38,7 +38,16 @@ defmodule SSHClient.SSH.KeyManager do
                 case sanitize_public_key(trimmed) do
                   {:ok, clean} ->
                     comment = extract_comment(clean)
-                    [%{type: type, filename: filename, path: path, content: clean, comment: comment}]
+
+                    [
+                      %{
+                        type: type,
+                        filename: filename,
+                        path: path,
+                        content: clean,
+                        comment: comment
+                      }
+                    ]
 
                   _ ->
                     []
@@ -77,7 +86,8 @@ defmodule SSHClient.SSH.KeyManager do
     trimmed = String.trim(raw)
 
     # Valid OpenSSH key format: (key-type) (base64) (optional comment)
-    regex = ~r/^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521)\s+([A-Za-z0-9+\/=]+)(\s+[^\r\n;`$|&><]*)?$/
+    regex =
+      ~r/^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521)\s+([A-Za-z0-9+\/=]+)(\s+[^\r\n;`$|&><]*)?$/
 
     if Regex.match?(regex, trimmed) do
       {:ok, trimmed}

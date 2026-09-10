@@ -22,6 +22,7 @@ defmodule SSHClientWeb.SFTPLiveTest do
         %{name: "application.log", type: :regular, size: 20480, permissions: "0644"},
         %{name: "deploy.sh", type: :regular, size: 512, permissions: "0755"}
       ]
+
       %{entries: entries}
     end
 
@@ -41,6 +42,19 @@ defmodule SSHClientWeb.SFTPLiveTest do
 
     test "returns empty list when query does not match", %{entries: entries} do
       assert SFTPLive.filter_entries(entries, "nonexistent") == []
+    end
+
+    test "hides dotfiles unless show_hidden is true" do
+      entries = [
+        %{name: ".bashrc", type: :regular},
+        %{name: "readme.md", type: :regular}
+      ]
+
+      visible = SFTPLive.filter_entries(entries, "", false)
+      assert Enum.map(visible, & &1.name) == ["readme.md"]
+
+      all = SFTPLive.filter_entries(entries, "", true)
+      assert length(all) == 2
     end
   end
 
@@ -142,14 +156,28 @@ defmodule SSHClientWeb.SFTPLiveTest do
         theme: "dark",
         local_path: "/home/user",
         local_entries: [
-          %{name: "test.txt", path: "/home/user/test.txt", type: :regular, size: 100, permissions: "0644", mtime: {{2026, 9, 6}, {1, 0, 0}}}
+          %{
+            name: "test.txt",
+            path: "/home/user/test.txt",
+            type: :regular,
+            size: 100,
+            permissions: "0644",
+            mtime: {{2026, 9, 6}, {1, 0, 0}}
+          }
         ],
         local_filter: "",
         selected_local: nil,
         local_loading: false,
         remote_path: "/home/deploy",
         remote_entries: [
-          %{name: "app.tar.gz", path: "/home/deploy/app.tar.gz", type: :regular, size: 5000, permissions: "0644", mtime: {{2026, 9, 6}, {1, 0, 0}}}
+          %{
+            name: "app.tar.gz",
+            path: "/home/deploy/app.tar.gz",
+            type: :regular,
+            size: 5000,
+            permissions: "0644",
+            mtime: {{2026, 9, 6}, {1, 0, 0}}
+          }
         ],
         remote_filter: "",
         selected_remote: nil,

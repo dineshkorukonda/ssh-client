@@ -37,4 +37,55 @@ defmodule SSHClientWeb.TerminalLiveTest do
       assert {:noreply, _} = TerminalLive.handle_event("deploy_ssh_key", %{}, socket)
     end
   end
+
+  describe "session worker integration" do
+    test "reconnect without a live session does not crash" do
+      socket =
+        build_socket(%{
+          tabs: [
+            %{
+              id: 1,
+              title: "Shell 1",
+              session_id: nil,
+              session_pid: nil,
+              connected: false,
+              error: nil,
+              layout: nil
+            }
+          ],
+          active_tab_id: 1,
+          active_pane_id: nil,
+          server: nil,
+          server_id: "missing",
+          cols: 80,
+          rows: 24,
+          target_user: nil,
+          target_auth: nil
+        })
+
+      assert {:noreply, updated} = TerminalLive.handle_event("reconnect", %{}, socket)
+      tab = hd(updated.assigns.tabs)
+      assert tab.error =~ "not found"
+    end
+  end
+
+  describe "host key and maximize" do
+    test "reject_host_key clears prompt" do
+      socket = build_socket(%{host_key_prompt: %{type: :new_host_key, details: %{}}})
+      assert {:noreply, updated} = TerminalLive.handle_event("reject_host_key", %{}, socket)
+      assert updated.assigns.host_key_prompt == nil
+    end
+
+    test "maximize_pane is a no-op without layout" do
+      socket =
+        build_socket(%{
+          tabs: [%{id: 1, layout: nil, session_id: nil}],
+          active_tab_id: 1,
+          active_pane_id: nil
+        })
+
+      assert {:noreply, updated} = TerminalLive.handle_event("maximize_pane", %{}, socket)
+      assert hd(updated.assigns.tabs).layout == nil
+    end
+  end
 end

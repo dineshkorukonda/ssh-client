@@ -78,6 +78,26 @@ defmodule SSHClient.SessionManager do
     end
   end
 
+  @doc """
+  Lists active sessions whose target server id matches `server_id`.
+  """
+  def list_for_server(server_id), do: list_for_server(@name, server_id)
+
+  def list_for_server(manager, server_id) when is_pid(manager) or is_atom(manager) do
+    target = to_string(server_id)
+
+    Enum.filter(list_sessions(manager), fn entry ->
+      sid =
+        cond do
+          is_struct(entry.server) -> entry.server.id
+          is_map(entry.server) -> Map.get(entry.server, :id) || Map.get(entry.server, "id")
+          true -> nil
+        end
+
+      to_string(sid) == target
+    end)
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer Callbacks
   # ---------------------------------------------------------------------------

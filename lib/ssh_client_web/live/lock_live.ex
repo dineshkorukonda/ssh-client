@@ -93,12 +93,32 @@ defmodule SSHClientWeb.LockLive do
           title="Toggle Dark / Light Theme"
         >
           <!-- Moon icon for dark mode -->
-          <svg class="w-4 h-4 hidden dark:block text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          <svg
+            class="w-4 h-4 hidden dark:block text-foreground"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            />
           </svg>
           <!-- Sun icon for light mode -->
-          <svg class="w-4 h-4 block dark:hidden text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          <svg
+            class="w-4 h-4 block dark:hidden text-foreground"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            />
           </svg>
         </button>
       </div>
@@ -107,7 +127,11 @@ defmodule SSHClientWeb.LockLive do
         <!-- Brand Header -->
         <div class="flex flex-col items-center text-center space-y-2">
           <div class="flex items-center gap-2.5">
-            <img src="/images/icon.png" alt="Logo" class="w-8 h-8 rounded-lg border border-border shadow-xs" />
+            <img
+              src="/images/icon.png"
+              alt="Logo"
+              class="w-8 h-8 rounded-lg border border-border shadow-xs"
+            />
             <span class="text-foreground font-bold text-base tracking-tight font-sans">ssh-client</span>
             <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-primary/10 text-primary border border-primary/20">BETA</span>
           </div>
@@ -116,7 +140,7 @@ defmodule SSHClientWeb.LockLive do
 
         <%= if @error do %>
           <div class="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs font-mono">
-            <%= @error %>
+            {@error}
           </div>
         <% end %>
 
@@ -124,8 +148,12 @@ defmodule SSHClientWeb.LockLive do
           <!-- First Time Setup -->
           <form phx-submit="init_vault" class="space-y-4 font-mono text-xs">
             <div class="text-center pb-1">
-              <h2 class="text-xs font-semibold text-foreground uppercase tracking-wider">Initialize Master Vault</h2>
-              <p class="text-[11px] text-muted-foreground mt-1">Set a master passphrase to encrypt local credentials and private keys.</p>
+              <h2 class="text-xs font-semibold text-foreground uppercase tracking-wider">
+                Initialize Master Vault
+              </h2>
+              <p class="text-[11px] text-muted-foreground mt-1">
+                Set a master passphrase to encrypt local credentials and private keys.
+              </p>
             </div>
 
             <div class="space-y-1">
@@ -162,8 +190,12 @@ defmodule SSHClientWeb.LockLive do
           <!-- Unlock Screen -->
           <form phx-submit="unlock_vault" class="space-y-4 font-mono text-xs">
             <div class="text-center pb-1">
-              <h2 class="text-xs font-semibold text-foreground uppercase tracking-wider">Vault Locked</h2>
-              <p class="text-[11px] text-muted-foreground mt-1">Enter your master passphrase to decrypt stored hosts and credentials.</p>
+              <h2 class="text-xs font-semibold text-foreground uppercase tracking-wider">
+                Vault Locked
+              </h2>
+              <p class="text-[11px] text-muted-foreground mt-1">
+                Enter your master passphrase to decrypt stored hosts and credentials.
+              </p>
             </div>
 
             <div class="space-y-1">
@@ -225,4 +257,3 @@ defmodule SSHClientWeb.LockLive do
     """
   end
 end
-

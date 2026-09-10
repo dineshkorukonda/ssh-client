@@ -19,8 +19,12 @@ defmodule SSHClient.SSH.KeyDeployer do
       {:ok, clean_key} ->
         script =
           "sh -c 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && " <>
-            "(grep -qxF " <> escape_shell_arg(clean_key) <> " ~/.ssh/authorized_keys 2>/dev/null || " <>
-            "echo " <> escape_shell_arg(clean_key) <> " >> ~/.ssh/authorized_keys) && " <>
+            "(grep -qxF " <>
+            escape_shell_arg(clean_key) <>
+            " ~/.ssh/authorized_keys 2>/dev/null || " <>
+            "echo " <>
+            escape_shell_arg(clean_key) <>
+            " >> ~/.ssh/authorized_keys) && " <>
             "chmod 600 ~/.ssh/authorized_keys'"
 
         {:ok, script}
@@ -76,6 +80,7 @@ defmodule SSHClient.SSH.KeyDeployer do
             end)
 
           Config.save_file(%{cfg | servers: updated_servers}, Config.default_config_path())
+
           try do
             ServerManager.sync_config(updated_servers)
           rescue

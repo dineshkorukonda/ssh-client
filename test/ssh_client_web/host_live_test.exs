@@ -74,7 +74,9 @@ defmodule SSHClientWeb.HostLiveTest do
           custom_user: ""
         })
 
-      assert {:noreply, updated} = HostLive.handle_event("open_connect_modal", %{"id" => "srv-multi"}, socket)
+      assert {:noreply, updated} =
+               HostLive.handle_event("open_connect_modal", %{"id" => "srv-multi"}, socket)
+
       assert updated.assigns.connect_modal == true
       assert updated.assigns.connect_server == server
       assert updated.assigns.connect_user == "ubuntu"
@@ -104,7 +106,9 @@ defmodule SSHClientWeb.HostLiveTest do
           has_saved_password: false
         })
 
-      assert {:noreply, updated} = HostLive.handle_event("select_connect_user", %{"user" => "root"}, socket)
+      assert {:noreply, updated} =
+               HostLive.handle_event("select_connect_user", %{"user" => "root"}, socket)
+
       assert updated.assigns.connect_user == "root"
     end
 
@@ -114,10 +118,14 @@ defmodule SSHClientWeb.HostLiveTest do
           connect_auth_method: :key
         })
 
-      assert {:noreply, updated} = HostLive.handle_event("set_connect_auth_method", %{"method" => "password"}, socket)
+      assert {:noreply, updated} =
+               HostLive.handle_event("set_connect_auth_method", %{"method" => "password"}, socket)
+
       assert updated.assigns.connect_auth_method == :password
 
-      assert {:noreply, updated_key} = HostLive.handle_event("set_connect_auth_method", %{"method" => "key"}, updated)
+      assert {:noreply, updated_key} =
+               HostLive.handle_event("set_connect_auth_method", %{"method" => "key"}, updated)
+
       assert updated_key.assigns.connect_auth_method == :key
     end
   end
@@ -227,6 +235,73 @@ defmodule SSHClientWeb.HostLiveTest do
       assert updated.assigns.add_modal == false
 
       assert {:ok, "test-pwd"} = SSHClient.Keychain.retrieve("appuser@secured-vault")
+    end
+  end
+
+  describe "terminal pane events" do
+    test "pane_data without a session is a no-op" do
+      socket =
+        build_socket(%{
+          servers: [],
+          tabs: [],
+          active_tab_id: nil,
+          active_pane_id: "sess_missing",
+          command_palette_open: false,
+          command_palette_query: "",
+          command_palette_index: 0
+        })
+
+      assert {:noreply, ^socket} =
+               HostLive.handle_event(
+                 "pane_data",
+                 %{"pane_id" => "sess_missing", "data" => "ls\n"},
+                 socket
+               )
+    end
+
+    test "toggle_command_palette opens and closes" do
+      socket =
+        build_socket(%{
+          servers: [],
+          command_palette_open: false,
+          command_palette_query: "x",
+          command_palette_index: 2
+        })
+
+      assert {:noreply, opened} = HostLive.handle_event("toggle_command_palette", %{}, socket)
+      assert opened.assigns.command_palette_open
+      assert opened.assigns.command_palette_query == ""
+
+      assert {:noreply, closed} = HostLive.handle_event("close_command_palette", %{}, opened)
+      refute closed.assigns.command_palette_open
+    end
+  end
+
+  describe "workspace and pane chrome" do
+    test "workspace modal open and close" do
+      socket =
+        build_socket(%{
+          workspace_modal: false,
+          workspace_name: "old"
+        })
+
+      assert {:noreply, opened} = HostLive.handle_event("open_workspace_modal", %{}, socket)
+      assert opened.assigns.workspace_modal
+      assert opened.assigns.workspace_name == ""
+
+      assert {:noreply, closed} = HostLive.handle_event("close_workspace_modal", %{}, opened)
+      refute closed.assigns.workspace_modal
+    end
+
+    test "maximize_pane is a no-op without a tab layout" do
+      socket =
+        build_socket(%{
+          tabs: [],
+          active_tab_id: nil,
+          active_pane_id: nil
+        })
+
+      assert {:noreply, ^socket} = HostLive.handle_event("maximize_pane", %{}, socket)
     end
   end
 end

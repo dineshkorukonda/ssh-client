@@ -1,6 +1,9 @@
 defmodule SSHClient.TerminalSupervisor do
   @moduledoc """
   DynamicSupervisor managing active PTY terminal sessions.
+
+  Note: Deprecated for interactive web terminals in favor of `SSHClient.SessionSupervisor`
+  and `SSHClient.SessionManager`. Maintained for socket API compatibility.
   """
 
   use DynamicSupervisor

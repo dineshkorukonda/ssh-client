@@ -40,7 +40,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       assert {:noreply, updated} =
-               HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+               HostLive.handle_event(
+                 "open_terminal",
+                 %{"id" => server.id, "auto_connect" => false},
+                 socket
+               )
 
       assert length(updated.assigns.tabs) == 1
       tab = hd(updated.assigns.tabs)
@@ -59,11 +63,17 @@ defmodule SSHClientWeb.SplitTerminalTest do
       end)
     end
 
-    test "split_right creates a new independent SessionWorker and updates layout to split_h", %{server: server} do
+    test "split_right creates a new independent SessionWorker and updates layout to split_h", %{
+      server: server
+    } do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       initial_tab = hd(socket.assigns.tabs)
       sess_1 = Layout.active_pane(initial_tab.layout)
@@ -90,11 +100,17 @@ defmodule SSHClientWeb.SplitTerminalTest do
       end)
     end
 
-    test "split_down creates a new independent SessionWorker and updates layout to split_v", %{server: server} do
+    test "split_down creates a new independent SessionWorker and updates layout to split_v", %{
+      server: server
+    } do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       initial_tab = hd(socket.assigns.tabs)
       sess_1 = Layout.active_pane(initial_tab.layout)
@@ -123,7 +139,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
         HostLive.handle_event("split_right", %{"auto_connect" => false}, socket)
@@ -154,7 +174,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
         HostLive.handle_event("split_right", %{"auto_connect" => false}, socket)
@@ -162,7 +186,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       [sess_1, sess_2] = Layout.panes(hd(socket.assigns.tabs).layout)
 
       assert {:noreply, socket} =
-               HostLive.handle_event("swap_panes", %{"pane_a" => sess_1, "pane_b" => sess_2}, socket)
+               HostLive.handle_event(
+                 "swap_panes",
+                 %{"pane_a" => sess_1, "pane_b" => sess_2},
+                 socket
+               )
 
       assert Layout.panes(hd(socket.assigns.tabs).layout) == [sess_2, sess_1]
 
@@ -176,7 +204,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
         HostLive.handle_event("split_right", %{"auto_connect" => false}, socket)
@@ -209,10 +241,18 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server, server2]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       {:noreply, socket} =
-        HostLive.handle_event("new_tab", %{"server_id" => server2.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "new_tab",
+          %{"server_id" => server2.id, "auto_connect" => false},
+          socket
+        )
 
       assert length(socket.assigns.tabs) == 2
       assert socket.assigns.active_tab_id == 2
@@ -239,7 +279,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       pane_id = socket.assigns.active_pane_id
 
@@ -260,7 +304,11 @@ defmodule SSHClientWeb.SplitTerminalTest do
       socket = build_socket(%{servers: [server]})
 
       {:noreply, socket} =
-        HostLive.handle_event("open_terminal", %{"id" => server.id, "auto_connect" => false}, socket)
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
 
       pane_id = socket.assigns.active_pane_id
 
@@ -273,6 +321,100 @@ defmodule SSHClientWeb.SplitTerminalTest do
       on_exit(fn ->
         SessionManager.close_session(pane_id)
       end)
+    end
+
+    test "persists layout to Store on open, split, maximize, and restore", %{server: server} do
+      alias SSHClient.Store
+
+      socket = build_socket(%{servers: [server]})
+
+      {:noreply, socket} =
+        HostLive.handle_event(
+          "open_terminal",
+          %{"id" => server.id, "auto_connect" => false},
+          socket
+        )
+
+      saved = Store.get(:sessions, "host_live")
+      assert saved != nil
+      assert length(saved["tabs"]) == 1
+      assert hd(saved["tabs"])["layout_type"] == "single"
+
+      # Split right
+      {:noreply, socket} =
+        HostLive.handle_event("split_right", %{"auto_connect" => false}, socket)
+
+      saved_split = Store.get(:sessions, "host_live")
+      assert hd(saved_split["tabs"])["layout_type"] == "split_h"
+      assert hd(saved_split["tabs"])["pane_count"] == 2
+
+      # Maximize
+      {:noreply, socket} = HostLive.handle_event("maximize_pane", %{}, socket)
+      saved_max = Store.get(:sessions, "host_live")
+      assert hd(saved_max["tabs"])["maximized"] != nil
+
+      # Restore
+      {:noreply, socket} = HostLive.handle_event("restore_panes", %{}, socket)
+      saved_rest = Store.get(:sessions, "host_live")
+      assert is_nil(hd(saved_rest["tabs"])["maximized"])
+
+      # Close tab
+      tab_id = to_string(hd(socket.assigns.tabs).id)
+      {:noreply, _socket} = HostLive.handle_event("close_tab", %{"id" => tab_id}, socket)
+      assert is_nil(Store.get(:sessions, "host_live"))
+    end
+
+    test "crash recovery restores disconnected tabs", %{server: server} do
+      alias SSHClient.Store
+
+      socket =
+        build_socket(%{
+          servers: [server],
+          crash_recovery: %{
+            tabs: [
+              %{
+                "id" => 1,
+                "title" => server.name,
+                "server_id" => server.id,
+                "layout_type" => "split_h",
+                "pane_count" => 2,
+                "pane_ids" => ["dead-pane-1", "dead-pane-2"],
+                "active_pane" => "dead-pane-1",
+                "maximized" => nil
+              }
+            ],
+            count: 1,
+            workspace_id: nil,
+            workspace_name: nil
+          }
+        })
+
+      {:noreply, recovered} =
+        HostLive.handle_event("restore_crash_session", %{"reconnect" => "false"}, socket)
+
+      assert length(recovered.assigns.tabs) == 1
+      recovered_tab = hd(recovered.assigns.tabs)
+      assert recovered_tab.layout.type == :split_h
+      assert length(recovered_tab.layout.panes) == 2
+      assert is_nil(recovered.assigns.crash_recovery)
+
+      Enum.each(recovered_tab.layout.panes, fn pane_id ->
+        assert SessionManager.has_session?(pane_id)
+        SessionManager.close_session(pane_id)
+      end)
+    end
+
+    test "dismiss_crash_recovery deletes state from Store", %{server: _server} do
+      alias SSHClient.Store
+
+      Store.put(:sessions, "host_live", %{"id" => "host_live", "tabs" => []})
+      assert Store.get(:sessions, "host_live") != nil
+
+      socket = build_socket(%{crash_recovery: %{tabs: [], count: 0}})
+
+      {:noreply, dismissed} = HostLive.handle_event("dismiss_crash_recovery", %{}, socket)
+      assert is_nil(dismissed.assigns.crash_recovery)
+      assert is_nil(Store.get(:sessions, "host_live"))
     end
   end
 end

@@ -13,7 +13,11 @@ defmodule SSHClient.Config.Server do
     :user,
     :proxy_jump,
     :identity_file,
+    :last_connected_at,
     users: [],
+    tags: [],
+    notes: "",
+    favorite: false,
     default_auth_method: :key,
     auth_order: [:key, :password, :keyboard_interactive],
     port: 22,
@@ -30,6 +34,10 @@ defmodule SSHClient.Config.Server do
           port: pos_integer(),
           proxy_jump: String.t() | nil,
           identity_file: String.t() | nil,
+          tags: list(String.t()),
+          notes: String.t(),
+          favorite: boolean(),
+          last_connected_at: String.t() | nil,
           auth_order: list(atom()),
           checks: list(Check.t())
         }
@@ -48,10 +56,13 @@ defmodule SSHClient.Config.Server do
       raw_users = Map.get(attrs, "users") || Map.get(attrs, :users)
 
       users = parse_users(raw_users, raw_user)
-      user = if raw_user && to_string(raw_user) != "", do: to_string(raw_user), else: List.first(users)
+
+      user =
+        if raw_user && to_string(raw_user) != "", do: to_string(raw_user), else: List.first(users)
 
       proxy_jump =
-        Map.get(attrs, "ProxyJump") || Map.get(attrs, "proxy_jump") || Map.get(attrs, :proxy_jump) || Map.get(attrs, "proxyjump")
+        Map.get(attrs, "ProxyJump") || Map.get(attrs, "proxy_jump") || Map.get(attrs, :proxy_jump) ||
+          Map.get(attrs, "proxyjump")
 
       identity_file =
         Map.get(attrs, "identity_file") || Map.get(attrs, :identity_file) ||
@@ -59,6 +70,17 @@ defmodule SSHClient.Config.Server do
 
       auth_order = parse_auth_order(attrs)
       default_auth_method = parse_default_auth_method(attrs)
+      tags = parse_tags(attrs)
+      notes = to_string(Map.get(attrs, "notes") || Map.get(attrs, :notes) || "")
+
+      favorite =
+        parse_boolean(
+          Map.get(attrs, "favorite") || Map.get(attrs, :favorite) || Map.get(attrs, "pinned") ||
+            Map.get(attrs, :pinned)
+        )
+
+      last_connected_at =
+        Map.get(attrs, "last_connected_at") || Map.get(attrs, :last_connected_at)
 
       server = %__MODULE__{
         id: to_string(id),
@@ -70,6 +92,10 @@ defmodule SSHClient.Config.Server do
         port: port,
         proxy_jump: proxy_jump && to_string(proxy_jump),
         identity_file: identity_file && to_string(identity_file),
+        tags: tags,
+        notes: notes,
+        favorite: favorite,
+        last_connected_at: last_connected_at && to_string(last_connected_at),
         auth_order: auth_order,
         checks: checks
       }
@@ -84,6 +110,7 @@ defmodule SSHClient.Config.Server do
 
   defp fetch_host(attrs) when is_map(attrs) do
     host = Map.get(attrs, "host") || Map.get(attrs, :host)
+
     cond do
       is_binary(host) and byte_size(String.trim(host)) > 0 ->
         {:ok, String.trim(host)}
@@ -98,6 +125,7 @@ defmodule SSHClient.Config.Server do
 
   defp parse_port(attrs) when is_map(attrs) do
     port = Map.get(attrs, "port") || Map.get(attrs, :port)
+
     cond do
       is_nil(port) ->
         {:ok, 22}
@@ -118,6 +146,7 @@ defmodule SSHClient.Config.Server do
 
   defp parse_checks(attrs) when is_map(attrs) do
     checks = Map.get(attrs, "checks") || Map.get(attrs, :checks)
+
     cond do
       is_nil(checks) ->
         {:ok, []}
@@ -215,5 +244,32 @@ defmodule SSHClient.Config.Server do
       "password" -> :password
       _ -> :key
     end
+  end
+
+  defp parse_tags(attrs) do
+    val = Map.get(attrs, "tags") || Map.get(attrs, :tags)
+
+    case val do
+      list when is_list(list) ->
+        list
+        |> Enum.map(&to_string/1)
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.uniq()
+
+      str when is_binary(str) ->
+        str
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.uniq()
+
+      _ ->
+        []
+    end
+  end
+
+  defp parse_boolean(val) do
+    val in [true, "true", "1", 1, "yes"]
   end
 end

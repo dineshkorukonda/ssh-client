@@ -1,15 +1,21 @@
 <main class="h-full bg-background text-foreground">
   <%= if msg = Phoenix.Flash.get(@flash, :info) do %>
     <div class="toast toast-top toast-end z-50">
-      <div class="alert bg-card text-card-foreground border border-border shadow-lg text-xs font-mono" role="alert">
-        <span><%= msg %></span>
+      <div
+        class="alert bg-card text-card-foreground border border-border shadow-lg text-xs font-mono"
+        role="alert"
+      >
+        <span>{msg}</span>
       </div>
     </div>
   <% end %>
   <%= if msg = Phoenix.Flash.get(@flash, :error) do %>
     <div class="toast toast-top toast-end z-50">
-      <div class="alert bg-destructive/10 text-destructive border border-destructive/20 shadow-lg text-xs font-mono" role="alert">
-        <span><%= msg %></span>
+      <div
+        class="alert bg-destructive/10 text-destructive border border-destructive/20 shadow-lg text-xs font-mono"
+        role="alert"
+      >
+        <span>{msg}</span>
       </div>
     </div>
   <% end %>

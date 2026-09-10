@@ -21,7 +21,7 @@ defmodule SSHClientWeb.PageLive do
   def render(assigns) do
     ~H"""
     <div class="flex items-center justify-center h-full bg-[#050505] text-zinc-400 text-sm font-mono">
-      ssh-client v<%= @version %> — <%= @platform %>
+      ssh-client v{@version} — {@platform}
     </div>
     """
   end

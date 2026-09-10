@@ -83,7 +83,10 @@ defmodule SSHClient.Updater do
       {:ok, data} when is_map(data) ->
         latest_tag = Map.get(data, "tag_name", "v#{@current_version}")
         latest_version = String.trim_leading(latest_tag, "v")
-        html_url = Map.get(data, "html_url", "https://github.com/#{@repo_owner}/#{@repo_name}/releases")
+
+        html_url =
+          Map.get(data, "html_url", "https://github.com/#{@repo_owner}/#{@repo_name}/releases")
+
         published_at = Map.get(data, "published_at")
         body_notes = Map.get(data, "body", "")
 
@@ -92,6 +95,7 @@ defmodule SSHClient.Updater do
           |> Map.get("assets", [])
           |> Enum.map(fn asset ->
             name = Map.get(asset, "name", "")
+
             %{
               name: name,
               browser_download_url: Map.get(asset, "browser_download_url", ""),
@@ -309,7 +313,8 @@ defmodule SSHClient.Updater do
     bat_content = build_windows_update_script(win_staged, win_target, win_log, current_pid)
     File.write!(bat_path, bat_content)
 
-    ps_command = "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', '\"#{bat_path}\"' -WindowStyle Hidden"
+    ps_command =
+      "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', '\"#{bat_path}\"' -WindowStyle Hidden"
 
     case System.cmd("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps_command]) do
       {_, 0} ->
@@ -461,6 +466,7 @@ defmodule SSHClient.Updater do
       case {detect_os(), ext} do
         {:windows, ".exe"} ->
           target_dir = app_root_dir()
+
           args = [
             "/c",
             "start",
@@ -557,7 +563,9 @@ defmodule SSHClient.Updater do
           ssl: [verify: :verify_none]
         ]
 
-        case :httpc.request(:get, {String.to_charlist(url), headers}, http_opts, body_format: :binary) do
+        case :httpc.request(:get, {String.to_charlist(url), headers}, http_opts,
+               body_format: :binary
+             ) do
           {:ok, {{_, 200, _}, _, body}} -> {:ok, body}
           {:ok, {{_, 404, _}, _, _}} -> {:error, :not_found}
           {:ok, {{_, status, _}, _, _}} -> {:error, "HTTP status #{status}"}
@@ -632,7 +640,10 @@ defmodule SSHClient.Updater do
       {_, 0} ->
         if File.exists?(target_path) and File.stat!(target_path).size > 0 do
           size = File.stat!(target_path).size
-          if is_pid(caller_pid), do: send(caller_pid, {:update_download_progress, 100, size, size})
+
+          if is_pid(caller_pid),
+            do: send(caller_pid, {:update_download_progress, 100, size, size})
+
           {:ok, target_path}
         else
           {:error, "Downloaded file is empty"}
@@ -655,7 +666,10 @@ defmodule SSHClient.Updater do
       {_, 0} ->
         if File.exists?(target_path) and File.stat!(target_path).size > 0 do
           size = File.stat!(target_path).size
-          if is_pid(caller_pid), do: send(caller_pid, {:update_download_progress, 100, size, size})
+
+          if is_pid(caller_pid),
+            do: send(caller_pid, {:update_download_progress, 100, size, size})
+
           {:ok, target_path}
         else
           {:error, "Downloaded file is empty"}
@@ -678,11 +692,16 @@ defmodule SSHClient.Updater do
         headers = [{~c"User-Agent", ~c"ssh-client/#{@current_version}"}]
         http_opts = [timeout: 60000, connect_timeout: 10000, ssl: [verify: :verify_none]]
 
-        case :httpc.request(:get, {String.to_charlist(url), headers}, http_opts, body_format: :binary) do
+        case :httpc.request(:get, {String.to_charlist(url), headers}, http_opts,
+               body_format: :binary
+             ) do
           {:ok, {{_, 200, _}, _, body}} ->
             File.write!(target_path, body)
             size = byte_size(body)
-            if is_pid(caller_pid), do: send(caller_pid, {:update_download_progress, 100, size, size})
+
+            if is_pid(caller_pid),
+              do: send(caller_pid, {:update_download_progress, 100, size, size})
+
             {:ok, target_path}
 
           {:ok, {{_, status, _}, _, _}} ->

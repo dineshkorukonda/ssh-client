@@ -114,7 +114,9 @@ defmodule SSHClientWeb.LogsLive do
         <!-- Header & Action Toolbar -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
           <div>
-            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">Activity & Telemetry Logs</h1>
+            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">
+              Activity & Telemetry Logs
+            </h1>
             <p class="text-xs text-muted-foreground font-mono mt-0.5">
               Real-time audit stream of SSH connections, authentication attempts, SFTP operations, and worker polling.
             </p>
@@ -129,7 +131,9 @@ defmodule SSHClientWeb.LogsLive do
             >
               <option value="all" selected={@selected_server == "all"}>All Hosts</option>
               <%= for server_id <- @servers do %>
-                <option value={server_id} selected={@selected_server == server_id}><%= server_id %></option>
+                <option value={server_id} selected={@selected_server == server_id}>
+                  {server_id}
+                </option>
               <% end %>
             </select>
 
@@ -139,21 +143,33 @@ defmodule SSHClientWeb.LogsLive do
                 <button
                   phx-click="filter_level"
                   phx-value-level={lvl}
-                  class={["px-2.5 py-1 text-xs rounded font-mono font-medium transition-all",
+                  class={[
+                    "px-2.5 py-1 text-xs rounded font-mono font-medium transition-all",
                     if(@selected_level == lvl,
                       do: "bg-background text-foreground shadow-xs",
                       else: "text-muted-foreground hover:text-foreground"
-                    )]}
+                    )
+                  ]}
                 >
-                  <%= label %>
+                  {label}
                 </button>
               <% end %>
             </div>
 
             <!-- Search input -->
             <div class="relative">
-              <svg class="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg
+                class="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground pointer-events-none"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
               <input
                 type="text"
@@ -178,15 +194,25 @@ defmodule SSHClientWeb.LogsLive do
         <!-- Log entries container -->
         <div class="flex-1 bg-card border border-border rounded-xl shadow-xs overflow-hidden flex flex-col min-h-[500px]">
           <div class="px-4 py-2.5 bg-muted/40 border-b border-border flex items-center justify-between font-mono text-xs text-muted-foreground shrink-0">
-            <span>Displaying <%= length(@filtered_logs) %> of <%= length(@logs) %> events</span>
+            <span>Displaying {length(@filtered_logs)} of {length(@logs)} events</span>
             <span class="text-[11px]">Live WebSocket Feed Connected</span>
           </div>
 
           <div class="flex-1 overflow-auto p-3">
             <%= if @filtered_logs == [] do %>
               <div class="flex flex-col items-center justify-center h-80 gap-2 text-muted-foreground text-xs font-mono">
-                <svg class="w-8 h-8 text-muted-foreground/40 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  class="w-8 h-8 text-muted-foreground/40 mb-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.5"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
                 <span class="font-medium text-foreground">No log events recorded</span>
                 <span class="text-[11px] max-w-sm text-center">Connection attempts, background health checks, and errors will automatically stream here.</span>
@@ -201,24 +227,33 @@ defmodule SSHClientWeb.LogsLive do
                   >
                     <!-- Timestamp -->
                     <span class="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-                      <%= format_timestamp(entry.timestamp) %>
+                      {format_timestamp(entry.timestamp)}
                     </span>
 
                     <!-- Level Badge -->
-                    <span class={["px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider shrink-0 border", level_badge_class(entry.level)]}>
-                      <%= entry.level %>
+                    <span class={[
+                      "px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider shrink-0 border",
+                      level_badge_class(entry.level)
+                    ]}>
+                      {entry.level}
                     </span>
 
                     <!-- Host Badge -->
                     <%= if entry.server_id do %>
                       <span class="px-2 py-0.5 rounded text-[11px] bg-primary/10 text-primary border border-primary/20 shrink-0 font-medium">
-                        <%= entry.server_id %>
+                        {entry.server_id}
                       </span>
                     <% end %>
 
                     <!-- Message -->
-                    <span class={["flex-1 truncate font-mono", if(entry.level == :error, do: "text-destructive font-semibold", else: "text-foreground")]}>
-                      <%= entry.message %>
+                    <span class={[
+                      "flex-1 truncate font-mono",
+                      if(entry.level == :error,
+                        do: "text-destructive font-semibold",
+                        else: "text-foreground"
+                      )
+                    ]}>
+                      {entry.message}
                     </span>
 
                     <!-- Details indicator -->
@@ -241,14 +276,25 @@ defmodule SSHClientWeb.LogsLive do
           <div class="bg-card border border-border text-foreground rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
             <div class="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
               <div class="flex items-center gap-2.5">
-                <span class={["px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border", level_badge_class(@selected_entry.level)]}>
-                  <%= @selected_entry.level %>
+                <span class={[
+                  "px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border",
+                  level_badge_class(@selected_entry.level)
+                ]}>
+                  {@selected_entry.level}
                 </span>
                 <h3 class="text-sm font-semibold text-foreground">Log Event Details</h3>
               </div>
-              <button phx-click="close_details" class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <button
+                phx-click="close_details"
+                class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -257,13 +303,15 @@ defmodule SSHClientWeb.LogsLive do
               <div class="grid grid-cols-2 gap-4">
                 <div class="p-3 bg-muted/40 rounded-lg border border-border/60">
                   <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Timestamp</span>
-                  <span class="text-foreground font-semibold"><%= DateTime.to_iso8601(@selected_entry.timestamp) %></span>
+                  <span class="text-foreground font-semibold">{DateTime.to_iso8601(
+                    @selected_entry.timestamp
+                  )}</span>
                 </div>
 
                 <%= if @selected_entry.server_id do %>
                   <div class="p-3 bg-muted/40 rounded-lg border border-border/60">
                     <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Host Target</span>
-                    <span class="text-primary font-semibold"><%= @selected_entry.server_id %></span>
+                    <span class="text-primary font-semibold">{@selected_entry.server_id}</span>
                   </div>
                 <% end %>
               </div>
@@ -271,7 +319,7 @@ defmodule SSHClientWeb.LogsLive do
               <div>
                 <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Message</span>
                 <div class="p-3 bg-background border border-border rounded-lg text-foreground break-all">
-                  <%= @selected_entry.message %>
+                  {@selected_entry.message}
                 </div>
               </div>
 
@@ -314,6 +362,7 @@ defmodule SSHClientWeb.LogsLive do
   defp match_level_filter?(level, filter), do: Atom.to_string(level) == filter
 
   defp match_query_filter?(_entry, ""), do: true
+
   defp match_query_filter?(entry, q) do
     query_down = String.downcase(q)
     msg_down = String.downcase(entry.message || "")
@@ -331,8 +380,12 @@ defmodule SSHClientWeb.LogsLive do
 
   defp format_timestamp(_), do: ""
 
-  defp level_badge_class(:info), do: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-  defp level_badge_class(:warn), do: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+  defp level_badge_class(:info),
+    do: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+
+  defp level_badge_class(:warn),
+    do: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+
   defp level_badge_class(:error), do: "bg-destructive/10 text-destructive border-destructive/20"
   defp level_badge_class(_), do: "bg-muted text-muted-foreground border-border"
 

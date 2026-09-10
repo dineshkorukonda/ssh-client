@@ -3,9 +3,13 @@ defmodule SSHClientWeb.SettingsLiveTest do
 
   alias SSHClientWeb.SettingsLive
 
-  test "module defines valid mount and event handlers" do
-    assert Code.ensure_loaded?(SettingsLive)
-    assert function_exported?(SettingsLive, :mount, 3)
-    assert function_exported?(SettingsLive, :handle_event, 3)
+  test "export_diagnostics assigns redacted JSON" do
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{diagnostics_json: nil, __changed__: %{}}
+    }
+
+    assert {:noreply, updated} = SettingsLive.handle_event("export_diagnostics", %{}, socket)
+    assert is_binary(updated.assigns.diagnostics_json)
+    assert updated.assigns.diagnostics_json =~ "version"
   end
 end

@@ -16,12 +16,14 @@ defmodule SSHClient.Terminal.Layout do
   @type t :: %__MODULE__{
           type: topology(),
           panes: [pane_id()],
-          active_pane: pane_id() | nil
+          active_pane: pane_id() | nil,
+          maximized: pane_id() | nil
         }
 
   defstruct type: :single,
             panes: [],
-            active_pane: nil
+            active_pane: nil,
+            maximized: nil
 
   @doc """
   Creates a new layout starting with a single active pane.
@@ -68,11 +70,7 @@ defmodule SSHClient.Terminal.Layout do
       new_panes = insert_after(panes, target_pane_id, new_session_id)
       new_type = compute_topology(new_panes, direction)
 
-      %{layout |
-        type: new_type,
-        panes: new_panes,
-        active_pane: new_session_id
-      }
+      %{layout | type: new_type, panes: new_panes, active_pane: new_session_id}
     end
   end
 
@@ -92,18 +90,27 @@ defmodule SSHClient.Terminal.Layout do
 
       new_type =
         case length(new_panes) do
-          0 -> :single
-          1 -> :single
+          0 ->
+            :single
+
+          1 ->
+            :single
+
           2 ->
             if layout.type == :split_v, do: :split_v, else: :split_h
-          _ -> :grid
+
+          _ ->
+            :grid
         end
 
-      %{layout |
-        type: new_type,
-        panes: new_panes,
-        active_pane: new_active
-      }
+      maximized =
+        if layout.maximized && layout.maximized in new_panes do
+          layout.maximized
+        else
+          nil
+        end
+
+      %{layout | type: new_type, panes: new_panes, active_pane: new_active, maximized: maximized}
     else
       layout
     end
@@ -130,6 +137,21 @@ defmodule SSHClient.Terminal.Layout do
   end
 
   @doc """
+  Maximizes a pane (hides others). Pass nil to restore.
+  """
+  def maximize(%__MODULE__{} = layout, pane_id) when is_binary(pane_id) do
+    if pane_id in layout.panes do
+      %{layout | active_pane: pane_id, maximized: pane_id}
+    else
+      layout
+    end
+  end
+
+  def restore(%__MODULE__{} = layout) do
+    %{layout | maximized: nil}
+  end
+
+  @doc """
   Returns the next pane ID in cyclic order after the active pane.
   """
   def next_pane(%__MODULE__{panes: []}), do: nil
@@ -150,20 +172,28 @@ defmodule SSHClient.Terminal.Layout do
 
   defp compute_topology(panes, direction) do
     case length(panes) do
-      1 -> :single
+      1 ->
+        :single
+
       2 ->
         case direction do
           :horizontal -> :split_h
           :vertical -> :split_v
         end
-      _ -> :grid
+
+      _ ->
+        :grid
     end
   end
 
   defp pick_fallback_active(original_panes, removed_pane, remaining_panes) do
     case remaining_panes do
-      [] -> nil
-      [single] -> single
+      [] ->
+        nil
+
+      [single] ->
+        single
+
       _ ->
         idx = Enum.find_index(original_panes, &(&1 == removed_pane)) || 0
         prev_idx = max(idx - 1, 0)

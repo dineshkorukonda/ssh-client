@@ -16,9 +16,12 @@
 
     <!-- xterm.js -->
     <link rel="stylesheet" href="/css/xterm.min.css" />
-    <script src="/js/xterm.min.js"></script>
-    <script src="/js/xterm-addon-fit.min.js"></script>
-    <script src="/js/xterm-addon-search.min.js"></script>
+    <script src="/js/xterm.min.js">
+    </script>
+    <script src="/js/xterm-addon-fit.min.js">
+    </script>
+    <script src="/js/xterm-addon-search.min.js">
+    </script>
     <script>
       // Apply theme before render to avoid flash
       (function() {
@@ -237,6 +240,154 @@
         }
       };
 
+      // Multi-Pane Split Terminal Hook
+      window.TerminalPane = {
+        mounted() {
+          const el = this.el;
+          const lv = this;
+          const paneId = el.dataset.sessionId || el.dataset.paneId;
+          if (!paneId) return;
+
+          if (typeof Terminal === 'undefined') {
+            el.innerHTML = '<div style="color:#ef4444;font-family:monospace;padding:1rem">xterm.js not loaded</div>';
+            return;
+          }
+
+          let currentFontSize = 13;
+          const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
+          const term = new Terminal({
+            cursorBlink: true,
+            fontSize: currentFontSize,
+            lineHeight: 1.25,
+            fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
+            allowTransparency: true,
+            scrollback: 10000,
+            theme: getTerminalTheme(isLight)
+          });
+
+          const fitAddon = (typeof FitAddon !== 'undefined') ? new FitAddon.FitAddon() : null;
+          if (fitAddon) term.loadAddon(fitAddon);
+
+          term.open(el);
+
+          const doFit = () => {
+            if (!fitAddon || !el.clientWidth || !el.clientHeight) return;
+            try {
+              fitAddon.fit();
+              if (term.cols > 0 && term.rows > 0) {
+                lv.pushEvent("pane_resize", { pane_id: paneId, cols: term.cols, rows: term.rows });
+              }
+            } catch(e) {}
+          };
+
+          requestAnimationFrame(doFit);
+          setTimeout(doFit, 40);
+          setTimeout(doFit, 150);
+          setTimeout(doFit, 400);
+
+          let resizeObserver = null;
+          if (window.ResizeObserver) {
+            resizeObserver = new ResizeObserver(() => {
+              requestAnimationFrame(doFit);
+            });
+            resizeObserver.observe(el);
+          }
+
+          term.onData(function(data) {
+            lv.pushEvent("pane_data", { pane_id: paneId, data: data });
+          });
+
+          this.handleEvent("terminal_output_" + paneId, ({ data }) => {
+            term.write(data);
+          });
+
+          this.handleEvent("terminal_output:" + paneId, ({ data }) => {
+            term.write(data);
+          });
+
+          this.handleEvent("terminal_clear_" + paneId, () => {
+            term.clear();
+          });
+
+          this.handleEvent("terminal_focus_" + paneId, () => {
+            term.focus();
+          });
+
+          this.handleEvent("terminal_paste_" + paneId, () => {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+              navigator.clipboard.readText().then(text => {
+                if (text) lv.pushEvent("pane_data", { pane_id: paneId, data: text });
+              }).catch(() => {});
+            }
+          });
+
+          this.handleEvent("terminal_font_change_" + paneId, ({ delta }) => {
+            currentFontSize = Math.max(9, Math.min(24, currentFontSize + delta));
+            term.options.fontSize = currentFontSize;
+            requestAnimationFrame(doFit);
+          });
+
+          term.onSelectionChange(() => {
+            const selection = term.getSelection();
+            if (selection && selection.trim().length > 0) {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(selection).catch(() => {});
+              }
+            }
+          });
+
+          term.attachCustomKeyEventHandler((e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C') && e.type === 'keydown') {
+              if (term.hasSelection()) {
+                const sel = term.getSelection();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(sel).catch(() => {});
+                }
+                return false;
+              }
+              return true;
+            }
+
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V') && e.type === 'keydown') {
+              if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(text => {
+                  if (text) lv.pushEvent("pane_data", { pane_id: paneId, data: text });
+                }).catch(() => {});
+                return false;
+              }
+            }
+
+            if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+') && e.type === 'keydown') {
+              currentFontSize = Math.min(24, currentFontSize + 1);
+              term.options.fontSize = currentFontSize;
+              requestAnimationFrame(doFit);
+              return false;
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_') && e.type === 'keydown') {
+              currentFontSize = Math.max(9, currentFontSize - 1);
+              term.options.fontSize = currentFontSize;
+              requestAnimationFrame(doFit);
+              return false;
+            }
+
+            return true;
+          });
+
+          lv.pushEvent("pane_ready", { pane_id: paneId });
+
+          window.addEventListener('resize', doFit);
+          this.doFit = doFit;
+          this.resizeObserver = resizeObserver;
+          this.term = term;
+        },
+        destroyed() {
+          if (this.doFit) window.removeEventListener('resize', this.doFit);
+          if (this.resizeObserver) this.resizeObserver.disconnect();
+          if (this.term) this.term.dispose();
+        }
+      };
+
       // Dual-Pane Drag & Drop SFTP Hook
       window.DualPaneSFTPHook = {
         mounted() {
@@ -382,12 +533,19 @@
       }
     </style>
   </head>
-  <body class="h-full bg-background text-foreground antialiased selection:bg-primary/20" phx-hook="ThemeHook" id="app-body">
+  <body
+    class="h-full bg-background text-foreground antialiased selection:bg-primary/20"
+    phx-hook="ThemeHook"
+    id="app-body"
+  >
+    <div id="command-palette-keys" phx-hook="CommandPaletteHook" class="hidden"></div>
     {@inner_content}
 
     <!-- Phoenix & LiveView JS client -->
-    <script src="/js/phoenix.min.js"></script>
-    <script src="/js/phoenix_live_view.min.js"></script>
+    <script src="/js/phoenix.min.js">
+    </script>
+    <script src="/js/phoenix_live_view.min.js">
+    </script>
     <script>
       (function() {
         const csrfToken = document.querySelector("meta[name='csrf-token']") ? document.querySelector("meta[name='csrf-token']").getAttribute("content") : "";
@@ -396,6 +554,7 @@
         if (window.DualPaneSFTPHook) hooks.DualPaneSFTPHook = window.DualPaneSFTPHook;
         if (window.CommandPaletteHook) hooks.CommandPaletteHook = window.CommandPaletteHook;
         if (window.ThemeHook) hooks.ThemeHook = window.ThemeHook;
+        if (window.TerminalPane) hooks.TerminalPane = window.TerminalPane;
 
         window.liveSocketHooks = hooks;
 
