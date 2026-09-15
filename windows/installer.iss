@@ -45,6 +45,7 @@ Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; Explicitly bundle launcher scripts so local builds work without the CI copy step
 Source: "..\priv\launch-gui.bat"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\priv\launch-gui.vbs"; DestDir: "{app}\bin"; Flags: ignoreversion
+Source: "..\priv\launch-gui.ps1"; DestDir: "{app}\bin"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; WorkingDir: "{app}\bin"; IconFilename: "{app}\app.ico"

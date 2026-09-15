@@ -15,6 +15,9 @@ defmodule SSHClientWeb.Endpoint do
     websocket: true,
     longpoll: false
 
+  # Vault-independent liveness probe used by the Windows GUI launcher.
+  plug SSHClientWeb.HealthPlug
+
   # Serve static files from priv/static
   plug Plug.Static,
     at: "/",
