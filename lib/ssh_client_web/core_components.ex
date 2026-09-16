@@ -61,7 +61,13 @@ defmodule SSHClientWeb.CoreComponents do
               <span class="text-[10px] font-mono text-muted-foreground truncate">v{@version}</span>
             </div>
           </a>
-          <span class={if(@compact, do: "hidden", else: "hidden lg:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20")}>
+          <span class={
+            if(@compact,
+              do: "hidden",
+              else:
+                "hidden lg:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20"
+            )
+          }>
             BETA
           </span>
         </div>
@@ -170,7 +176,10 @@ defmodule SSHClientWeb.CoreComponents do
           phx-click="toggle_command_palette"
           class={[
             "flex items-center rounded-md bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors w-full",
-            if(@compact, do: "justify-center p-2", else: "justify-center lg:justify-between px-2.5 py-1.5")
+            if(@compact,
+              do: "justify-center p-2",
+              else: "justify-center lg:justify-between px-2.5 py-1.5"
+            )
           ]}
           title="Open Command Palette (Ctrl+K)"
         >
@@ -185,7 +194,13 @@ defmodule SSHClientWeb.CoreComponents do
             </svg>
             <span class={if(@compact, do: "hidden", else: "hidden lg:inline text-xs")}>Search</span>
           </div>
-          <kbd class={if(@compact, do: "hidden", else: "hidden lg:inline px-1 py-0.2 text-[9px] bg-background border border-border rounded text-muted-foreground")}>Ctrl+K</kbd>
+          <kbd class={
+            if(@compact,
+              do: "hidden",
+              else:
+                "hidden lg:inline px-1 py-0.2 text-[9px] bg-background border border-border rounded text-muted-foreground"
+            )
+          }>Ctrl+K</kbd>
         </button>
 
         <%= if @servers_count > 0 and not @compact do %>

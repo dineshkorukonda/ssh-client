@@ -1045,7 +1045,11 @@ defmodule SSHClientWeb.TerminalLive do
 
   def render(assigns) do
     filtered_commands =
-      filter_commands(assigns[:all_commands] || [], assigns[:selected_category] || "all", assigns[:command_search] || "")
+      filter_commands(
+        assigns[:all_commands] || [],
+        assigns[:selected_category] || "all",
+        assigns[:command_search] || ""
+      )
 
     cur_tab =
       Enum.find(assigns[:tabs] || [], fn t -> t.id == assigns[:active_tab_id] end) ||
