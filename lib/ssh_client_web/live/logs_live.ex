@@ -104,15 +104,13 @@ defmodule SSHClientWeb.LogsLive do
     assigns = assign(assigns, :filtered_logs, filtered_logs)
 
     ~H"""
-    <div class="min-h-screen bg-background text-foreground flex flex-col antialiased">
-      <.top_navigation
-        current_tab={:logs}
-        servers_count={@servers_count}
-        online_count={@online_count}
-        version={@version}
-      />
-
-      <main class="flex-1 container mx-auto max-w-7xl px-4 py-6 flex flex-col space-y-4">
+    <.app_shell
+      current_tab={:logs}
+      servers_count={@servers_count}
+      online_count={@online_count}
+      version={@version}
+    >
+      <main class="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col space-y-4 max-w-7xl w-full mx-auto">
         <!-- Header & Action Toolbar -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
           <div>
@@ -271,80 +269,80 @@ defmodule SSHClientWeb.LogsLive do
           </div>
         </div>
       </main>
+    </.app_shell>
 
-      <!-- Log Details Modal -->
-      <%= if @selected_entry do %>
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div class="bg-card border border-border text-foreground rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
-            <div class="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
-              <div class="flex items-center gap-2.5">
-                <span class={[
-                  "px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border",
-                  level_badge_class(@selected_entry.level)
-                ]}>
-                  {@selected_entry.level}
-                </span>
-                <h3 class="text-sm font-semibold text-foreground">Log Event Details</h3>
-              </div>
-              <button
-                phx-click="close_details"
-                class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+    <!-- Log Details Modal -->
+    <%= if @selected_entry do %>
+      <div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="bg-card border border-border text-foreground rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+          <div class="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2.5">
+              <span class={[
+                "px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border",
+                level_badge_class(@selected_entry.level)
+              ]}>
+                {@selected_entry.level}
+              </span>
+              <h3 class="text-sm font-semibold text-foreground">Log Event Details</h3>
             </div>
+            <button
+              phx-click="close_details"
+              class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
 
-            <div class="p-6 overflow-auto space-y-4 font-mono text-xs">
-              <div class="grid grid-cols-2 gap-4">
+          <div class="p-6 overflow-auto space-y-4 font-mono text-xs">
+            <div class="grid grid-cols-2 gap-4">
+              <div class="p-3 bg-muted/40 rounded-lg border border-border/60">
+                <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Timestamp</span>
+                <span class="text-foreground font-semibold">{DateTime.to_iso8601(
+                  @selected_entry.timestamp
+                )}</span>
+              </div>
+
+              <%= if @selected_entry.server_id do %>
                 <div class="p-3 bg-muted/40 rounded-lg border border-border/60">
-                  <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Timestamp</span>
-                  <span class="text-foreground font-semibold">{DateTime.to_iso8601(
-                    @selected_entry.timestamp
-                  )}</span>
-                </div>
-
-                <%= if @selected_entry.server_id do %>
-                  <div class="p-3 bg-muted/40 rounded-lg border border-border/60">
-                    <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Host Target</span>
-                    <span class="text-primary font-semibold">{@selected_entry.server_id}</span>
-                  </div>
-                <% end %>
-              </div>
-
-              <div>
-                <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Message</span>
-                <div class="p-3 bg-background border border-border rounded-lg text-foreground break-all">
-                  {@selected_entry.message}
-                </div>
-              </div>
-
-              <%= if @selected_entry.details do %>
-                <div>
-                  <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Diagnostic Details / Payload</span>
-                  <pre class="p-3 bg-muted border border-border rounded-lg text-foreground overflow-auto max-h-60 text-[11px] whitespace-pre-wrap"><%= @selected_entry.details %></pre>
+                  <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Host Target</span>
+                  <span class="text-primary font-semibold">{@selected_entry.server_id}</span>
                 </div>
               <% end %>
             </div>
 
-            <div class="px-6 py-3 border-t border-border bg-muted/30 flex justify-end shrink-0">
-              <button
-                phx-click="close_details"
-                class="px-4 py-2 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs font-medium rounded-md transition-colors"
-              >
-                Close
-              </button>
+            <div>
+              <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Message</span>
+              <div class="p-3 bg-background border border-border rounded-lg text-foreground break-all">
+                {@selected_entry.message}
+              </div>
             </div>
+
+            <%= if @selected_entry.details do %>
+              <div>
+                <span class="text-muted-foreground uppercase tracking-wider text-[10px] block mb-1">Diagnostic Details / Payload</span>
+                <pre class="p-3 bg-muted border border-border rounded-lg text-foreground overflow-auto max-h-60 text-[11px] whitespace-pre-wrap"><%= @selected_entry.details %></pre>
+              </div>
+            <% end %>
+          </div>
+
+          <div class="px-6 py-3 border-t border-border bg-muted/30 flex justify-end shrink-0">
+            <button
+              phx-click="close_details"
+              class="px-4 py-2 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs font-medium rounded-md transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
-      <% end %>
-    </div>
+      </div>
+    <% end %>
     """
   end
 

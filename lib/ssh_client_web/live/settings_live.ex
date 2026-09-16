@@ -281,15 +281,13 @@ defmodule SSHClientWeb.SettingsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-background text-foreground flex flex-col antialiased">
-      <.top_navigation
-        current_tab={:settings}
-        servers_count={@active_servers_count}
-        online_count={@online_count}
-        version={@version}
-      />
-
-      <main class="flex-1 container mx-auto max-w-5xl px-4 py-6 flex flex-col space-y-6">
+    <.app_shell
+      current_tab={:settings}
+      servers_count={@active_servers_count}
+      online_count={@online_count}
+      version={@version}
+    >
+      <main class="flex-1 overflow-y-auto max-w-5xl w-full mx-auto p-6 md:p-8 flex flex-col space-y-6">
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
           <div>
@@ -612,7 +610,7 @@ defmodule SSHClientWeb.SettingsLive do
           <% end %>
         </div>
       </main>
-    </div>
+    </.app_shell>
     """
   end
 

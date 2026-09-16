@@ -136,6 +136,11 @@ defmodule SSHClientWeb.LockLive do
             <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-primary/10 text-primary border border-primary/20">BETA</span>
           </div>
           <p class="text-xs text-muted-foreground font-mono">Hardware Encrypted Vault</p>
+          <div class="flex items-center justify-center gap-1.5 pt-1">
+            <span class="px-1.5 py-0.5 text-[9px] font-mono rounded bg-muted text-muted-foreground border border-border">PBKDF2 100k</span>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono rounded bg-muted text-muted-foreground border border-border">AES-256-GCM</span>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono rounded bg-muted text-muted-foreground border border-border">Zero-Telemetry</span>
+          </div>
         </div>
 
         <%= if @error do %>

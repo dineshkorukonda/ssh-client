@@ -900,13 +900,12 @@ defmodule SSHClientWeb.TerminalLive do
   @impl true
   def render(%{server_id: nil} = assigns) do
     ~H"""
-    <div class="min-h-screen bg-background text-foreground flex flex-col font-sans">
-      <.top_navigation
-        current_tab={:terminal}
-        servers_count={length(@servers)}
-        online_count={@online_count}
-      />
-      <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+    <.app_shell
+      current_tab={:terminal}
+      servers_count={length(@servers)}
+      online_count={@online_count}
+    >
+      <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-6">
         <!-- Header Section -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
           <div>
@@ -1036,7 +1035,7 @@ defmodule SSHClientWeb.TerminalLive do
           </div>
         <% end %>
       </main>
-    </div>
+    </.app_shell>
     """
   end
 

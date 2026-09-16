@@ -7,9 +7,330 @@ defmodule SSHClientWeb.CoreComponents do
 
   use Phoenix.Component
 
-  @doc "Shadcn Top Navigation Header"
+  @doc "Application Shell containing Left Sidebar and flexible Main Canvas"
   attr :current_tab, :atom, default: :hosts
-  attr :version, :string, default: "0.0.38"
+  attr :version, :string, default: "0.0.39"
+  attr :servers_count, :integer, default: 0
+  attr :online_count, :integer, default: 0
+  slot :inner_block, required: true
+
+  def app_shell(assigns) do
+    ~H"""
+    <div
+      class="flex h-screen w-screen overflow-hidden bg-background text-foreground antialiased"
+      phx-window-keydown="handle_key"
+    >
+      <.sidebar_navigation
+        current_tab={@current_tab}
+        version={@version}
+        servers_count={@servers_count}
+        online_count={@online_count}
+      />
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden h-full">
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc "Shadcn Left Sidebar Navigation"
+  attr :current_tab, :atom, default: :hosts
+  attr :version, :string, default: "0.0.39"
+  attr :servers_count, :integer, default: 0
+  attr :online_count, :integer, default: 0
+
+  def sidebar_navigation(assigns) do
+    ~H"""
+    <aside class="w-16 lg:w-56 shrink-0 border-r border-border bg-card/60 backdrop-blur-md flex flex-col justify-between select-none h-full z-20">
+      <!-- Top Brand & Nav Section -->
+      <div class="flex flex-col">
+        <!-- Logo & Header -->
+        <div class="h-14 flex items-center justify-between px-3 lg:px-4 border-b border-border">
+          <a href="/" class="flex items-center gap-2.5 group overflow-hidden">
+            <div class="w-8 h-8 rounded-md bg-primary text-primary-foreground font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+              <span>&gt;_</span>
+            </div>
+            <div class="hidden lg:flex flex-col min-w-0">
+              <span class="text-foreground font-semibold text-sm tracking-tight truncate">ssh-client</span>
+              <span class="text-[10px] font-mono text-muted-foreground truncate">v{@version}</span>
+            </div>
+          </a>
+          <span class="hidden lg:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">
+            BETA
+          </span>
+        </div>
+
+        <!-- Vertical Navigation Links -->
+        <nav class="flex flex-col gap-1 p-2 font-mono text-xs">
+          <.sidebar_link
+            href="/"
+            active={@current_tab == :hosts}
+            label="Hosts"
+            count={if @servers_count > 0, do: @servers_count, else: nil}
+          >
+            <:icon>
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                />
+              </svg>
+            </:icon>
+          </.sidebar_link>
+
+          <.sidebar_link
+            href="/terminal"
+            active={@current_tab == :terminal}
+            label="Terminal"
+          >
+            <:icon>
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </:icon>
+          </.sidebar_link>
+
+          <.sidebar_link
+            href="/sftp"
+            active={@current_tab == :sftp}
+            label="SFTP"
+          >
+            <:icon>
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
+              </svg>
+            </:icon>
+          </.sidebar_link>
+
+          <.sidebar_link
+            href="/logs"
+            active={@current_tab == :logs}
+            label="Logs"
+          >
+            <:icon>
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </:icon>
+          </.sidebar_link>
+
+          <.sidebar_link
+            href="/settings"
+            active={@current_tab == :settings}
+            label="Settings"
+          >
+            <:icon>
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </:icon>
+          </.sidebar_link>
+        </nav>
+      </div>
+
+      <!-- Bottom Utilities Section -->
+      <div class="p-2 border-t border-border flex flex-col gap-1.5 font-mono text-xs">
+        <!-- Command Palette Trigger -->
+        <button
+          type="button"
+          phx-click="toggle_command_palette"
+          class="flex items-center justify-center lg:justify-between px-2.5 py-1.5 rounded-md bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors w-full"
+          title="Open Command Palette (Ctrl+K)"
+        >
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <span class="hidden lg:inline text-xs">Search</span>
+          </div>
+          <kbd class="hidden lg:inline px-1 py-0.2 text-[9px] bg-background border border-border rounded text-muted-foreground">Ctrl+K</kbd>
+        </button>
+
+        <%= if @servers_count > 0 do %>
+          <div class="hidden lg:flex items-center justify-between px-2.5 py-1 rounded bg-muted/40 text-[11px] text-muted-foreground border border-border/60">
+            <div class="flex items-center gap-1.5">
+              <span class={"status-dot " <> if(@online_count > 0, do: "online", else: "offline")}></span>
+              <span>Reachable</span>
+            </div>
+            <span class="font-medium text-foreground">{@online_count}/{@servers_count}</span>
+          </div>
+        <% end %>
+
+        <div class="flex items-center justify-between gap-1 pt-1">
+          <!-- Theme Toggle -->
+          <button
+            type="button"
+            onclick="window.toggleAppTheme && window.toggleAppTheme()"
+            class="h-8 flex-1 flex items-center justify-center rounded-md border border-border bg-background hover:bg-accent text-foreground transition-colors shadow-sm"
+            title="Toggle Theme"
+          >
+            <svg
+              class="w-4 h-4 hidden dark:block"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 9h1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+            <svg
+              class="w-4 h-4 block dark:hidden"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+              />
+            </svg>
+          </button>
+
+          <!-- Vault Lock -->
+          <button
+            type="button"
+            phx-click="lock_vault"
+            class="h-8 flex-1 flex items-center justify-center rounded-md border border-border bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 text-muted-foreground transition-colors shadow-sm"
+            title="Lock Master Vault"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+    """
+  end
+
+  @doc "Sidebar Link Item"
+  attr :href, :string, required: true
+  attr :active, :boolean, default: false
+  attr :label, :string, required: true
+  attr :count, :any, default: nil
+  slot :icon, required: true
+
+  def sidebar_link(assigns) do
+    ~H"""
+    <a
+      href={@href}
+      class={[
+        "flex items-center gap-3 px-3 py-2 rounded-md transition-all font-medium group",
+        if(@active,
+          do: "bg-background text-foreground shadow-sm font-semibold border border-border/80",
+          else: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        )
+      ]}
+      title={@label}
+    >
+      {render_slot(@icon)}
+      <span class="hidden lg:inline truncate">{@label}</span>
+      <%= if @count do %>
+        <span class="hidden lg:inline-block ml-auto px-1.5 py-0.2 text-[10px] rounded-full bg-secondary text-secondary-foreground font-mono">
+          {@count}
+        </span>
+      <% end %>
+    </a>
+    """
+  end
+
+  @doc "Slide-over side drawer component"
+  attr :id, :string, required: true
+  attr :show, :boolean, default: false
+  attr :on_close, :string, required: true
+  attr :title, :string, required: true
+  attr :width, :string, default: "max-w-md"
+  slot :inner_block, required: true
+
+  def drawer(assigns) do
+    ~H"""
+    <div
+      :if={@show}
+      id={@id}
+      class="fixed inset-0 z-50 flex justify-end bg-background/60 backdrop-blur-sm transition-opacity"
+      phx-window-keydown={@on_close}
+      phx-key="escape"
+    >
+      <div class="fixed inset-0" phx-click={@on_close} />
+      <div class={[
+        "relative w-full bg-card border-l border-border h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200",
+        @width
+      ]}>
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/40">
+          <h3 class="text-sm font-semibold font-mono text-foreground tracking-tight">
+            {@title}
+          </h3>
+          <button
+            type="button"
+            phx-click={@on_close}
+            class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Close drawer"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5 space-y-4">
+          {render_slot(@inner_block)}
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc "Shadcn Top Navigation Header (preserved for backwards compatibility)"
+  attr :current_tab, :atom, default: :hosts
+  attr :version, :string, default: "0.0.39"
   attr :servers_count, :integer, default: 0
   attr :online_count, :integer, default: 0
 
