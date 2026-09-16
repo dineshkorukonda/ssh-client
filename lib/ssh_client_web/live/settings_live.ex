@@ -8,6 +8,8 @@ defmodule SSHClientWeb.SettingsLive do
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
   import SSHClientWeb.CoreComponents
 
+  on_mount {SSHClientWeb.LiveAuth, :require_unlocked}
+
   alias SSHClient.Config
   alias SSHClient.ServerManager
   alias SSHClient.SSH.Auth

@@ -7,6 +7,8 @@ defmodule SSHClientWeb.LogsLive do
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
   import SSHClientWeb.CoreComponents
 
+  on_mount {SSHClientWeb.LiveAuth, :require_unlocked}
+
   alias SSHClient.ActivityLog
   alias SSHClient.ServerManager
   alias SSHClient.Vault
