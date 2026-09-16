@@ -19,6 +19,7 @@ defmodule SSHClientWeb.SFTPLive do
   alias SSHClient.SFTP.TransferManager
   alias SSHClient.SSH
   alias SSHClient.SSH.ConfigImporter
+  alias SSHClient.Updater
   alias SSHClient.Vault
 
   @impl true
@@ -38,6 +39,7 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:server, nil)
           |> assign(:servers, servers)
           |> assign(:online_count, online_count)
+          |> assign(:version, Updater.current_version())
           |> assign(:conn, nil)
           |> assign(:sftp_pid, nil)
           # Theme
@@ -93,6 +95,7 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:server, server)
           |> assign(:servers, servers)
           |> assign(:online_count, online_count)
+          |> assign(:version, Updater.current_version())
           |> assign(:conn, nil)
           |> assign(:sftp_pid, nil)
           # Theme
@@ -655,6 +658,7 @@ defmodule SSHClientWeb.SFTPLive do
       current_tab={:sftp}
       servers_count={length(@servers)}
       online_count={@online_count}
+      version={@version}
     >
       <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-6">
         <!-- Header Section -->
@@ -784,32 +788,25 @@ defmodule SSHClientWeb.SFTPLive do
 
   def render(assigns) do
     ~H"""
-    <div
-      class="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none font-sans"
-      id="dual-pane-sftp"
-      phx-hook="DualPaneSFTPHook"
+    <.app_shell
+      current_tab={:sftp}
+      servers_count={length(assigns[:servers] || [])}
+      online_count={assigns[:online_count] || 0}
+      version={assigns[:version] || "0.0.43"}
+      compact={true}
     >
-      <!-- Topbar Header -->
-      <header class="h-12 flex items-center justify-between px-4 bg-card/90 border-b border-border shrink-0 z-20">
-        <div class="flex items-center gap-3 min-w-0">
-          <a
-            href="/"
-            class="text-muted-foreground hover:text-foreground text-xs font-mono transition-colors inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-secondary hover:bg-secondary/80 border border-border shrink-0"
-          >
-            &larr; <span class="hidden sm:inline">Hosts</span>
-          </a>
-          <span class="text-border">|</span>
-          <div class="flex items-center gap-2">
-            <div class="w-5 h-5 rounded bg-primary text-primary-foreground font-mono font-bold text-[10px] flex items-center justify-center">
-              <span>&gt;_</span>
-            </div>
-            <span class="font-semibold text-xs tracking-tight text-foreground">ssh-client</span>
+      <div
+        class="flex flex-col h-full w-full bg-background text-foreground overflow-hidden select-none font-sans"
+        id="dual-pane-sftp"
+        phx-hook="DualPaneSFTPHook"
+      >
+        <!-- Topbar Header -->
+        <header class="h-12 flex items-center justify-between px-4 bg-card/90 border-b border-border shrink-0 z-20">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xs font-mono font-semibold truncate text-foreground">{@server_id}</span>
             <span class="px-1.5 py-0.2 text-[8px] font-mono font-bold tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
+            <span class="text-muted-foreground text-[11px] font-mono hidden md:inline">Dual-Pane SFTP</span>
           </div>
-          <span class="text-border">|</span>
-          <span class="text-xs font-mono font-semibold truncate text-foreground">{@server_id}</span>
-          <span class="text-muted-foreground text-[11px] font-mono hidden md:inline">Dual-Pane SFTP</span>
-        </div>
 
         <div class="flex items-center gap-2">
           <!-- Terminal Quick Switch -->
@@ -1340,7 +1337,8 @@ defmodule SSHClientWeb.SFTPLive do
           </div>
         </div>
       <% end %>
-    </div>
+      </div>
+    </.app_shell>
     """
   end
 

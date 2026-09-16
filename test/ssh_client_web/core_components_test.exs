@@ -137,4 +137,34 @@ defmodule SSHClientWeb.CoreComponentsTest do
     assert shown_html =~ "Workspace Drawer"
     assert shown_html =~ "Drawer Content"
   end
+
+  test "app_shell renders sidebar navigation and wrapped inner content" do
+    assigns = %{}
+
+    html =
+      rendered_to_string(~H"""
+      <.app_shell current_tab={:terminal} version="0.0.43" servers_count={2} online_count={1}>
+        <div id="test-canvas">Terminal Canvas Body</div>
+      </.app_shell>
+      """)
+
+    assert html =~ "Terminal Canvas Body"
+    assert html =~ "ssh-client"
+    assert html =~ "v0.0.43"
+    assert html =~ "href=\"/terminal\""
+  end
+
+  test "sidebar_navigation supports compact mode for full-canvas views" do
+    html =
+      render_component(&sidebar_navigation/1,
+        current_tab: :terminal,
+        version: "0.0.43",
+        servers_count: 3,
+        online_count: 2,
+        compact: true
+      )
+
+    assert html =~ "ssh-client"
+    assert html =~ "w-14"
+  end
 end
