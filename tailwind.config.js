@@ -6,6 +6,15 @@ module.exports = {
     "./web/**/*.{html,js}"
   ],
   darkMode: ["class", '[data-theme="dark"]'],
+  safelist: [
+    {
+      pattern: /(bg|text|border)-(emerald|blue|amber|purple|destructive|primary|secondary|muted)(-\d+)?(\/\d+)?/,
+    },
+    "status-dot",
+    "online",
+    "offline",
+    "idle"
+  ],
   theme: {
     extend: {
       fontFamily: {

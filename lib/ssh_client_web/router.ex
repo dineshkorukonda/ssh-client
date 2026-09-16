@@ -17,14 +17,17 @@ defmodule SSHClientWeb.Router do
   scope "/", SSHClientWeb do
     pipe_through :browser
 
-    live "/", HostLive, :index
-    live "/hosts", HostLive, :index
     live "/lock", LockLive, :index
-    live "/terminal", TerminalLive, :index
-    live "/terminal/:id", TerminalLive, :show
-    live "/sftp", SFTPLive, :index
-    live "/sftp/:id", SFTPLive, :show
-    live "/settings", SettingsLive, :index
-    live "/logs", LogsLive, :index
+
+    live_session :authenticated, on_mount: [{SSHClientWeb.LiveAuth, :require_unlocked}] do
+      live "/", HostLive, :index
+      live "/hosts", HostLive, :index
+      live "/terminal", TerminalLive, :index
+      live "/terminal/:id", TerminalLive, :show
+      live "/sftp", SFTPLive, :index
+      live "/sftp/:id", SFTPLive, :show
+      live "/settings", SettingsLive, :index
+      live "/logs", LogsLive, :index
+    end
   end
 end

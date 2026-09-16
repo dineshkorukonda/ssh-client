@@ -6,6 +6,7 @@ defmodule SSHClientWeb.TerminalLive do
   """
 
   use Phoenix.LiveView, layout: {SSHClientWeb.Layouts, :app}
+  on_mount {SSHClientWeb.LiveAuth, :require_unlocked}
 
   import SSHClientWeb.CoreComponents
 
