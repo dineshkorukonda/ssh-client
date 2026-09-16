@@ -4,17 +4,37 @@ defmodule SSHClientWeb.CoreComponentsTest do
   import Phoenix.LiveViewTest
   import SSHClientWeb.CoreComponents
 
+  test "sidebar_navigation renders brand, vertical links, status and utilities" do
+    html =
+      render_component(&sidebar_navigation/1,
+        current_tab: :hosts,
+        version: "0.0.39",
+        servers_count: 5,
+        online_count: 3
+      )
+
+    assert html =~ "ssh-client"
+    assert html =~ "v0.0.39"
+    assert html =~ "Hosts"
+    assert html =~ "Terminal"
+    assert html =~ "SFTP"
+    assert html =~ "Logs"
+    assert html =~ "Settings"
+    assert html =~ "Ctrl+K"
+    assert html =~ "3/5"
+  end
+
   test "top_navigation renders logo, version, tabs, and command palette hint" do
     html =
       render_component(&top_navigation/1,
         current_tab: :hosts,
-        version: "0.0.38",
+        version: "0.0.39",
         servers_count: 3,
         online_count: 2
       )
 
     assert html =~ "ssh-client"
-    assert html =~ "v0.0.38"
+    assert html =~ "v0.0.39"
     assert html =~ "Hosts"
     assert html =~ "Terminal"
     assert html =~ "SFTP"
@@ -93,5 +113,28 @@ defmodule SSHClientWeb.CoreComponentsTest do
 
     assert shown_html =~ "Test Title"
     assert shown_html =~ "Modal Content"
+  end
+
+  test "drawer renders slide-over panel when show is true" do
+    assigns = %{}
+
+    hidden_html =
+      rendered_to_string(~H"""
+      <.drawer id="test-drawer" show={false} on_close="close" title="Workspace Drawer">
+        Drawer Content
+      </.drawer>
+      """)
+
+    refute hidden_html =~ "Drawer Content"
+
+    shown_html =
+      rendered_to_string(~H"""
+      <.drawer id="test-drawer" show={true} on_close="close" title="Workspace Drawer">
+        Drawer Content
+      </.drawer>
+      """)
+
+    assert shown_html =~ "Workspace Drawer"
+    assert shown_html =~ "Drawer Content"
   end
 end
