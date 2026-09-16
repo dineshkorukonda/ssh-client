@@ -21,6 +21,7 @@ defmodule SSHClientWeb.TerminalLive do
   alias SSHClient.SessionWorker
   alias SSHClient.Store
   alias SSHClient.Terminal.Layout
+  alias SSHClient.Updater
   alias SSHClient.Vault
 
   @default_commands [
@@ -222,6 +223,7 @@ defmodule SSHClientWeb.TerminalLive do
           |> assign(:server, nil)
           |> assign(:servers, servers)
           |> assign(:online_count, online_count)
+          |> assign(:version, Updater.current_version())
           |> assign(:tabs, [])
           |> assign(:active_tab_id, 1)
           |> assign(:next_tab_id, 2)
@@ -265,6 +267,7 @@ defmodule SSHClientWeb.TerminalLive do
           |> assign(:server, server)
           |> assign(:servers, servers)
           |> assign(:online_count, online_count)
+          |> assign(:version, Updater.current_version())
           |> assign(:tabs, [initial_tab])
           |> assign(:active_tab_id, 1)
           |> assign(:next_tab_id, 2)
@@ -904,6 +907,7 @@ defmodule SSHClientWeb.TerminalLive do
       current_tab={:terminal}
       servers_count={length(@servers)}
       online_count={@online_count}
+      version={@version}
     >
       <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-6">
         <!-- Header Section -->
@@ -1041,34 +1045,38 @@ defmodule SSHClientWeb.TerminalLive do
 
   def render(assigns) do
     filtered_commands =
-      filter_commands(assigns.all_commands, assigns.selected_category, assigns.command_search)
-
-    assigns = assign(assigns, :filtered_commands, filtered_commands)
+      filter_commands(
+        assigns[:all_commands] || [],
+        assigns[:selected_category] || "all",
+        assigns[:command_search] || ""
+      )
 
     cur_tab =
-      Enum.find(assigns.tabs, fn t -> t.id == assigns.active_tab_id end) || hd(assigns.tabs)
+      Enum.find(assigns[:tabs] || [], fn t -> t.id == assigns[:active_tab_id] end) ||
+        List.first(assigns[:tabs] || []) ||
+        %{id: 1, connected: false, error: nil}
 
-    assigns = assign(assigns, :cur_tab, cur_tab)
+    assigns =
+      assigns
+      |> Map.put(:filtered_commands, filtered_commands)
+      |> Map.put(:cur_tab, cur_tab)
 
     ~H"""
-    <div
-      class="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none font-sans"
-      phx-window-keydown="handle_key"
+    <.app_shell
+      current_tab={:terminal}
+      servers_count={length(assigns[:servers] || [])}
+      online_count={assigns[:online_count] || 0}
+      version={assigns[:version] || "0.0.43"}
+      compact={true}
     >
-      <!-- Terminal topbar -->
-      <div class="h-12 flex items-center justify-between px-3 bg-card/90 border-b border-border shrink-0 z-20">
-        <!-- Left: Host back nav, Server ID, BETA badge, Multi-tab bar -->
-        <div class="flex items-center gap-2 min-w-0">
-          <a
-            href="/"
-            class="text-muted-foreground hover:text-foreground text-xs font-mono transition-colors inline-flex items-center gap-1 px-2.5 py-1 rounded bg-secondary hover:bg-secondary/80 border border-border shrink-0"
-            title="Back to Hosts"
-          >
-            &larr; <span class="hidden sm:inline">Hosts</span>
-          </a>
-          <span class="text-border">|</span>
-          <span class="text-foreground text-xs font-mono font-semibold truncate">{@server_id}</span>
-          <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
+      <div class="flex flex-col h-full w-full bg-background text-foreground overflow-hidden select-none font-sans">
+        <!-- Terminal topbar -->
+        <div class="h-12 flex items-center justify-between px-3 bg-card/90 border-b border-border shrink-0 z-20">
+          <!-- Left: Server ID, BETA badge, Multi-tab bar -->
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-foreground text-xs font-mono font-semibold truncate">{@server_id}</span>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
+          </div>
           <!-- Multi-Tab workspace pills -->
           <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-border">
             <%= for tab <- @tabs do %>
@@ -1533,7 +1541,7 @@ defmodule SSHClientWeb.TerminalLive do
           </div>
         <% end %>
       </div>
-    </div>
+    </.app_shell>
 
     <%= if @host_key_prompt do %>
       <div class="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">

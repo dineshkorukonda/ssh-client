@@ -19,6 +19,7 @@ defmodule SSHClientWeb.SFTPLive do
   alias SSHClient.SFTP.TransferManager
   alias SSHClient.SSH
   alias SSHClient.SSH.ConfigImporter
+  alias SSHClient.Updater
   alias SSHClient.Vault
 
   @impl true
@@ -38,6 +39,7 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:server, nil)
           |> assign(:servers, servers)
           |> assign(:online_count, online_count)
+          |> assign(:version, Updater.current_version())
           |> assign(:conn, nil)
           |> assign(:sftp_pid, nil)
           # Theme
@@ -93,6 +95,7 @@ defmodule SSHClientWeb.SFTPLive do
           |> assign(:server, server)
           |> assign(:servers, servers)
           |> assign(:online_count, online_count)
+          |> assign(:version, Updater.current_version())
           |> assign(:conn, nil)
           |> assign(:sftp_pid, nil)
           # Theme
@@ -655,6 +658,7 @@ defmodule SSHClientWeb.SFTPLive do
       current_tab={:sftp}
       servers_count={length(@servers)}
       online_count={@online_count}
+      version={@version}
     >
       <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-6">
         <!-- Header Section -->
@@ -784,331 +788,158 @@ defmodule SSHClientWeb.SFTPLive do
 
   def render(assigns) do
     ~H"""
-    <div
-      class="flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none font-sans"
-      id="dual-pane-sftp"
-      phx-hook="DualPaneSFTPHook"
+    <.app_shell
+      current_tab={:sftp}
+      servers_count={length(assigns[:servers] || [])}
+      online_count={assigns[:online_count] || 0}
+      version={assigns[:version] || "0.0.43"}
+      compact={true}
     >
-      <!-- Topbar Header -->
-      <header class="h-12 flex items-center justify-between px-4 bg-card/90 border-b border-border shrink-0 z-20">
-        <div class="flex items-center gap-3 min-w-0">
-          <a
-            href="/"
-            class="text-muted-foreground hover:text-foreground text-xs font-mono transition-colors inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-secondary hover:bg-secondary/80 border border-border shrink-0"
-          >
-            &larr; <span class="hidden sm:inline">Hosts</span>
-          </a>
-          <span class="text-border">|</span>
-          <div class="flex items-center gap-2">
-            <div class="w-5 h-5 rounded bg-primary text-primary-foreground font-mono font-bold text-[10px] flex items-center justify-center">
-              <span>&gt;_</span>
-            </div>
-            <span class="font-semibold text-xs tracking-tight text-foreground">ssh-client</span>
+      <div
+        class="flex flex-col h-full w-full bg-background text-foreground overflow-hidden select-none font-sans"
+        id="dual-pane-sftp"
+        phx-hook="DualPaneSFTPHook"
+      >
+        <!-- Topbar Header -->
+        <header class="h-12 flex items-center justify-between px-4 bg-card/90 border-b border-border shrink-0 z-20">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xs font-mono font-semibold truncate text-foreground">{@server_id}</span>
             <span class="px-1.5 py-0.2 text-[8px] font-mono font-bold tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
+            <span class="text-muted-foreground text-[11px] font-mono hidden md:inline">Dual-Pane SFTP</span>
           </div>
-          <span class="text-border">|</span>
-          <span class="text-xs font-mono font-semibold truncate text-foreground">{@server_id}</span>
-          <span class="text-muted-foreground text-[11px] font-mono hidden md:inline">Dual-Pane SFTP</span>
-        </div>
 
-        <div class="flex items-center gap-2">
-          <!-- Terminal Quick Switch -->
-          <a
-            href={"/terminal/#{@server_id}"}
-            class="h-7 px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs font-medium rounded shadow-sm inline-flex items-center gap-1.5 transition-colors"
-          >
-            <span>&gt;_ Terminal</span>
-          </a>
+          <div class="flex items-center gap-2">
+            <!-- Terminal Quick Switch -->
+            <a
+              href={"/terminal/#{@server_id}"}
+              class="h-7 px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs font-medium rounded shadow-sm inline-flex items-center gap-1.5 transition-colors"
+            >
+              <span>&gt;_ Terminal</span>
+            </a>
 
-          <!-- Logs -->
-          <a
-            href="/logs"
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground font-mono text-xs rounded inline-flex items-center transition-colors"
-          >
-            Logs
-          </a>
-        </div>
-      </header>
-
-      <!-- Global Error Notification Banner -->
-      <%= if @error do %>
-        <div class="bg-destructive/10 border-b border-destructive/20 px-4 py-2 flex items-center justify-between text-xs font-mono text-destructive z-30 shrink-0">
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="w-2 h-2 rounded-full bg-destructive animate-pulse shrink-0"></span>
-            <span class="font-bold shrink-0">Notice:</span>
-            <span class="truncate">{@error}</span>
+            <!-- Logs -->
+            <a
+              href="/logs"
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground font-mono text-xs rounded inline-flex items-center transition-colors"
+            >
+              Logs
+            </a>
           </div>
-          <button
-            phx-click="clear_error"
-            class="text-destructive hover:text-destructive/80 font-bold px-2 py-0.5 rounded hover:bg-destructive/10 shrink-0"
-            title="Dismiss"
-          >
-            &times;
-          </button>
-        </div>
-      <% end %>
+        </header>
 
-      <!-- Main Dual-Pane Workspace -->
-      <div class="flex-1 flex min-h-0 bg-background relative">
-        <!-- LEFT PANE: LOCAL FILESYSTEM -->
-        <section
-          class="flex-1 flex flex-col border-r border-border min-w-0"
-          data-drop-side="local"
-          data-drop-path={@local_path}
-        >
-          <!-- Local Pane Header & Path Bar -->
-          <div class="p-3 bg-card/50 border-b border-border flex flex-col gap-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2 font-mono text-xs font-semibold text-foreground">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>LOCAL SYSTEM</span>
-              </div>
-              <div class="flex items-center gap-1">
-                <button
-                  phx-click="toggle_hidden"
-                  class="px-2 py-0.5 text-[11px] font-mono bg-secondary hover:bg-secondary/80 border border-border rounded text-secondary-foreground transition-colors"
-                >
-                  {if Map.get(assigns, :show_hidden, false), do: "Hide dotfiles", else: "Show hidden"}
-                </button>
-                <button
-                  phx-click="open_new_folder"
-                  phx-value-target="local"
-                  class="px-2 py-0.5 text-[11px] font-mono bg-secondary hover:bg-secondary/80 border border-border rounded text-secondary-foreground transition-colors"
-                >
-                  + New Folder
-                </button>
-              </div>
+        <!-- Global Error Notification Banner -->
+        <%= if @error do %>
+          <div class="bg-destructive/10 border-b border-destructive/20 px-4 py-2 flex items-center justify-between text-xs font-mono text-destructive z-30 shrink-0">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-2 h-2 rounded-full bg-destructive animate-pulse shrink-0"></span>
+              <span class="font-bold shrink-0">Notice:</span>
+              <span class="truncate">{@error}</span>
             </div>
-
-            <!-- Path Bar & Quick Jumps -->
-            <div class="flex items-center gap-1.5">
-              <button
-                phx-click="local_navigate_up"
-                class="px-2 py-1 bg-secondary hover:bg-secondary/80 border border-border rounded text-xs font-mono text-secondary-foreground transition-colors"
-                title="Up One Directory"
-              >
-                &uarr; Up
-              </button>
-              <form phx-submit="local_navigate" class="flex-1 min-w-0">
-                <input
-                  type="text"
-                  name="path"
-                  value={@local_path}
-                  class="w-full bg-background border border-border rounded px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </form>
-            </div>
-
-            <!-- Filter Search -->
-            <input
-              type="text"
-              placeholder="Search local files..."
-              phx-keyup="local_search"
-              value={@local_filter}
-              class="w-full bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-muted-foreground focus:text-foreground focus:outline-none"
-            />
+            <button
+              phx-click="clear_error"
+              class="text-destructive hover:text-destructive/80 font-bold px-2 py-0.5 rounded hover:bg-destructive/10 shrink-0"
+              title="Dismiss"
+            >
+              &times;
+            </button>
           </div>
+        <% end %>
 
-          <!-- Local File Table -->
-          <div class="flex-1 overflow-y-auto font-mono text-xs">
-            <table class="w-full border-collapse">
-              <thead class="sticky top-0 bg-card border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider">
-                <tr>
-                  <th class="py-1.5 px-3 text-left">Name</th>
-                  <th class="py-1.5 px-3 text-right w-20">Size</th>
-                  <th class="py-1.5 px-3 text-right w-28 hidden sm:table-cell">Modified</th>
-                  <th class="py-1.5 px-2 text-center w-10">Act</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-border">
-                <%= for entry <- filter_entries(@local_entries, @local_filter, Map.get(assigns, :show_hidden, false)) do %>
-                  <tr
-                    class={"hover:bg-muted/40 cursor-pointer transition-colors #{if @selected_local == entry.path, do: "bg-muted border-l-2 border-primary", else: ""}"}
-                    phx-click="local_select"
-                    phx-value-path={entry.path}
-                    draggable="true"
-                    data-drag-path={entry.path}
-                    data-drag-side="local"
-                    data-drag-name={entry.name}
-                    data-drag-type={to_string(entry.type)}
+        <!-- Main Dual-Pane Workspace -->
+        <div class="flex-1 flex min-h-0 bg-background relative">
+          <!-- LEFT PANE: LOCAL FILESYSTEM -->
+          <section
+            class="flex-1 flex flex-col border-r border-border min-w-0"
+            data-drop-side="local"
+            data-drop-path={@local_path}
+          >
+            <!-- Local Pane Header & Path Bar -->
+            <div class="p-3 bg-card/50 border-b border-border flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 font-mono text-xs font-semibold text-foreground">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>LOCAL SYSTEM</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button
+                    phx-click="toggle_hidden"
+                    class="px-2 py-0.5 text-[11px] font-mono bg-secondary hover:bg-secondary/80 border border-border rounded text-secondary-foreground transition-colors"
                   >
-                    <td
-                      class="py-1.5 px-3 flex items-center gap-2 truncate"
-                      phx-click="local_open"
-                      phx-value-path={entry.path}
-                      phx-value-type={to_string(entry.type)}
-                    >
-                      <span class={
-                        if entry.type == :directory,
-                          do: "text-amber-500 font-bold",
-                          else: "text-muted-foreground"
-                      }>
-                        {if entry.type == :directory, do: "[DIR]", else: "[FILE]"}
-                      </span>
-                      <span class={"truncate #{if entry.type == :directory, do: "font-semibold text-foreground", else: "text-muted-foreground"}"}>
-                        {entry.name}
-                      </span>
-                    </td>
-                    <td class="py-1.5 px-3 text-right text-[11px] text-muted-foreground">
-                      {if entry.type == :directory, do: "-", else: LocalFS.format_size(entry.size)}
-                    </td>
-                    <td class="py-1.5 px-3 text-right text-[10px] text-muted-foreground hidden sm:table-cell">
-                      {format_mtime(entry.mtime)}
-                    </td>
-                    <td class="py-1.5 px-2 text-center">
-                      <button
-                        phx-click="open_rename"
-                        phx-value-target="local"
-                        phx-value-path={entry.path}
-                        class="text-muted-foreground hover:text-foreground text-[10px] mr-1"
-                        title="Rename"
-                      >
-                        Ren
-                      </button>
-                      <button
-                        phx-click="request_delete"
-                        phx-value-target="local"
-                        phx-value-path={entry.path}
-                        class="text-muted-foreground hover:text-destructive text-[10px]"
-                        title="Delete"
-                      >
-                        &times;
-                      </button>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- CENTER CONTROLS (Upload & Download Actions) -->
-        <div class="w-12 bg-card/50 border-r border-border flex flex-col items-center justify-center gap-4 shrink-0 z-10">
-          <button
-            phx-click="trigger_upload"
-            class="w-8 h-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center font-bold text-sm shadow transition-all hover:scale-105"
-            title="Upload Selected to Remote ->"
-          >
-            &rarr;
-          </button>
-          <button
-            phx-click="trigger_download"
-            class="w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground flex items-center justify-center font-bold text-sm shadow transition-all hover:scale-105"
-            title="<- Download Selected to Local"
-          >
-            &larr;
-          </button>
-        </div>
-
-        <!-- RIGHT PANE: REMOTE SFTP FILESYSTEM -->
-        <section
-          class="flex-1 flex flex-col min-w-0"
-          data-drop-side="remote"
-          data-drop-path={@remote_path}
-        >
-          <!-- Remote Pane Header & Path Bar -->
-          <div class="p-3 bg-card/50 border-b border-border flex flex-col gap-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2 font-mono text-xs font-semibold text-foreground">
-                <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
-                <span>REMOTE SERVER {if @server,
-                  do: "(#{@server.user}@#{@server.host})",
-                  else: "(#{@server_id})"}</span>
+                    {if Map.get(assigns, :show_hidden, false),
+                      do: "Hide dotfiles",
+                      else: "Show hidden"}
+                  </button>
+                  <button
+                    phx-click="open_new_folder"
+                    phx-value-target="local"
+                    class="px-2 py-0.5 text-[11px] font-mono bg-secondary hover:bg-secondary/80 border border-border rounded text-secondary-foreground transition-colors"
+                  >
+                    + New Folder
+                  </button>
+                </div>
               </div>
-              <div class="flex items-center gap-1">
+
+              <!-- Path Bar & Quick Jumps -->
+              <div class="flex items-center gap-1.5">
                 <button
-                  phx-click="open_new_folder"
-                  phx-value-target="remote"
-                  class="px-2 py-0.5 text-[11px] font-mono bg-secondary hover:bg-secondary/80 border border-border rounded text-secondary-foreground transition-colors"
+                  phx-click="local_navigate_up"
+                  class="px-2 py-1 bg-secondary hover:bg-secondary/80 border border-border rounded text-xs font-mono text-secondary-foreground transition-colors"
+                  title="Up One Directory"
                 >
-                  + New Folder
+                  &uarr; Up
                 </button>
+                <form phx-submit="local_navigate" class="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    name="path"
+                    value={@local_path}
+                    class="w-full bg-background border border-border rounded px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </form>
               </div>
+
+              <!-- Filter Search -->
+              <input
+                type="text"
+                placeholder="Search local files..."
+                phx-keyup="local_search"
+                value={@local_filter}
+                class="w-full bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-muted-foreground focus:text-foreground focus:outline-none"
+              />
             </div>
 
-            <!-- Path Bar & Quick Jumps -->
-            <div class="flex items-center gap-1.5">
-              <button
-                phx-click="remote_navigate_up"
-                class="px-2 py-1 bg-secondary hover:bg-secondary/80 border border-border rounded text-xs font-mono text-secondary-foreground transition-colors"
-                title="Up One Directory"
-              >
-                &uarr; Up
-              </button>
-              <form phx-submit="remote_navigate" class="flex-1 min-w-0">
-                <input
-                  type="text"
-                  name="path"
-                  value={@remote_path}
-                  class="w-full bg-background border border-border rounded px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </form>
-            </div>
-
-            <!-- Quick Path Bookmarks -->
-            <div class="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground overflow-x-auto pb-0.5">
-              <span>Quick:</span>
-              <button
-                phx-click="remote_navigate"
-                phx-value-path="/var/www"
-                class="hover:text-foreground"
-              >/var/www</button>
-              <span>&bull;</span>
-              <button phx-click="remote_navigate" phx-value-path="/etc" class="hover:text-foreground">/etc</button>
-              <span>&bull;</span>
-              <button phx-click="remote_navigate" phx-value-path="/tmp" class="hover:text-foreground">/tmp</button>
-              <span>&bull;</span>
-              <button phx-click="remote_navigate" phx-value-path="/root" class="hover:text-foreground">/root</button>
-            </div>
-
-            <!-- Filter Search -->
-            <input
-              type="text"
-              placeholder="Search remote files..."
-              phx-keyup="remote_search"
-              value={@remote_filter}
-              class="w-full bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-muted-foreground focus:text-foreground focus:outline-none"
-            />
-          </div>
-
-          <!-- Remote File Table -->
-          <div class="flex-1 overflow-y-auto font-mono text-xs">
-            <%= if @remote_loading do %>
-              <div class="p-8 text-center text-muted-foreground font-mono text-xs">
-                Connecting to remote SFTP channel...
-              </div>
-            <% else %>
+            <!-- Local File Table -->
+            <div class="flex-1 overflow-y-auto font-mono text-xs">
               <table class="w-full border-collapse">
                 <thead class="sticky top-0 bg-card border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider">
                   <tr>
                     <th class="py-1.5 px-3 text-left">Name</th>
                     <th class="py-1.5 px-3 text-right w-20">Size</th>
-                    <th class="py-1.5 px-3 text-left w-20 hidden md:table-cell">Perms</th>
                     <th class="py-1.5 px-3 text-right w-28 hidden sm:table-cell">Modified</th>
                     <th class="py-1.5 px-2 text-center w-10">Act</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
-                  <%= for entry <- filter_entries(@remote_entries, @remote_filter, Map.get(assigns, :show_hidden, false)) do %>
+                  <%= for entry <- filter_entries(@local_entries, @local_filter, Map.get(assigns, :show_hidden, false)) do %>
                     <tr
-                      class={"hover:bg-muted/40 cursor-pointer transition-colors #{if @selected_remote == entry.path, do: "bg-muted border-l-2 border-primary", else: ""}"}
-                      phx-click="remote_select"
+                      class={"hover:bg-muted/40 cursor-pointer transition-colors #{if @selected_local == entry.path, do: "bg-muted border-l-2 border-primary", else: ""}"}
+                      phx-click="local_select"
                       phx-value-path={entry.path}
                       draggable="true"
                       data-drag-path={entry.path}
-                      data-drag-side="remote"
+                      data-drag-side="local"
                       data-drag-name={entry.name}
                       data-drag-type={to_string(entry.type)}
                     >
                       <td
                         class="py-1.5 px-3 flex items-center gap-2 truncate"
-                        phx-click="remote_open"
+                        phx-click="local_open"
                         phx-value-path={entry.path}
                         phx-value-type={to_string(entry.type)}
                       >
                         <span class={
                           if entry.type == :directory,
-                            do: "text-cyan-500 font-bold",
+                            do: "text-amber-500 font-bold",
                             else: "text-muted-foreground"
                         }>
                           {if entry.type == :directory, do: "[DIR]", else: "[FILE]"}
@@ -1118,15 +949,7 @@ defmodule SSHClientWeb.SFTPLive do
                         </span>
                       </td>
                       <td class="py-1.5 px-3 text-right text-[11px] text-muted-foreground">
-                        {if entry.type == :directory, do: "-", else: SFTP.format_size(entry.size)}
-                      </td>
-                      <td
-                        class="py-1.5 px-3 text-left text-[10px] text-muted-foreground hover:text-foreground hidden md:table-cell"
-                        phx-click="open_chmod"
-                        phx-value-path={entry.path}
-                        phx-value-perms={entry.permissions}
-                      >
-                        {entry.permissions}
+                        {if entry.type == :directory, do: "-", else: LocalFS.format_size(entry.size)}
                       </td>
                       <td class="py-1.5 px-3 text-right text-[10px] text-muted-foreground hidden sm:table-cell">
                         {format_mtime(entry.mtime)}
@@ -1134,7 +957,7 @@ defmodule SSHClientWeb.SFTPLive do
                       <td class="py-1.5 px-2 text-center">
                         <button
                           phx-click="open_rename"
-                          phx-value-target="remote"
+                          phx-value-target="local"
                           phx-value-path={entry.path}
                           class="text-muted-foreground hover:text-foreground text-[10px] mr-1"
                           title="Rename"
@@ -1143,7 +966,7 @@ defmodule SSHClientWeb.SFTPLive do
                         </button>
                         <button
                           phx-click="request_delete"
-                          phx-value-target="remote"
+                          phx-value-target="local"
                           phx-value-path={entry.path}
                           class="text-muted-foreground hover:text-destructive text-[10px]"
                           title="Delete"
@@ -1155,192 +978,381 @@ defmodule SSHClientWeb.SFTPLive do
                   <% end %>
                 </tbody>
               </table>
-            <% end %>
-          </div>
-        </section>
-      </div>
+            </div>
+          </section>
 
-      <!-- BOTTOM TRANSFER QUEUE DOCK -->
-      <footer class="h-14 bg-card border-t border-border px-4 flex items-center justify-between font-mono text-xs shrink-0 z-20">
-        <div class="flex items-center gap-3 min-w-0 flex-1">
-          <span class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider shrink-0">Queue:</span>
-          <%= if @active_transfer do %>
-            <div class="flex items-center gap-3 min-w-0 flex-1 max-w-xl">
-              <span class="text-foreground text-xs truncate font-semibold">{@active_transfer.filename}</span>
-              <div class="flex-1 h-2 bg-muted rounded-full overflow-hidden border border-border">
-                <div
-                  class="h-full bg-primary transition-all duration-200"
-                  style={"width: #{@transfer_progress}%"}
-                >
+          <!-- CENTER CONTROLS (Upload & Download Actions) -->
+          <div class="w-12 bg-card/50 border-r border-border flex flex-col items-center justify-center gap-4 shrink-0 z-10">
+            <button
+              phx-click="trigger_upload"
+              class="w-8 h-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center font-bold text-sm shadow transition-all hover:scale-105"
+              title="Upload Selected to Remote ->"
+            >
+              &rarr;
+            </button>
+            <button
+              phx-click="trigger_download"
+              class="w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground flex items-center justify-center font-bold text-sm shadow transition-all hover:scale-105"
+              title="<- Download Selected to Local"
+            >
+              &larr;
+            </button>
+          </div>
+
+          <!-- RIGHT PANE: REMOTE SFTP FILESYSTEM -->
+          <section
+            class="flex-1 flex flex-col min-w-0"
+            data-drop-side="remote"
+            data-drop-path={@remote_path}
+          >
+            <!-- Remote Pane Header & Path Bar -->
+            <div class="p-3 bg-card/50 border-b border-border flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 font-mono text-xs font-semibold text-foreground">
+                  <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+                  <span>REMOTE SERVER {if @server,
+                    do: "(#{@server.user}@#{@server.host})",
+                    else: "(#{@server_id})"}</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button
+                    phx-click="open_new_folder"
+                    phx-value-target="remote"
+                    class="px-2 py-0.5 text-[11px] font-mono bg-secondary hover:bg-secondary/80 border border-border rounded text-secondary-foreground transition-colors"
+                  >
+                    + New Folder
+                  </button>
                 </div>
               </div>
-              <span class="text-foreground text-xs shrink-0 font-medium">{@transfer_progress}%</span>
-              <button
-                phx-click="cancel_transfer"
-                phx-value-id={@active_transfer.id}
-                class="text-[10px] font-mono text-destructive"
-              >Cancel</button>
-              <%= if @active_transfer.status == :failed do %>
-                <button
-                  phx-click="retry_transfer"
-                  phx-value-id={@active_transfer.id}
-                  class="text-[10px] font-mono text-foreground"
-                >Retry</button>
-              <% end %>
-            </div>
-          <% else %>
-            <span class="text-muted-foreground text-xs">Idle — Drag and drop files between panes or click Transfer arrows</span>
-          <% end %>
-        </div>
 
-        <div class="flex items-center gap-4 text-[11px] text-muted-foreground">
-          <span>{length(@local_entries)} local items</span>
-          <span>&bull;</span>
-          <span>{length(@remote_entries)} remote items</span>
-        </div>
-      </footer>
-
-      <!-- INLINE CODE / CONFIG EDITOR MODAL -->
-      <%= if @editor_open do %>
-        <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
-          <div class="w-full max-w-4xl h-[80vh] bg-card border border-border rounded-xl flex flex-col shadow-2xl overflow-hidden font-mono">
-            <div class="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/40">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-foreground">{String.upcase(
-                  to_string(@editor_target)
-                )} FILE:</span>
-                <span class="text-xs text-foreground truncate">{@editor_path}</span>
-              </div>
-              <div class="flex items-center gap-2">
+              <!-- Path Bar & Quick Jumps -->
+              <div class="flex items-center gap-1.5">
                 <button
-                  phx-click="save_editor"
-                  phx-value-content={@editor_content}
-                  disabled={@editor_saving}
-                  class="px-3 py-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-md transition-colors shadow"
+                  phx-click="remote_navigate_up"
+                  class="px-2 py-1 bg-secondary hover:bg-secondary/80 border border-border rounded text-xs font-mono text-secondary-foreground transition-colors"
+                  title="Up One Directory"
                 >
-                  {if @editor_saving, do: "Saving...", else: "Save"}
+                  &uarr; Up
                 </button>
-                <button
-                  phx-click="close_editor"
-                  class="px-3 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs rounded-md"
-                >
-                  Close
-                </button>
+                <form phx-submit="remote_navigate" class="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    name="path"
+                    value={@remote_path}
+                    class="w-full bg-background border border-border rounded px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </form>
               </div>
-            </div>
-            <div class="flex-1 p-4 bg-background">
-              <textarea
-                name="content"
-                phx-change="editor_content_change"
-                class="w-full h-full bg-transparent text-foreground font-mono text-xs focus:outline-none resize-none"
-              ><%= @editor_content %></textarea>
-            </div>
-          </div>
-        </div>
-      <% end %>
 
-      <!-- NEW FOLDER MODAL -->
-      <%= if @new_folder_modal do %>
-        <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
-            <h3 class="text-sm font-bold text-foreground">
-              Create Directory on {String.upcase(to_string(@new_folder_target))}
-            </h3>
-            <input
-              type="text"
-              placeholder="folder_name"
-              phx-keyup="update_new_folder_name"
-              value={@new_folder_name}
-              class="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              autofocus
-            />
-            <div class="flex justify-end gap-2">
-              <button
-                phx-click="close_modal"
-                class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >Cancel</button>
-              <button
-                phx-click="confirm_new_folder"
-                class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium"
-              >Create</button>
-            </div>
-          </div>
-        </div>
-      <% end %>
+              <!-- Quick Path Bookmarks -->
+              <div class="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground overflow-x-auto pb-0.5">
+                <span>Quick:</span>
+                <button
+                  phx-click="remote_navigate"
+                  phx-value-path="/var/www"
+                  class="hover:text-foreground"
+                >/var/www</button>
+                <span>&bull;</span>
+                <button
+                  phx-click="remote_navigate"
+                  phx-value-path="/etc"
+                  class="hover:text-foreground"
+                >/etc</button>
+                <span>&bull;</span>
+                <button
+                  phx-click="remote_navigate"
+                  phx-value-path="/tmp"
+                  class="hover:text-foreground"
+                >/tmp</button>
+                <span>&bull;</span>
+                <button
+                  phx-click="remote_navigate"
+                  phx-value-path="/root"
+                  class="hover:text-foreground"
+                >/root</button>
+              </div>
 
-      <%= if Map.get(assigns, :rename_modal, false) do %>
-        <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
-            <h3 class="text-sm font-bold text-foreground">Rename</h3>
-            <input
-              type="text"
-              phx-keyup="update_rename_name"
-              value={@rename_name}
-              class="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none"
-              autofocus
-            />
-            <div class="flex justify-end gap-2">
-              <button phx-click="close_modal" class="px-3 py-1.5 text-xs text-muted-foreground">Cancel</button>
-              <button
-                phx-click="confirm_rename"
-                class="px-4 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg"
-              >Rename</button>
-            </div>
-          </div>
-        </div>
-      <% end %>
-
-      <!-- CHMOD MODAL -->
-      <%= if @chmod_modal do %>
-        <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
-            <h3 class="text-sm font-bold text-foreground">Change Remote Permissions (chmod)</h3>
-            <p class="text-xs text-muted-foreground truncate">{@chmod_entry}</p>
-            <div class="space-y-2">
-              <label class="text-[11px] text-muted-foreground">Octal Notation (e.g. 0755, 0644):</label>
+              <!-- Filter Search -->
               <input
                 type="text"
-                phx-keyup="update_chmod_octal"
-                value={@chmod_octal}
-                class="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="Search remote files..."
+                phx-keyup="remote_search"
+                value={@remote_filter}
+                class="w-full bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-muted-foreground focus:text-foreground focus:outline-none"
               />
             </div>
-            <div class="flex justify-end gap-2">
-              <button
-                phx-click="close_modal"
-                class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >Cancel</button>
-              <button
-                phx-click="confirm_chmod"
-                class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium"
-              >Apply</button>
-            </div>
-          </div>
-        </div>
-      <% end %>
 
-      <!-- DELETE MODAL -->
-      <%= if @delete_modal do %>
-        <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div class="bg-card border border-destructive/30 rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
-            <h3 class="text-sm font-bold text-destructive">Confirm Deletion</h3>
-            <p class="text-xs text-muted-foreground break-all">
-              Are you sure you want to delete this {@delete_target} item?<br /><strong class="text-foreground">{@delete_path}</strong>
-            </p>
-            <div class="flex justify-end gap-2">
-              <button
-                phx-click="close_modal"
-                class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >Cancel</button>
-              <button
-                phx-click="confirm_delete"
-                class="px-4 py-1.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg font-medium"
-              >Delete</button>
+            <!-- Remote File Table -->
+            <div class="flex-1 overflow-y-auto font-mono text-xs">
+              <%= if @remote_loading do %>
+                <div class="p-8 text-center text-muted-foreground font-mono text-xs">
+                  Connecting to remote SFTP channel...
+                </div>
+              <% else %>
+                <table class="w-full border-collapse">
+                  <thead class="sticky top-0 bg-card border-b border-border text-[10px] text-muted-foreground uppercase tracking-wider">
+                    <tr>
+                      <th class="py-1.5 px-3 text-left">Name</th>
+                      <th class="py-1.5 px-3 text-right w-20">Size</th>
+                      <th class="py-1.5 px-3 text-left w-20 hidden md:table-cell">Perms</th>
+                      <th class="py-1.5 px-3 text-right w-28 hidden sm:table-cell">Modified</th>
+                      <th class="py-1.5 px-2 text-center w-10">Act</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <%= for entry <- filter_entries(@remote_entries, @remote_filter, Map.get(assigns, :show_hidden, false)) do %>
+                      <tr
+                        class={"hover:bg-muted/40 cursor-pointer transition-colors #{if @selected_remote == entry.path, do: "bg-muted border-l-2 border-primary", else: ""}"}
+                        phx-click="remote_select"
+                        phx-value-path={entry.path}
+                        draggable="true"
+                        data-drag-path={entry.path}
+                        data-drag-side="remote"
+                        data-drag-name={entry.name}
+                        data-drag-type={to_string(entry.type)}
+                      >
+                        <td
+                          class="py-1.5 px-3 flex items-center gap-2 truncate"
+                          phx-click="remote_open"
+                          phx-value-path={entry.path}
+                          phx-value-type={to_string(entry.type)}
+                        >
+                          <span class={
+                            if entry.type == :directory,
+                              do: "text-cyan-500 font-bold",
+                              else: "text-muted-foreground"
+                          }>
+                            {if entry.type == :directory, do: "[DIR]", else: "[FILE]"}
+                          </span>
+                          <span class={"truncate #{if entry.type == :directory, do: "font-semibold text-foreground", else: "text-muted-foreground"}"}>
+                            {entry.name}
+                          </span>
+                        </td>
+                        <td class="py-1.5 px-3 text-right text-[11px] text-muted-foreground">
+                          {if entry.type == :directory, do: "-", else: SFTP.format_size(entry.size)}
+                        </td>
+                        <td
+                          class="py-1.5 px-3 text-left text-[10px] text-muted-foreground hover:text-foreground hidden md:table-cell"
+                          phx-click="open_chmod"
+                          phx-value-path={entry.path}
+                          phx-value-perms={entry.permissions}
+                        >
+                          {entry.permissions}
+                        </td>
+                        <td class="py-1.5 px-3 text-right text-[10px] text-muted-foreground hidden sm:table-cell">
+                          {format_mtime(entry.mtime)}
+                        </td>
+                        <td class="py-1.5 px-2 text-center">
+                          <button
+                            phx-click="open_rename"
+                            phx-value-target="remote"
+                            phx-value-path={entry.path}
+                            class="text-muted-foreground hover:text-foreground text-[10px] mr-1"
+                            title="Rename"
+                          >
+                            Ren
+                          </button>
+                          <button
+                            phx-click="request_delete"
+                            phx-value-target="remote"
+                            phx-value-path={entry.path}
+                            class="text-muted-foreground hover:text-destructive text-[10px]"
+                            title="Delete"
+                          >
+                            &times;
+                          </button>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              <% end %>
+            </div>
+          </section>
+        </div>
+
+        <!-- BOTTOM TRANSFER QUEUE DOCK -->
+        <footer class="h-14 bg-card border-t border-border px-4 flex items-center justify-between font-mono text-xs shrink-0 z-20">
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            <span class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider shrink-0">Queue:</span>
+            <%= if @active_transfer do %>
+              <div class="flex items-center gap-3 min-w-0 flex-1 max-w-xl">
+                <span class="text-foreground text-xs truncate font-semibold">{@active_transfer.filename}</span>
+                <div class="flex-1 h-2 bg-muted rounded-full overflow-hidden border border-border">
+                  <div
+                    class="h-full bg-primary transition-all duration-200"
+                    style={"width: #{@transfer_progress}%"}
+                  >
+                  </div>
+                </div>
+                <span class="text-foreground text-xs shrink-0 font-medium">{@transfer_progress}%</span>
+                <button
+                  phx-click="cancel_transfer"
+                  phx-value-id={@active_transfer.id}
+                  class="text-[10px] font-mono text-destructive"
+                >Cancel</button>
+                <%= if @active_transfer.status == :failed do %>
+                  <button
+                    phx-click="retry_transfer"
+                    phx-value-id={@active_transfer.id}
+                    class="text-[10px] font-mono text-foreground"
+                  >Retry</button>
+                <% end %>
+              </div>
+            <% else %>
+              <span class="text-muted-foreground text-xs">Idle — Drag and drop files between panes or click Transfer arrows</span>
+            <% end %>
+          </div>
+
+          <div class="flex items-center gap-4 text-[11px] text-muted-foreground">
+            <span>{length(@local_entries)} local items</span>
+            <span>&bull;</span>
+            <span>{length(@remote_entries)} remote items</span>
+          </div>
+        </footer>
+
+        <!-- INLINE CODE / CONFIG EDITOR MODAL -->
+        <%= if @editor_open do %>
+          <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+            <div class="w-full max-w-4xl h-[80vh] bg-card border border-border rounded-xl flex flex-col shadow-2xl overflow-hidden font-mono">
+              <div class="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/40">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-foreground">{String.upcase(
+                    to_string(@editor_target)
+                  )} FILE:</span>
+                  <span class="text-xs text-foreground truncate">{@editor_path}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    phx-click="save_editor"
+                    phx-value-content={@editor_content}
+                    disabled={@editor_saving}
+                    class="px-3 py-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-md transition-colors shadow"
+                  >
+                    {if @editor_saving, do: "Saving...", else: "Save"}
+                  </button>
+                  <button
+                    phx-click="close_editor"
+                    class="px-3 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs rounded-md"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+              <div class="flex-1 p-4 bg-background">
+                <textarea
+                  name="content"
+                  phx-change="editor_content_change"
+                  class="w-full h-full bg-transparent text-foreground font-mono text-xs focus:outline-none resize-none"
+                ><%= @editor_content %></textarea>
+              </div>
             </div>
           </div>
-        </div>
-      <% end %>
-    </div>
+        <% end %>
+
+        <!-- NEW FOLDER MODAL -->
+        <%= if @new_folder_modal do %>
+          <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+            <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
+              <h3 class="text-sm font-bold text-foreground">
+                Create Directory on {String.upcase(to_string(@new_folder_target))}
+              </h3>
+              <input
+                type="text"
+                placeholder="folder_name"
+                phx-keyup="update_new_folder_name"
+                value={@new_folder_name}
+                class="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                autofocus
+              />
+              <div class="flex justify-end gap-2">
+                <button
+                  phx-click="close_modal"
+                  class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >Cancel</button>
+                <button
+                  phx-click="confirm_new_folder"
+                  class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium"
+                >Create</button>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <%= if Map.get(assigns, :rename_modal, false) do %>
+          <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+            <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
+              <h3 class="text-sm font-bold text-foreground">Rename</h3>
+              <input
+                type="text"
+                phx-keyup="update_rename_name"
+                value={@rename_name}
+                class="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none"
+                autofocus
+              />
+              <div class="flex justify-end gap-2">
+                <button phx-click="close_modal" class="px-3 py-1.5 text-xs text-muted-foreground">Cancel</button>
+                <button
+                  phx-click="confirm_rename"
+                  class="px-4 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg"
+                >Rename</button>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- CHMOD MODAL -->
+        <%= if @chmod_modal do %>
+          <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+            <div class="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
+              <h3 class="text-sm font-bold text-foreground">Change Remote Permissions (chmod)</h3>
+              <p class="text-xs text-muted-foreground truncate">{@chmod_entry}</p>
+              <div class="space-y-2">
+                <label class="text-[11px] text-muted-foreground">Octal Notation (e.g. 0755, 0644):</label>
+                <input
+                  type="text"
+                  phx-keyup="update_chmod_octal"
+                  value={@chmod_octal}
+                  class="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div class="flex justify-end gap-2">
+                <button
+                  phx-click="close_modal"
+                  class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >Cancel</button>
+                <button
+                  phx-click="confirm_chmod"
+                  class="px-4 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium"
+                >Apply</button>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- DELETE MODAL -->
+        <%= if @delete_modal do %>
+          <div class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+            <div class="bg-card border border-destructive/30 rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl font-mono">
+              <h3 class="text-sm font-bold text-destructive">Confirm Deletion</h3>
+              <p class="text-xs text-muted-foreground break-all">
+                Are you sure you want to delete this {@delete_target} item?<br /><strong class="text-foreground">{@delete_path}</strong>
+              </p>
+              <div class="flex justify-end gap-2">
+                <button
+                  phx-click="close_modal"
+                  class="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >Cancel</button>
+                <button
+                  phx-click="confirm_delete"
+                  class="px-4 py-1.5 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg font-medium"
+                >Delete</button>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </.app_shell>
     """
   end
 

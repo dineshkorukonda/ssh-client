@@ -9,9 +9,10 @@ defmodule SSHClientWeb.CoreComponents do
 
   @doc "Application Shell containing Left Sidebar and flexible Main Canvas"
   attr :current_tab, :atom, default: :hosts
-  attr :version, :string, default: "0.0.39"
+  attr :version, :string, default: "0.0.43"
   attr :servers_count, :integer, default: 0
   attr :online_count, :integer, default: 0
+  attr :compact, :boolean, default: false
   slot :inner_block, required: true
 
   def app_shell(assigns) do
@@ -25,6 +26,7 @@ defmodule SSHClientWeb.CoreComponents do
         version={@version}
         servers_count={@servers_count}
         online_count={@online_count}
+        compact={@compact}
       />
       <div class="flex-1 flex flex-col min-w-0 overflow-hidden h-full">
         {render_slot(@inner_block)}
@@ -35,27 +37,37 @@ defmodule SSHClientWeb.CoreComponents do
 
   @doc "Shadcn Left Sidebar Navigation"
   attr :current_tab, :atom, default: :hosts
-  attr :version, :string, default: "0.0.39"
+  attr :version, :string, default: "0.0.43"
   attr :servers_count, :integer, default: 0
   attr :online_count, :integer, default: 0
+  attr :compact, :boolean, default: false
 
   def sidebar_navigation(assigns) do
     ~H"""
-    <aside class="w-16 lg:w-56 shrink-0 border-r border-border bg-card/60 backdrop-blur-md flex flex-col justify-between select-none h-full z-20">
+    <aside class={[
+      "shrink-0 border-r border-border bg-card/60 backdrop-blur-md flex flex-col justify-between select-none h-full z-20 transition-all",
+      if(@compact, do: "w-14", else: "w-16 lg:w-56")
+    ]}>
       <!-- Top Brand & Nav Section -->
       <div class="flex flex-col">
         <!-- Logo & Header -->
         <div class="h-14 flex items-center justify-between px-3 lg:px-4 border-b border-border">
-          <a href="/" class="flex items-center gap-2.5 group overflow-hidden">
+          <a href="/" class="flex items-center gap-2.5 group overflow-hidden" title="ssh-client">
             <div class="w-8 h-8 rounded-md bg-primary text-primary-foreground font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
               <span>&gt;_</span>
             </div>
-            <div class="hidden lg:flex flex-col min-w-0">
+            <div class={if(@compact, do: "hidden", else: "hidden lg:flex flex-col min-w-0")}>
               <span class="text-foreground font-semibold text-sm tracking-tight truncate">ssh-client</span>
               <span class="text-[10px] font-mono text-muted-foreground truncate">v{@version}</span>
             </div>
           </a>
-          <span class="hidden lg:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">
+          <span class={
+            if(@compact,
+              do: "hidden",
+              else:
+                "hidden lg:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20"
+            )
+          }>
             BETA
           </span>
         </div>
@@ -162,7 +174,13 @@ defmodule SSHClientWeb.CoreComponents do
         <button
           type="button"
           phx-click="toggle_command_palette"
-          class="flex items-center justify-center lg:justify-between px-2.5 py-1.5 rounded-md bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors w-full"
+          class={[
+            "flex items-center rounded-md bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors w-full",
+            if(@compact,
+              do: "justify-center p-2",
+              else: "justify-center lg:justify-between px-2.5 py-1.5"
+            )
+          ]}
           title="Open Command Palette (Ctrl+K)"
         >
           <div class="flex items-center gap-2">
@@ -174,12 +192,18 @@ defmodule SSHClientWeb.CoreComponents do
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <span class="hidden lg:inline text-xs">Search</span>
+            <span class={if(@compact, do: "hidden", else: "hidden lg:inline text-xs")}>Search</span>
           </div>
-          <kbd class="hidden lg:inline px-1 py-0.2 text-[9px] bg-background border border-border rounded text-muted-foreground">Ctrl+K</kbd>
+          <kbd class={
+            if(@compact,
+              do: "hidden",
+              else:
+                "hidden lg:inline px-1 py-0.2 text-[9px] bg-background border border-border rounded text-muted-foreground"
+            )
+          }>Ctrl+K</kbd>
         </button>
 
-        <%= if @servers_count > 0 do %>
+        <%= if @servers_count > 0 and not @compact do %>
           <div class="hidden lg:flex items-center justify-between px-2.5 py-1 rounded bg-muted/40 text-[11px] text-muted-foreground border border-border/60">
             <div class="flex items-center gap-1.5">
               <span class={"status-dot " <> if(@online_count > 0, do: "online", else: "offline")}></span>

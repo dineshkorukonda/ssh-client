@@ -88,4 +88,42 @@ defmodule SSHClientWeb.TerminalLiveTest do
       assert hd(updated.assigns.tabs).layout == nil
     end
   end
+
+  describe "active session rendering" do
+    test "render/1 renders active terminal wrapped in sidebar app_shell" do
+      assigns = %{
+        server_id: "prod-node-1",
+        server: nil,
+        servers: [%{id: "prod-node-1", name: "Production Node 1", host: "10.0.0.1"}],
+        online_count: 1,
+        version: "0.0.43",
+        tabs: [
+          %{
+            id: 1,
+            title: "Shell 1",
+            connected: true,
+            error: nil,
+            layout: nil
+          }
+        ],
+        active_tab_id: 1,
+        cols: 80,
+        rows: 24,
+        show_commands: false,
+        all_commands: [],
+        selected_category: "all",
+        command_search: "",
+        show_deploy_modal: false,
+        host_key_prompt: nil,
+        command_palette_open: false,
+        flash: %{}
+      }
+
+      html = Phoenix.LiveViewTest.rendered_to_string(TerminalLive.render(assigns))
+      assert html =~ "prod-node-1"
+      assert html =~ "href=\"/terminal\""
+      assert html =~ "href=\"/\""
+      assert html =~ "w-14"
+    end
+  end
 end
