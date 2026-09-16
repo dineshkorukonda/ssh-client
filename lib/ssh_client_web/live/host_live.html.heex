@@ -36,49 +36,56 @@
           />
         </div>
 
-        <button
-          phx-click="scan_and_import_ssh_config"
-          class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm inline-flex items-center gap-1.5"
-          title="Scan and import hosts from ~/.ssh/config"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-            />
-          </svg>
-          Import ~/.ssh/config
-        </button>
+        <div class="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border">
+          <button
+            phx-click="scan_and_import_ssh_config"
+            class="h-8 px-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm inline-flex items-center gap-1.5"
+            title="Scan and import hosts from ~/.ssh/config"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+              />
+            </svg>
+            Import ~/.ssh/config
+          </button>
 
-        <button
-          phx-click="poll_all"
-          class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
-          title="Poll all server metrics"
-        >
-          Poll All
-        </button>
+          <button
+            phx-click="poll_all"
+            class="h-8 px-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
+            title="Poll all server metrics"
+          >
+            Poll All
+          </button>
+        </div>
 
-        <button
-          phx-click="open_workspace_modal"
-          class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
-        >
-          Save Workspace
-        </button>
+        <div class="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border">
+          <button
+            phx-click="open_workspace_modal"
+            class="h-8 px-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
+          >
+            Save Workspace
+          </button>
 
-        <button
-          phx-click="open_fwd_modal"
-          class="h-9 px-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
-        >
-          Port Forward
-        </button>
+          <button
+            phx-click="open_fwd_modal"
+            class="h-8 px-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded-md transition-colors shadow-sm"
+          >
+            Port Forward
+          </button>
+        </div>
 
         <button
           phx-click="open_add_modal"
-          class="h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-semibold rounded-md transition-colors shadow-sm"
+          class="h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-semibold rounded-md transition-colors shadow-sm inline-flex items-center gap-1.5"
         >
-          + Add Server
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add Server
         </button>
       </div>
     </div>
