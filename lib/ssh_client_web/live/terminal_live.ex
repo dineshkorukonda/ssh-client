@@ -1263,286 +1263,286 @@ defmodule SSHClientWeb.TerminalLive do
         </div>
         <!-- Main Body: Terminal + Docked Command Palette -->
         <div class="flex-1 flex flex-col min-h-0 w-full relative bg-background">
-        <% layout = @cur_tab[:layout]
+          <% layout = @cur_tab[:layout]
 
-        panes =
-          cond do
-            match?(%SSHClient.Terminal.Layout{}, layout) && layout.maximized ->
-              [layout.maximized]
+          panes =
+            cond do
+              match?(%SSHClient.Terminal.Layout{}, layout) && layout.maximized ->
+                [layout.maximized]
 
-            match?(%SSHClient.Terminal.Layout{}, layout) ->
-              SSHClient.Terminal.Layout.panes(layout)
+              match?(%SSHClient.Terminal.Layout{}, layout) ->
+                SSHClient.Terminal.Layout.panes(layout)
 
-            true ->
-              []
-          end
+              true ->
+                []
+            end
 
-        grid_class =
-          cond do
-            layout && layout.maximized -> "flex"
-            layout && layout.type == :split_h -> "grid grid-cols-2 gap-1"
-            layout && layout.type == :split_v -> "grid grid-rows-2 gap-1"
-            layout && layout.type == :grid -> "grid grid-cols-2 grid-rows-2 gap-1"
-            true -> "flex"
-          end %>
-        <%= if panes != [] do %>
-          <div class={"flex-1 min-h-0 w-full h-full " <> grid_class}>
-            <%= for pane_id <- panes do %>
-              <div
-                id={"terminal-pane-#{pane_id}"}
-                phx-hook="TerminalPane"
-                phx-click="focus_pane"
-                phx-value-pane_id={pane_id}
-                data-session-id={pane_id}
-                data-pane-id={pane_id}
-                class="min-h-0 h-full w-full overflow-hidden border border-border"
-              >
-              </div>
-            <% end %>
-          </div>
-        <% else %>
-          <div
-            id="xterm-container"
-            phx-hook="TerminalHook"
-            phx-update="ignore"
-            class="flex-1 w-full h-full min-h-0 overflow-hidden"
-            data-server-id={@server_id}
-            data-cols={@cols}
-            data-rows={@rows}
-          >
-          </div>
-        <% end %>
-        <!-- Slide-out / Docked Command Autocomplete & Suggestions Drawer -->
-        <%= if @show_commands do %>
-          <div class="absolute bottom-0 inset-x-0 bg-[#0c0c0e]/95 border-t border-[#27272a] backdrop-blur-md shadow-2xl z-30 flex flex-col max-h-[48vh] transition-all animate-in fade-in slide-in-from-bottom duration-150">
-            <!-- Header & Search Bar -->
-            <div class="p-2.5 px-4 border-b border-[#1f1f1f] flex items-center justify-between gap-3 bg-[#111113]">
-              <div class="flex items-center gap-2 flex-1 max-w-md">
-                <span class="text-zinc-500 text-xs font-mono">&gt;</span>
-                <input
-                  type="text"
-                  placeholder="Type to filter command suggestions or execute..."
-                  value={@command_search}
-                  phx-keyup="search_commands"
-                  phx-debounce="100"
-                  name="query"
-                  class="w-full bg-[#18181b] border border-[#27272a] rounded px-2.5 py-1 text-xs font-mono text-zinc-200 focus:outline-none focus:border-blue-500"
-                  autofocus
-                />
-              </div>
-              <!-- Category Pills -->
-              <div class="hidden md:flex items-center gap-1 text-[11px] font-mono">
-                <button
-                  phx-click="select_category"
-                  phx-value-cat="all"
-                  class={[
-                    "px-2 py-0.5 rounded transition-colors",
-                    if(@selected_category == "all",
-                      do: "bg-blue-600 text-white font-medium",
-                      else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
-                    )
-                  ]}
+          grid_class =
+            cond do
+              layout && layout.maximized -> "flex"
+              layout && layout.type == :split_h -> "grid grid-cols-2 gap-1"
+              layout && layout.type == :split_v -> "grid grid-rows-2 gap-1"
+              layout && layout.type == :grid -> "grid grid-cols-2 grid-rows-2 gap-1"
+              true -> "flex"
+            end %>
+          <%= if panes != [] do %>
+            <div class={"flex-1 min-h-0 w-full h-full " <> grid_class}>
+              <%= for pane_id <- panes do %>
+                <div
+                  id={"terminal-pane-#{pane_id}"}
+                  phx-hook="TerminalPane"
+                  phx-click="focus_pane"
+                  phx-value-pane_id={pane_id}
+                  data-session-id={pane_id}
+                  data-pane-id={pane_id}
+                  class="min-h-0 h-full w-full overflow-hidden border border-border"
                 >
-                  All
-                </button>
-
-                <button
-                  phx-click="select_category"
-                  phx-value-cat="zsh"
-                  class={[
-                    "px-2 py-0.5 rounded transition-colors",
-                    if(@selected_category == "zsh",
-                      do: "bg-blue-600 text-white font-medium",
-                      else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
-                    )
-                  ]}
-                >
-                  Zsh
-                </button>
-
-                <button
-                  phx-click="select_category"
-                  phx-value-cat="sys"
-                  class={[
-                    "px-2 py-0.5 rounded transition-colors",
-                    if(@selected_category == "sys",
-                      do: "bg-blue-600 text-white font-medium",
-                      else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
-                    )
-                  ]}
-                >
-                  System
-                </button>
-
-                <button
-                  phx-click="select_category"
-                  phx-value-cat="docker"
-                  class={[
-                    "px-2 py-0.5 rounded transition-colors",
-                    if(@selected_category == "docker",
-                      do: "bg-blue-600 text-white font-medium",
-                      else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
-                    )
-                  ]}
-                >
-                  Docker
-                </button>
-
-                <button
-                  phx-click="select_category"
-                  phx-value-cat="services"
-                  class={[
-                    "px-2 py-0.5 rounded transition-colors",
-                    if(@selected_category == "services",
-                      do: "bg-blue-600 text-white font-medium",
-                      else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
-                    )
-                  ]}
-                >
-                  Services
-                </button>
-
-                <button
-                  phx-click="select_category"
-                  phx-value-cat="net"
-                  class={[
-                    "px-2 py-0.5 rounded transition-colors",
-                    if(@selected_category == "net",
-                      do: "bg-blue-600 text-white font-medium",
-                      else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
-                    )
-                  ]}
-                >
-                  Network
-                </button>
-
-                <button
-                  phx-click="select_category"
-                  phx-value-cat="files"
-                  class={[
-                    "px-2 py-0.5 rounded transition-colors",
-                    if(@selected_category == "files",
-                      do: "bg-blue-600 text-white font-medium",
-                      else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
-                    )
-                  ]}
-                >
-                  Files
-                </button>
-              </div>
-              <!-- Close Button -->
-              <button
-                phx-click="toggle_commands"
-                class="text-zinc-500 hover:text-zinc-200 text-xs px-2 py-1 rounded hover:bg-[#202020] transition-colors font-mono"
-              >
-                Close
-              </button>
+                </div>
+              <% end %>
             </div>
-            <!-- Suggestions Grid -->
-            <div class="p-3 overflow-y-auto max-h-[36vh] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              <%= for item <- @filtered_commands do %>
-                <div class="p-2.5 rounded-lg bg-[#141416] border border-[#222226] hover:border-blue-500/50 hover:bg-[#19191d] transition-all flex flex-col justify-between group">
-                  <div>
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                      <span class="text-xs font-medium text-zinc-200 font-mono">{item.label}</span>
-                      <span class="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#202024] text-zinc-400 font-mono">{item.cat}</span>
+          <% else %>
+            <div
+              id="xterm-container"
+              phx-hook="TerminalHook"
+              phx-update="ignore"
+              class="flex-1 w-full h-full min-h-0 overflow-hidden"
+              data-server-id={@server_id}
+              data-cols={@cols}
+              data-rows={@rows}
+            >
+            </div>
+          <% end %>
+          <!-- Slide-out / Docked Command Autocomplete & Suggestions Drawer -->
+          <%= if @show_commands do %>
+            <div class="absolute bottom-0 inset-x-0 bg-[#0c0c0e]/95 border-t border-[#27272a] backdrop-blur-md shadow-2xl z-30 flex flex-col max-h-[48vh] transition-all animate-in fade-in slide-in-from-bottom duration-150">
+              <!-- Header & Search Bar -->
+              <div class="p-2.5 px-4 border-b border-[#1f1f1f] flex items-center justify-between gap-3 bg-[#111113]">
+                <div class="flex items-center gap-2 flex-1 max-w-md">
+                  <span class="text-zinc-500 text-xs font-mono">&gt;</span>
+                  <input
+                    type="text"
+                    placeholder="Type to filter command suggestions or execute..."
+                    value={@command_search}
+                    phx-keyup="search_commands"
+                    phx-debounce="100"
+                    name="query"
+                    class="w-full bg-[#18181b] border border-[#27272a] rounded px-2.5 py-1 text-xs font-mono text-zinc-200 focus:outline-none focus:border-blue-500"
+                    autofocus
+                  />
+                </div>
+                <!-- Category Pills -->
+                <div class="hidden md:flex items-center gap-1 text-[11px] font-mono">
+                  <button
+                    phx-click="select_category"
+                    phx-value-cat="all"
+                    class={[
+                      "px-2 py-0.5 rounded transition-colors",
+                      if(@selected_category == "all",
+                        do: "bg-blue-600 text-white font-medium",
+                        else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
+                      )
+                    ]}
+                  >
+                    All
+                  </button>
+
+                  <button
+                    phx-click="select_category"
+                    phx-value-cat="zsh"
+                    class={[
+                      "px-2 py-0.5 rounded transition-colors",
+                      if(@selected_category == "zsh",
+                        do: "bg-blue-600 text-white font-medium",
+                        else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
+                      )
+                    ]}
+                  >
+                    Zsh
+                  </button>
+
+                  <button
+                    phx-click="select_category"
+                    phx-value-cat="sys"
+                    class={[
+                      "px-2 py-0.5 rounded transition-colors",
+                      if(@selected_category == "sys",
+                        do: "bg-blue-600 text-white font-medium",
+                        else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
+                      )
+                    ]}
+                  >
+                    System
+                  </button>
+
+                  <button
+                    phx-click="select_category"
+                    phx-value-cat="docker"
+                    class={[
+                      "px-2 py-0.5 rounded transition-colors",
+                      if(@selected_category == "docker",
+                        do: "bg-blue-600 text-white font-medium",
+                        else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
+                      )
+                    ]}
+                  >
+                    Docker
+                  </button>
+
+                  <button
+                    phx-click="select_category"
+                    phx-value-cat="services"
+                    class={[
+                      "px-2 py-0.5 rounded transition-colors",
+                      if(@selected_category == "services",
+                        do: "bg-blue-600 text-white font-medium",
+                        else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
+                      )
+                    ]}
+                  >
+                    Services
+                  </button>
+
+                  <button
+                    phx-click="select_category"
+                    phx-value-cat="net"
+                    class={[
+                      "px-2 py-0.5 rounded transition-colors",
+                      if(@selected_category == "net",
+                        do: "bg-blue-600 text-white font-medium",
+                        else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
+                      )
+                    ]}
+                  >
+                    Network
+                  </button>
+
+                  <button
+                    phx-click="select_category"
+                    phx-value-cat="files"
+                    class={[
+                      "px-2 py-0.5 rounded transition-colors",
+                      if(@selected_category == "files",
+                        do: "bg-blue-600 text-white font-medium",
+                        else: "text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f1f]"
+                      )
+                    ]}
+                  >
+                    Files
+                  </button>
+                </div>
+                <!-- Close Button -->
+                <button
+                  phx-click="toggle_commands"
+                  class="text-zinc-500 hover:text-zinc-200 text-xs px-2 py-1 rounded hover:bg-[#202020] transition-colors font-mono"
+                >
+                  Close
+                </button>
+              </div>
+              <!-- Suggestions Grid -->
+              <div class="p-3 overflow-y-auto max-h-[36vh] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <%= for item <- @filtered_commands do %>
+                  <div class="p-2.5 rounded-lg bg-[#141416] border border-[#222226] hover:border-blue-500/50 hover:bg-[#19191d] transition-all flex flex-col justify-between group">
+                    <div>
+                      <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="text-xs font-medium text-zinc-200 font-mono">{item.label}</span>
+                        <span class="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#202024] text-zinc-400 font-mono">{item.cat}</span>
+                      </div>
+
+                      <p class="text-[11px] text-zinc-500 leading-tight mb-2">{item.desc}</p>
+
+                      <code class="text-[11px] font-mono text-blue-400 bg-[#09090b] px-2 py-1 rounded block truncate border border-[#1b1b1f] select-text">
+                        {item.cmd}
+                      </code>
                     </div>
 
-                    <p class="text-[11px] text-zinc-500 leading-tight mb-2">{item.desc}</p>
+                    <div class="mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t border-[#1f1f23]">
+                      <button
+                        phx-click="insert_command"
+                        phx-value-cmd={item.cmd}
+                        class="px-2 py-1 rounded bg-[#202024] hover:bg-[#2c2c32] text-zinc-300 hover:text-white text-[10px] font-mono transition-colors"
+                        title="Insert command into prompt without executing"
+                      >
+                        Insert
+                      </button>
 
-                    <code class="text-[11px] font-mono text-blue-400 bg-[#09090b] px-2 py-1 rounded block truncate border border-[#1b1b1f] select-text">
-                      {item.cmd}
-                    </code>
+                      <button
+                        phx-click="run_command"
+                        phx-value-cmd={item.cmd}
+                        class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono font-medium transition-colors shadow-sm inline-flex items-center"
+                        title="Run immediately in terminal"
+                      >
+                        Run
+                      </button>
+                    </div>
                   </div>
+                <% end %>
 
-                  <div class="mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t border-[#1f1f23]">
-                    <button
-                      phx-click="insert_command"
-                      phx-value-cmd={item.cmd}
-                      class="px-2 py-1 rounded bg-[#202024] hover:bg-[#2c2c32] text-zinc-300 hover:text-white text-[10px] font-mono transition-colors"
-                      title="Insert command into prompt without executing"
-                    >
-                      Insert
-                    </button>
-
-                    <button
-                      phx-click="run_command"
-                      phx-value-cmd={item.cmd}
-                      class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-mono font-medium transition-colors shadow-sm inline-flex items-center"
-                      title="Run immediately in terminal"
-                    >
-                      Run
-                    </button>
+                <%= if Enum.empty?(@filtered_commands) do %>
+                  <div class="col-span-full py-8 text-center text-zinc-500 text-xs font-mono">
+                    No command suggestions match "{@command_search}"
                   </div>
-                </div>
-              <% end %>
-
-              <%= if Enum.empty?(@filtered_commands) do %>
-                <div class="col-span-full py-8 text-center text-zinc-500 text-xs font-mono">
-                  No command suggestions match "{@command_search}"
-                </div>
-              <% end %>
-            </div>
-          </div>
-        <% end %>
-        <!-- Auto Deploy SSH Key Prompt Modal -->
-        <%= if @show_deploy_modal and @deploy_key_info do %>
-          <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-            <div class="w-full max-w-md bg-[#121214] border border-[#27272a] rounded-xl shadow-2xl p-5 font-mono">
-              <div class="flex items-center justify-between pb-3 border-b border-[#27272a] mb-4">
-                <div class="flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                  <h3 class="text-sm font-semibold text-zinc-100">Deploy SSH Key</h3>
-                </div>
-
-                <button
-                  phx-click="dismiss_deploy_modal"
-                  class="text-zinc-500 hover:text-zinc-300 text-xs px-2 py-0.5 rounded hover:bg-[#1f1f23] transition-colors"
-                >
-                  Skip
-                </button>
-              </div>
-
-              <p class="text-xs text-zinc-300 leading-relaxed mb-3">
-                You connected using password authentication. Would you like to install your local public key (<span class="text-blue-400 font-semibold"><%= @deploy_key_info.filename %></span>) onto
-                <span class="text-zinc-100 font-semibold">{@target_user || (@server && @server.user) ||
-                  "root"}@{@server_id}</span>
-                for passwordless login?
-              </p>
-
-              <div class="bg-[#09090b] border border-[#1f1f23] rounded-lg p-2.5 mb-4 text-[11px] text-zinc-400 truncate">
-                <span class="text-zinc-500">Key Path: </span>
-                <span class="text-zinc-300">{@deploy_key_info.path}</span>
-              </div>
-
-              <%= if @deploy_status == :error do %>
-                <div class="p-2.5 rounded bg-red-950/40 border border-red-800/60 text-red-300 text-xs mb-4">
-                  {@deploy_message}
-                </div>
-              <% end %>
-
-              <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#1f1f23]">
-                <button
-                  type="button"
-                  phx-click="dismiss_deploy_modal"
-                  class="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f23] transition-colors"
-                >
-                  Don't Ask Again
-                </button>
-
-                <button
-                  type="button"
-                  phx-click="deploy_ssh_key"
-                  class="px-4 py-1.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-sm inline-flex items-center gap-1.5"
-                >
-                  Deploy Key (Passwordless)
-                </button>
+                <% end %>
               </div>
             </div>
-          </div>
-        <% end %>
+          <% end %>
+          <!-- Auto Deploy SSH Key Prompt Modal -->
+          <%= if @show_deploy_modal and @deploy_key_info do %>
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+              <div class="w-full max-w-md bg-[#121214] border border-[#27272a] rounded-xl shadow-2xl p-5 font-mono">
+                <div class="flex items-center justify-between pb-3 border-b border-[#27272a] mb-4">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    <h3 class="text-sm font-semibold text-zinc-100">Deploy SSH Key</h3>
+                  </div>
+
+                  <button
+                    phx-click="dismiss_deploy_modal"
+                    class="text-zinc-500 hover:text-zinc-300 text-xs px-2 py-0.5 rounded hover:bg-[#1f1f23] transition-colors"
+                  >
+                    Skip
+                  </button>
+                </div>
+
+                <p class="text-xs text-zinc-300 leading-relaxed mb-3">
+                  You connected using password authentication. Would you like to install your local public key (<span class="text-blue-400 font-semibold"><%= @deploy_key_info.filename %></span>) onto
+                  <span class="text-zinc-100 font-semibold">{@target_user || (@server && @server.user) ||
+                    "root"}@{@server_id}</span>
+                  for passwordless login?
+                </p>
+
+                <div class="bg-[#09090b] border border-[#1f1f23] rounded-lg p-2.5 mb-4 text-[11px] text-zinc-400 truncate">
+                  <span class="text-zinc-500">Key Path: </span>
+                  <span class="text-zinc-300">{@deploy_key_info.path}</span>
+                </div>
+
+                <%= if @deploy_status == :error do %>
+                  <div class="p-2.5 rounded bg-red-950/40 border border-red-800/60 text-red-300 text-xs mb-4">
+                    {@deploy_message}
+                  </div>
+                <% end %>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#1f1f23]">
+                  <button
+                    type="button"
+                    phx-click="dismiss_deploy_modal"
+                    class="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 hover:bg-[#1f1f23] transition-colors"
+                  >
+                    Don't Ask Again
+                  </button>
+
+                  <button
+                    type="button"
+                    phx-click="deploy_ssh_key"
+                    class="px-4 py-1.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-sm inline-flex items-center gap-1.5"
+                  >
+                    Deploy Key (Passwordless)
+                  </button>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
       </div>
-    </div>
     </.app_shell>
 
     <%= if @host_key_prompt do %>
