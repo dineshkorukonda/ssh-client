@@ -60,7 +60,7 @@ function Get-DaemonBat {
 
 function Stop-OwnedErlang {
     $rootPrefix = $releaseRoot.TrimEnd("\", "/")
-    Get-Process -Name erl, werl, epmd -ErrorAction SilentlyContinue |
+    Get-Process -Name erl, werl, epmd, erlexec, heart, inet_gethost -ErrorAction SilentlyContinue |
         Where-Object {
             $_.Path -and $_.Path.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
         } |
@@ -77,6 +77,22 @@ function Start-Backend {
     }
 
     Write-LauncherLog "Starting backend: $daemonBat"
+
+    # Reset any inherited release environment variables so start_erl.data resolves properly
+    $env:RELEASE_VSN = $null
+    $env:ERTS_VSN = $null
+    $env:REL_VSN_DIR = $null
+    $env:RELEASE_SYS_CONFIG = $null
+    $env:RELEASE_VM_ARGS = $null
+    $env:RELEASE_REMOTE_VM_ARGS = $null
+    $env:RELEASE_BOOT_SCRIPT = $null
+    $env:RELEASE_BOOT_SCRIPT_CLEAN = $null
+    $env:RELEASE_COMMAND = $null
+    $env:RELEASE_PROG = $null
+    $env:REL_EXEC = $null
+    $env:REL_EXTRA = $null
+    $env:REL_GOTO = $null
+
     Start-Process -FilePath $daemonBat -ArgumentList "start" -WorkingDirectory $releaseRoot -WindowStyle Hidden | Out-Null
 }
 

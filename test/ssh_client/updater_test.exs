@@ -90,19 +90,27 @@ defmodule SSHClient.UpdaterTest do
       assert script =~ "PID eq 1234"
       assert script =~ "taskkill /F /PID 1234"
       assert script =~ "taskkill /F /IM erl.exe"
+      assert script =~ "taskkill /F /IM erlexec.exe"
       assert script =~ "taskkill /F /IM epmd.exe"
       assert script =~ "taskkill /F /IM werl.exe"
-      assert script =~ "taskkill /F /IM beam.smp"
+      assert script =~ "taskkill /F /IM beam.smp.exe"
 
-      # 3. Non-destructive verified copy
+      # 3. Environment variable clearance to prevent stale RELEASE_VSN overrides
+      assert script =~ "set RELEASE_VSN="
+      assert script =~ "set ERTS_VSN="
+      assert script =~ "set REL_VSN_DIR="
+      assert script =~ "set RELEASE_SYS_CONFIG="
+      assert script =~ "set RELEASE_VM_ARGS="
+
+      # 4. Non-destructive verified copy
       assert script =~ "robocopy"
       assert script =~ "/E /IS /IT"
       refute script =~ "/MOVE"
 
-      # 4. Diagnostics logging
+      # 5. Diagnostics logging
       assert script =~ "update.log"
 
-      # 5. Clean relaunch
+      # 6. Clean relaunch
       assert script =~ "launch-gui.vbs"
     end
   end
@@ -131,11 +139,12 @@ defmodule SSHClient.UpdaterTest do
   end
 
   describe "build_linux_update_script/3" do
-    test "generates shell script with start command" do
+    test "generates shell script with start command and environment clearance" do
       script = Updater.build_linux_update_script("/tmp/staging", "/opt/ssh-client", 5678)
 
       assert script =~ "#!/bin/sh"
       assert script =~ "kill -9 5678"
+      assert script =~ "unset RELEASE_VSN"
       assert script =~ "/opt/ssh-client/bin/ssh_client\" start &"
       refute script =~ "daemon &"
     end
