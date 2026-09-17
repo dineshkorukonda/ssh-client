@@ -47,10 +47,12 @@ defmodule SSHClient.Updater do
             _ -> nil
           end
 
+        norm_app_dir = app_dir && Path.expand(app_dir)
+
         cond do
-          app_dir && String.contains?(app_dir, "/lib/ssh_client") ->
+          norm_app_dir && String.contains?(norm_app_dir, "/lib/ssh_client") ->
             # app_dir is <RELEASE_ROOT>/lib/ssh_client-0.0.x
-            app_dir |> Path.dirname() |> Path.dirname() |> Path.expand()
+            norm_app_dir |> Path.dirname() |> Path.dirname() |> Path.expand()
 
           true ->
             case :code.root_dir() do
@@ -360,19 +362,37 @@ defmodule SSHClient.Updater do
 
     echo === ssh-client update started: %date% %time% === >> "#{win_log}" 2>&1
 
-    :: 1. Wait for main process to exit
+    :: 1. Clear release environment variables inherited from old version
+    set RELEASE_VSN=
+    set ERTS_VSN=
+    set REL_VSN_DIR=
+    set RELEASE_SYS_CONFIG=
+    set RELEASE_VM_ARGS=
+    set RELEASE_REMOTE_VM_ARGS=
+    set RELEASE_BOOT_SCRIPT=
+    set RELEASE_BOOT_SCRIPT_CLEAN=
+    set RELEASE_COMMAND=
+    set RELEASE_PROG=
+    set REL_EXEC=
+    set REL_EXTRA=
+    set REL_GOTO=
+
+    :: 2. Wait for main process to exit
     #{pid_clause}
 
-    :: 2. Terminate background daemons to release file handles
+    :: 3. Terminate background daemons to release file handles
     taskkill /F /IM erl.exe >> "#{win_log}" 2>&1
-    taskkill /F /IM epmd.exe >> "#{win_log}" 2>&1
+    taskkill /F /IM erlexec.exe >> "#{win_log}" 2>&1
     taskkill /F /IM werl.exe >> "#{win_log}" 2>&1
-    taskkill /F /IM beam.smp >> "#{win_log}" 2>&1
+    taskkill /F /IM epmd.exe >> "#{win_log}" 2>&1
+    taskkill /F /IM beam.smp.exe >> "#{win_log}" 2>&1
+    taskkill /F /IM heart.exe >> "#{win_log}" 2>&1
+    taskkill /F /IM inet_gethost.exe >> "#{win_log}" 2>&1
 
     :: Extra pause for OS file handle release
     ping -n 3 127.0.0.1 >nul 2>&1
 
-    :: 3. Copy staged release files into application directory
+    :: 4. Copy staged release files into application directory
     echo Copying files from "#{win_staged}" to "#{win_target}"... >> "#{win_log}" 2>&1
     robocopy "#{win_staged}" "#{win_target}" /E /IS /IT /R:5 /W:1 >> "#{win_log}" 2>&1
     if errorlevel 8 (
@@ -380,10 +400,10 @@ defmodule SSHClient.Updater do
         xcopy "#{win_staged}\\*" "#{win_target}\\" /E /Y /I /Q >> "#{win_log}" 2>&1
     )
 
-    :: 4. Clean up staging folder
+    :: 5. Clean up staging folder
     rmdir /S /Q "#{win_staged}" >> "#{win_log}" 2>&1
 
-    :: 5. Relaunch ssh-client
+    :: 6. Relaunch ssh-client with clean environment
     echo Relaunching application... >> "#{win_log}" 2>&1
     if exist "#{win_target}\\bin\\launch-gui.vbs" (
         start "" wscript.exe "#{win_target}\\bin\\launch-gui.vbs"
@@ -435,6 +455,9 @@ defmodule SSHClient.Updater do
     #!/bin/sh
     sleep 1
     #{pid_clause}
+
+    # Clear release environment variables inherited from old version
+    unset RELEASE_VSN ERTS_VSN REL_VSN_DIR RELEASE_SYS_CONFIG RELEASE_VM_ARGS RELEASE_REMOTE_VM_ARGS RELEASE_BOOT_SCRIPT RELEASE_BOOT_SCRIPT_CLEAN RELEASE_COMMAND RELEASE_PROG
 
     cp -rf "#{staged_dir}"/* "#{target_dir}"/
     rm -rf "#{staged_dir}"

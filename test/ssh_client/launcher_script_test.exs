@@ -18,6 +18,7 @@ defmodule SSHClient.LauncherScriptTest do
       assert script =~ "Start-Process"
       assert script =~ "WindowStyle Hidden"
       assert script =~ "ssh_client.bat"
+      assert script =~ "$env:RELEASE_VSN = $null"
       refute script =~ ~r/cmd\.exe.*\sstart\s/i
       refute script =~ ~s[start "" ]
     end
