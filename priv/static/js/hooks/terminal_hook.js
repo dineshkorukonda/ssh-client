@@ -127,12 +127,22 @@
 
       term.open(el);
 
+      var safePushEvent = function(event, payload) {
+        try {
+          if (lv.pushEvent) {
+            lv.pushEvent(event, payload);
+          }
+        } catch(e) {
+          // Socket might still be connecting or destroyed
+        }
+      };
+
       var doFit = function() {
         if (!fitAddon || !el.clientWidth || !el.clientHeight) return;
         try {
           fitAddon.fit();
           if (term.cols > 0 && term.rows > 0) {
-            lv.pushEvent("resize", { cols: term.cols, rows: term.rows });
+            safePushEvent("resize", { cols: term.cols, rows: term.rows });
           }
         } catch(e) {
           console.debug("fit error:", e);
@@ -156,7 +166,7 @@
       term.writeln('\x1b[2mConnecting to ' + (el.dataset.serverId || 'server') + '...\x1b[0m');
       term.writeln('');
 
-      lv.pushEvent("terminal_ready", {});
+      safePushEvent("terminal_ready", {});
 
       this.handleEvent("terminal_output", function(payload) {
         term.write(payload.data);
@@ -165,7 +175,7 @@
       this.handleEvent("terminal_paste", function() {
         if (navigator.clipboard && navigator.clipboard.readText) {
           navigator.clipboard.readText().then(function(text) {
-            if (text) lv.pushEvent("terminal_data", { data: text });
+            if (text) safePushEvent("terminal_data", { data: text });
           }).catch(function(err) {
             console.warn("Clipboard read error:", err);
           });
@@ -174,7 +184,7 @@
 
       this.handleEvent("terminal_insert_command", function(payload) {
         var data = payload.execute ? (payload.command + "\n") : payload.command;
-        lv.pushEvent("terminal_data", { data: data });
+        safePushEvent("terminal_data", { data: data });
         term.focus();
       });
 
@@ -189,7 +199,7 @@
       });
 
       term.onData(function(data) {
-        lv.pushEvent("terminal_data", { data: data });
+        safePushEvent("terminal_data", { data: data });
       });
 
       setupKeyHandlers(
@@ -200,7 +210,7 @@
           requestAnimationFrame(doFit);
         },
         function(text) {
-          lv.pushEvent("terminal_data", { data: text });
+          safePushEvent("terminal_data", { data: text });
         }
       );
 
@@ -246,12 +256,22 @@
 
       term.open(el);
 
+      var safePushEvent = function(event, payload) {
+        try {
+          if (lv.pushEvent) {
+            lv.pushEvent(event, payload);
+          }
+        } catch(e) {
+          // Socket might still be connecting or destroyed
+        }
+      };
+
       var doFit = function() {
         if (!fitAddon || !el.clientWidth || !el.clientHeight) return;
         try {
           fitAddon.fit();
           if (term.cols > 0 && term.rows > 0) {
-            lv.pushEvent("pane_resize", { pane_id: paneId, cols: term.cols, rows: term.rows });
+            safePushEvent("pane_resize", { pane_id: paneId, cols: term.cols, rows: term.rows });
           }
         } catch(e) {}
       };
@@ -270,7 +290,7 @@
       }
 
       term.onData(function(data) {
-        lv.pushEvent("pane_data", { pane_id: paneId, data: data });
+        safePushEvent("pane_data", { pane_id: paneId, data: data });
       });
 
       this.handleEvent("terminal_output_" + paneId, function(payload) {
@@ -292,7 +312,7 @@
       this.handleEvent("terminal_paste_" + paneId, function() {
         if (navigator.clipboard && navigator.clipboard.readText) {
           navigator.clipboard.readText().then(function(text) {
-            if (text) lv.pushEvent("pane_data", { pane_id: paneId, data: text });
+            if (text) safePushEvent("pane_data", { pane_id: paneId, data: text });
           }).catch(function() {});
         }
       });
@@ -311,11 +331,11 @@
           requestAnimationFrame(doFit);
         },
         function(text) {
-          lv.pushEvent("pane_data", { pane_id: paneId, data: text });
+          safePushEvent("pane_data", { pane_id: paneId, data: text });
         }
       );
 
-      lv.pushEvent("pane_ready", { pane_id: paneId });
+      safePushEvent("pane_ready", { pane_id: paneId });
 
       window.addEventListener('resize', doFit);
       this.doFit = doFit;
