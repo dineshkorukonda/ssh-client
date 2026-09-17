@@ -1071,197 +1071,198 @@ defmodule SSHClientWeb.TerminalLive do
     >
       <div class="flex flex-col h-full w-full bg-background text-foreground overflow-hidden select-none font-sans">
         <!-- Terminal topbar -->
-        <div class="h-12 flex items-center justify-between px-3 bg-card/90 border-b border-border shrink-0 z-20">
+        <div class="h-12 flex items-center justify-between px-3 bg-card/90 border-b border-border shrink-0 z-20 gap-3 overflow-x-auto">
           <!-- Left: Server ID, BETA badge, Multi-tab bar -->
-          <div class="flex items-center gap-2 min-w-0">
+          <div class="flex items-center gap-2 min-w-0 shrink-0">
             <span class="text-foreground text-xs font-mono font-semibold truncate">{@server_id}</span>
             <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
-          </div>
-          <!-- Multi-Tab workspace pills -->
-          <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-border">
-            <%= for tab <- @tabs do %>
-              <div class={[
-                "flex items-center rounded font-mono text-xs overflow-hidden border transition-colors",
-                if(tab.id == @active_tab_id,
-                  do: "bg-background border-border text-foreground font-semibold shadow-sm",
-                  else:
-                    "bg-muted/50 border-transparent text-muted-foreground hover:text-foreground hover:bg-muted"
-                )
-              ]}>
-                <button
-                  phx-click="switch_tab"
-                  phx-value-id={tab.id}
-                  class="px-2.5 py-1 text-left flex items-center gap-1.5"
-                >
-                  <span class={[
-                    "w-1.5 h-1.5 rounded-full",
-                    if(tab.connected, do: "bg-emerald-500", else: "bg-muted-foreground")
-                  ]}></span> <span>{tab.title}</span>
-                </button>
 
-                <%= if length(@tabs) > 1 do %>
+            <!-- Multi-Tab workspace pills -->
+            <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-border">
+              <%= for tab <- @tabs do %>
+                <div class={[
+                  "flex items-center rounded font-mono text-xs overflow-hidden border transition-colors",
+                  if(tab.id == @active_tab_id,
+                    do: "bg-background border-border text-foreground font-semibold shadow-sm",
+                    else:
+                      "bg-muted/50 border-transparent text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )
+                ]}>
                   <button
-                    phx-click="close_tab"
+                    phx-click="switch_tab"
                     phx-value-id={tab.id}
-                    class="px-1.5 py-1 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Close Tab"
+                    class="px-2.5 py-1 text-left flex items-center gap-1.5"
                   >
-                    &times;
+                    <span class={[
+                      "w-1.5 h-1.5 rounded-full",
+                      if(tab.connected, do: "bg-emerald-500", else: "bg-muted-foreground")
+                    ]}></span> <span>{tab.title}</span>
                   </button>
-                <% end %>
-              </div>
-            <% end %>
 
-            <button
-              phx-click="new_tab"
-              class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
-              title="Open New Terminal Tab"
-            >
-              +
-            </button>
+                  <%= if length(@tabs) > 1 do %>
+                    <button
+                      phx-click="close_tab"
+                      phx-value-id={tab.id}
+                      class="px-1.5 py-1 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Close Tab"
+                    >
+                      &times;
+                    </button>
+                  <% end %>
+                </div>
+              <% end %>
 
-            <button
-              phx-click="split_right"
-              class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
-              title="Split Right"
-            >
-              Split Right
-            </button>
+              <button
+                phx-click="new_tab"
+                class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
+                title="Open New Terminal Tab"
+              >
+                +
+              </button>
 
-            <button
-              phx-click="split_down"
-              class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
-              title="Split Down"
-            >
-              Split Down
-            </button>
+              <button
+                phx-click="split_right"
+                class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
+                title="Split Right"
+              >
+                Split Right
+              </button>
+
+              <button
+                phx-click="split_down"
+                class="h-6 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground rounded text-xs font-mono transition-colors"
+                title="Split Down"
+              >
+                Split Down
+              </button>
+            </div>
           </div>
-        </div>
-        <!-- Center / Right: Quick Controls & Status -->
-        <div class="flex items-center gap-2">
-          <!-- Connection badge for active tab -->
-          <span class={[
-            "inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-0.5 rounded-full border shrink-0",
-            if(@cur_tab.connected,
-              do: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-              else:
-                if(@cur_tab.error,
-                  do: "bg-destructive/10 text-destructive border-destructive/20",
-                  else: "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                )
-            )
-          ]}>
+
+          <!-- Right: Quick Controls & Status -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <!-- Connection badge for active tab -->
             <span class={[
-              "w-1.5 h-1.5 rounded-full",
+              "inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-0.5 rounded-full border shrink-0",
               if(@cur_tab.connected,
-                do: "bg-emerald-500 animate-pulse",
-                else: if(@cur_tab.error, do: "bg-destructive", else: "bg-blue-500 animate-ping")
+                do: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                else:
+                  if(@cur_tab.error,
+                    do: "bg-destructive/10 text-destructive border-destructive/20",
+                    else: "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                  )
               )
-            ]}></span>
-            <span class="hidden md:inline">{if @cur_tab.connected,
-              do: "connected",
-              else: if(@cur_tab.error, do: "error", else: "connecting...")}</span>
-          </span>
+            ]}>
+              <span class={[
+                "w-1.5 h-1.5 rounded-full",
+                if(@cur_tab.connected,
+                  do: "bg-emerald-500 animate-pulse",
+                  else: if(@cur_tab.error, do: "bg-destructive", else: "bg-blue-500 animate-ping")
+                )
+              ]}></span>
+              <span class="hidden md:inline">{if @cur_tab.connected,
+                do: "connected",
+                else: if(@cur_tab.error, do: "error", else: "connecting...")}</span>
+            </span>
 
-          <span class="text-muted-foreground text-[10px] font-mono hidden lg:inline">{@cols}x{@rows}</span>
-          <!-- SFTP Quick Link -->
-          <a
-            href={"/sftp/#{@server_id}"}
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
-            title="Open SFTP File Explorer"
-          >
-            SFTP
-          </a>
-          <!-- Quick Action: Paste -->
-          <button
-            phx-click="request_paste"
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
-            title="Paste Clipboard (Ctrl+V)"
-          >
-            Paste
-          </button>
-          <!-- Quick Action: Toggle Commands Drawer -->
-          <button
-            phx-click="toggle_commands"
-            class={[
-              "h-7 px-2.5 border text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm",
-              if(@show_commands,
-                do: "bg-primary text-primary-foreground border-primary",
-                else: "bg-secondary hover:bg-secondary/80 border-border text-secondary-foreground"
-              )
-            ]}
-            title="Toggle Command Autocomplete & Suggestions"
-          >
-            Cmds
-          </button>
-          <!-- Quick Action: Switch to Zsh -->
-          <button
-            phx-click="switch_to_zsh"
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
-            title="Switch remote shell to Zsh (exec zsh -l)"
-          >
-            Zsh
-          </button>
-          <!-- Quick Action: Clear Screen -->
-          <button
-            phx-click="clear_screen"
-            class="h-7 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-xs rounded-md transition-colors font-mono"
-            title="Clear Terminal Screen (Ctrl+L)"
-          >
-            Clear
-          </button>
-          <!-- Font Size Adjusters -->
-          <div class="hidden sm:flex items-center border border-border rounded-md bg-secondary overflow-hidden">
-            <button
-              phx-click="font_decrease"
-              class="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
-              title="Decrease Font Size (Ctrl -)"
+            <span class="text-muted-foreground text-[10px] font-mono hidden lg:inline">{@cols}x{@rows}</span>
+            <!-- SFTP Quick Link -->
+            <a
+              href={"/sftp/#{@server_id}"}
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
+              title="Open SFTP File Explorer"
             >
-              A-
-            </button>
-            <span class="w-[1px] h-4 bg-border"></span>
+              SFTP
+            </a>
+            <!-- Quick Action: Paste -->
             <button
-              phx-click="font_increase"
-              class="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
-              title="Increase Font Size (Ctrl +)"
+              phx-click="request_paste"
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
+              title="Paste Clipboard (Ctrl+V)"
             >
-              A+
+              Paste
             </button>
+            <!-- Quick Action: Toggle Commands Drawer -->
+            <button
+              phx-click="toggle_commands"
+              class={[
+                "h-7 px-2.5 border text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm",
+                if(@show_commands,
+                  do: "bg-primary text-primary-foreground border-primary",
+                  else: "bg-secondary hover:bg-secondary/80 border-border text-secondary-foreground"
+                )
+              ]}
+              title="Toggle Command Autocomplete & Suggestions"
+            >
+              Cmds
+            </button>
+            <!-- Quick Action: Switch to Zsh -->
+            <button
+              phx-click="switch_to_zsh"
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center shadow-sm"
+              title="Switch remote shell to Zsh (exec zsh -l)"
+            >
+              Zsh
+            </button>
+            <!-- Quick Action: Clear Screen -->
+            <button
+              phx-click="clear_screen"
+              class="h-7 px-2 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-xs rounded-md transition-colors font-mono"
+              title="Clear Terminal Screen (Ctrl+L)"
+            >
+              Clear
+            </button>
+            <!-- Font Size Adjusters -->
+            <div class="hidden sm:flex items-center border border-border rounded-md bg-secondary overflow-hidden">
+              <button
+                phx-click="font_decrease"
+                class="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
+                title="Decrease Font Size (Ctrl -)"
+              >
+                A-
+              </button>
+              <span class="w-[1px] h-4 bg-border"></span>
+              <button
+                phx-click="font_increase"
+                class="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
+                title="Increase Font Size (Ctrl +)"
+              >
+                A+
+              </button>
+            </div>
+            <!-- Reconnect -->
+            <button
+              phx-click="reconnect"
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
+              title="Reconnect Session"
+            >
+              Reconnect
+            </button>
+
+            <button
+              phx-click="maximize_pane"
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
+            >
+              Maximize
+            </button>
+
+            <button
+              phx-click="restore_panes"
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
+            >
+              Restore
+            </button>
+            <!-- Logs -->
+            <a
+              href="/logs"
+              class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center"
+              title="View Real-Time Logs"
+            >
+              Logs
+            </a>
           </div>
-          <!-- Reconnect -->
-          <button
-            phx-click="reconnect"
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
-            title="Reconnect Session"
-          >
-            Reconnect
-          </button>
-
-          <button
-            phx-click="maximize_pane"
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
-          >
-            Maximize
-          </button>
-
-          <button
-            phx-click="restore_panes"
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
-          >
-            Restore
-          </button>
-          <!-- Logs -->
-          <a
-            href="/logs"
-            class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-xs rounded-md transition-colors font-mono inline-flex items-center"
-            title="View Real-Time Logs"
-          >
-            Logs
-          </a>
         </div>
-      </div>
-      <!-- Main Body: Terminal + Docked Command Palette -->
-      <div class="flex-1 flex flex-col min-h-0 w-full relative bg-background">
+        <!-- Main Body: Terminal + Docked Command Palette -->
+        <div class="flex-1 flex flex-col min-h-0 w-full relative bg-background">
         <% layout = @cur_tab[:layout]
 
         panes =
@@ -1541,6 +1542,7 @@ defmodule SSHClientWeb.TerminalLive do
           </div>
         <% end %>
       </div>
+    </div>
     </.app_shell>
 
     <%= if @host_key_prompt do %>
