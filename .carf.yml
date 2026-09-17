@@ -1,0 +1,17 @@
+# CARF Configuration (Change-Aware Rollback Framework)
+version: "1.0"
+mode: conservative
+thresholds:
+  base_tolerance_pct: 0.2
+  max_tolerance_pct: 2.0
+  observation_window_seconds: 300
+rules:
+  - name: test-discount
+    pattern: "**/*.{test,spec}.*"
+    weight: 0.1
+  - name: config-and-manifests
+    pattern: "**/*.{yaml,yml,json,env}"
+    weight: 1.5
+  - name: db-migrations
+    pattern: "**/migrations/**"
+    weight: 3.0
