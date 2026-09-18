@@ -104,16 +104,9 @@ defmodule SSHClientWeb.TerminalChannel do
 
   defp dispatch_input(pid, data) when is_pid(pid) and is_binary(data) do
     try do
-      cond do
-        match?({:ok, _}, SessionWorker.get_status(pid)) ->
-          SessionWorker.send_input(pid, data)
-
-        true ->
-          PTYSession.send_input(pid, data)
-      end
+      SessionWorker.send_input(pid, data)
     rescue
-      _ ->
-        PTYSession.send_input(pid, data)
+      _ -> :ok
     end
   end
 

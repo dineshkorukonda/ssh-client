@@ -37,7 +37,8 @@ defmodule SSHClient.SessionWorker do
     reconnect_attempts: 0,
     cols: 80,
     rows: 24,
-    term: "xterm-256color"
+    term: "xterm-256color",
+    input_queue: []
   ]
 
   @type status ::
@@ -183,6 +184,11 @@ defmodule SSHClient.SessionWorker do
     {:reply, :ok, state}
   end
 
+  def handle_call({:send_input, data}, _from, state) when is_binary(data) do
+    capped_queue = Enum.take([data | state.input_queue], 500)
+    {:reply, :ok, %{state | input_queue: capped_queue}}
+  end
+
   def handle_call({:send_input, _data}, _from, state) do
     {:reply, :ok, state}
   end
@@ -310,7 +316,7 @@ defmodule SSHClient.SessionWorker do
           :exit, _ -> :ok
         end
 
-        {:noreply, new_state}
+        {:noreply, flush_input_queue(new_state)}
 
       {:error, reason} ->
         {:noreply, handle_connect_error(state, reason)}
@@ -425,7 +431,8 @@ defmodule SSHClient.SessionWorker do
       state
       | reconnect_timer: nil,
         connection: nil,
-        channel_id: nil
+        channel_id: nil,
+        input_queue: []
     }
   end
 
@@ -462,4 +469,19 @@ defmodule SSHClient.SessionWorker do
       _ -> :ok
     end
   end
+
+  defp flush_input_queue(%{input_queue: []} = state), do: state
+
+  defp flush_input_queue(
+         %{input_queue: queue, connection: conn, channel_id: channel_id} = state
+       )
+       when not is_nil(conn) and not is_nil(channel_id) do
+    queue
+    |> Enum.reverse()
+    |> Enum.each(fn data -> SSH.send_pty_data(conn, channel_id, data) end)
+
+    %{state | input_queue: []}
+  end
+
+  defp flush_input_queue(state), do: %{state | input_queue: []}
 end
