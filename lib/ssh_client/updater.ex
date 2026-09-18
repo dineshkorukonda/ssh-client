@@ -463,6 +463,7 @@ defmodule SSHClient.Updater do
     rm -rf "#{staged_dir}"
 
     if [ -f "#{target_dir}/bin/ssh_client" ]; then
+        chmod +x "#{target_dir}/bin/ssh_client"
         "#{target_dir}/bin/ssh_client" start &
     fi
     """
@@ -497,7 +498,7 @@ defmodule SSHClient.Updater do
             file_path,
             "/VERYSILENT",
             "/SUPPRESSMSGBOXES",
-            "/NORESTART",
+            "/RESTARTAPPLICATIONS",
             "/CLOSEAPPLICATIONS",
             "/FORCECLOSEAPPLICATIONS",
             "/DIR=#{target_dir}"
@@ -505,6 +506,8 @@ defmodule SSHClient.Updater do
 
           case System.cmd("cmd.exe", args) do
             {_, 0} ->
+              schedule_vm_shutdown()
+
               {:ok, :installer_launched,
                "Windows Setup running silently in background. ssh-client will update and restart."}
 
