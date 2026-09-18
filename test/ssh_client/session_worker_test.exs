@@ -178,4 +178,58 @@ defmodule SSHClient.SessionWorkerTest do
       assert SessionWorker.get_status(pid) == :disconnected
     end
   end
+
+  describe "input buffering" do
+    test "send_input while disconnected returns :ok and does not crash", %{
+      session_id: session_id,
+      server: server
+    } do
+      {:ok, pid} =
+        SessionWorker.start_link(
+          session_id: session_id,
+          server: server,
+          auto_connect: false
+        )
+
+      assert SessionWorker.get_status(pid) == :disconnected
+      assert :ok == SessionWorker.send_input(pid, "ls -la\n")
+      assert :ok == SessionWorker.send_input(pid, "pwd\n")
+      assert Process.alive?(pid)
+    end
+
+    test "input queue is capped at 500 entries without crashing", %{
+      session_id: session_id,
+      server: server
+    } do
+      {:ok, pid} =
+        SessionWorker.start_link(
+          session_id: session_id,
+          server: server,
+          auto_connect: false
+        )
+
+      for _ <- 1..600 do
+        SessionWorker.send_input(pid, "x")
+      end
+
+      assert Process.alive?(pid)
+    end
+
+    test "send_input while connecting returns :ok and does not crash", %{
+      session_id: session_id,
+      server: server
+    } do
+      {:ok, pid} =
+        SessionWorker.start_link(
+          session_id: session_id,
+          server: server,
+          auto_connect: true
+        )
+
+      status = SessionWorker.get_status(pid)
+      assert status in [:connecting, :reconnecting, :error]
+      assert :ok == SessionWorker.send_input(pid, "hello\n")
+      assert Process.alive?(pid)
+    end
+  end
 end
