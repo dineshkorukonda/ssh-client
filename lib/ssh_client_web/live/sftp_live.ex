@@ -20,134 +20,129 @@ defmodule SSHClientWeb.SFTPLive do
   alias SSHClient.SSH
   alias SSHClient.SSH.ConfigImporter
   alias SSHClient.Updater
-  alias SSHClient.Vault
 
   @impl true
   def mount(params, _session, socket) do
-    if not Vault.unlocked?() do
-      {:ok, push_navigate(socket, to: "/lock")}
+    server_id = params["id"]
+    servers = list_all_servers()
+    online_count = count_online_servers()
+
+    if is_nil(server_id) or server_id == "" do
+      socket =
+        socket
+        |> assign(:page_title, "SFTP File Explorer")
+        |> assign(:server_id, nil)
+        |> assign(:server, nil)
+        |> assign(:servers, servers)
+        |> assign(:online_count, online_count)
+        |> assign(:version, Updater.current_version())
+        |> assign(:conn, nil)
+        |> assign(:sftp_pid, nil)
+        # Theme
+        |> assign(:theme, "dark")
+        # Local State
+        |> assign(:local_path, LocalFS.default_path())
+        |> assign(:local_entries, [])
+        |> assign(:local_filter, "")
+        |> assign(:show_hidden, false)
+        |> assign(:selected_local, nil)
+        |> assign(:local_loading, false)
+        # Remote State
+        |> assign(:remote_path, "/root")
+        |> assign(:remote_entries, [])
+        |> assign(:remote_filter, "")
+        |> assign(:selected_remote, nil)
+        |> assign(:remote_loading, false)
+        |> assign(:error, nil)
+        # Active Transfers & Queue
+        |> assign(:transfers, [])
+        |> assign(:active_transfer, nil)
+        |> assign(:transfer_progress, 0)
+        # Modals
+        |> assign(:editor_open, false)
+        |> assign(:editor_target, nil)
+        |> assign(:editor_path, nil)
+        |> assign(:editor_content, "")
+        |> assign(:editor_saving, false)
+        |> assign(:chmod_modal, false)
+        |> assign(:chmod_entry, nil)
+        |> assign(:chmod_octal, "0755")
+        |> assign(:new_folder_modal, false)
+        |> assign(:new_folder_target, :remote)
+        |> assign(:new_folder_name, "")
+        |> assign(:delete_modal, false)
+        |> assign(:delete_target, nil)
+        |> assign(:delete_path, nil)
+        |> assign(:rename_modal, false)
+        |> assign(:rename_target, nil)
+        |> assign(:rename_path, nil)
+        |> assign(:rename_name, "")
+        |> assign(:target_user, nil)
+
+      {:ok, socket}
     else
-      server_id = params["id"]
-      servers = list_all_servers()
-      online_count = count_online_servers()
+      server = resolve_server_struct(server_id)
+      local_start = LocalFS.default_path()
 
-      if is_nil(server_id) or server_id == "" do
-        socket =
-          socket
-          |> assign(:page_title, "SFTP File Explorer")
-          |> assign(:server_id, nil)
-          |> assign(:server, nil)
-          |> assign(:servers, servers)
-          |> assign(:online_count, online_count)
-          |> assign(:version, Updater.current_version())
-          |> assign(:conn, nil)
-          |> assign(:sftp_pid, nil)
-          # Theme
-          |> assign(:theme, "dark")
-          # Local State
-          |> assign(:local_path, LocalFS.default_path())
-          |> assign(:local_entries, [])
-          |> assign(:local_filter, "")
-          |> assign(:show_hidden, false)
-          |> assign(:selected_local, nil)
-          |> assign(:local_loading, false)
-          # Remote State
-          |> assign(:remote_path, "/root")
-          |> assign(:remote_entries, [])
-          |> assign(:remote_filter, "")
-          |> assign(:selected_remote, nil)
-          |> assign(:remote_loading, false)
-          |> assign(:error, nil)
-          # Active Transfers & Queue
-          |> assign(:transfers, [])
-          |> assign(:active_transfer, nil)
-          |> assign(:transfer_progress, 0)
-          # Modals
-          |> assign(:editor_open, false)
-          |> assign(:editor_target, nil)
-          |> assign(:editor_path, nil)
-          |> assign(:editor_content, "")
-          |> assign(:editor_saving, false)
-          |> assign(:chmod_modal, false)
-          |> assign(:chmod_entry, nil)
-          |> assign(:chmod_octal, "0755")
-          |> assign(:new_folder_modal, false)
-          |> assign(:new_folder_target, :remote)
-          |> assign(:new_folder_name, "")
-          |> assign(:delete_modal, false)
-          |> assign(:delete_target, nil)
-          |> assign(:delete_path, nil)
-          |> assign(:rename_modal, false)
-          |> assign(:rename_target, nil)
-          |> assign(:rename_path, nil)
-          |> assign(:rename_name, "")
-          |> assign(:target_user, nil)
+      socket =
+        socket
+        |> assign(:page_title, "SFTP — #{server_id}")
+        |> assign(:server_id, server_id)
+        |> assign(:server, server)
+        |> assign(:servers, servers)
+        |> assign(:online_count, online_count)
+        |> assign(:version, Updater.current_version())
+        |> assign(:conn, nil)
+        |> assign(:sftp_pid, nil)
+        # Theme
+        |> assign(:theme, "dark")
+        # Local State
+        |> assign(:local_path, local_start)
+        |> assign(:local_entries, [])
+        |> assign(:local_filter, "")
+        |> assign(:show_hidden, false)
+        |> assign(:selected_local, nil)
+        |> assign(:local_loading, false)
+        # Remote State
+        |> assign(:remote_path, "/root")
+        |> assign(:remote_entries, [])
+        |> assign(:remote_filter, "")
+        |> assign(:selected_remote, nil)
+        |> assign(:remote_loading, true)
+        |> assign(:error, nil)
+        # Active Transfers & Queue
+        |> assign(:transfers, [])
+        |> assign(:active_transfer, nil)
+        |> assign(:transfer_progress, 0)
+        # Modals
+        |> assign(:editor_open, false)
+        |> assign(:editor_target, nil)
+        |> assign(:editor_path, nil)
+        |> assign(:editor_content, "")
+        |> assign(:editor_saving, false)
+        |> assign(:chmod_modal, false)
+        |> assign(:chmod_entry, nil)
+        |> assign(:chmod_octal, "0755")
+        |> assign(:new_folder_modal, false)
+        |> assign(:new_folder_target, :remote)
+        |> assign(:new_folder_name, "")
+        |> assign(:delete_modal, false)
+        |> assign(:delete_target, nil)
+        |> assign(:delete_path, nil)
+        |> assign(:rename_modal, false)
+        |> assign(:rename_target, nil)
+        |> assign(:rename_path, nil)
+        |> assign(:rename_name, "")
+        |> assign(:target_user, nil)
 
-        {:ok, socket}
-      else
-        server = resolve_server_struct(server_id)
-        local_start = LocalFS.default_path()
+      socket = load_local_dir(socket, local_start)
 
-        socket =
-          socket
-          |> assign(:page_title, "SFTP — #{server_id}")
-          |> assign(:server_id, server_id)
-          |> assign(:server, server)
-          |> assign(:servers, servers)
-          |> assign(:online_count, online_count)
-          |> assign(:version, Updater.current_version())
-          |> assign(:conn, nil)
-          |> assign(:sftp_pid, nil)
-          # Theme
-          |> assign(:theme, "dark")
-          # Local State
-          |> assign(:local_path, local_start)
-          |> assign(:local_entries, [])
-          |> assign(:local_filter, "")
-          |> assign(:show_hidden, false)
-          |> assign(:selected_local, nil)
-          |> assign(:local_loading, false)
-          # Remote State
-          |> assign(:remote_path, "/root")
-          |> assign(:remote_entries, [])
-          |> assign(:remote_filter, "")
-          |> assign(:selected_remote, nil)
-          |> assign(:remote_loading, true)
-          |> assign(:error, nil)
-          # Active Transfers & Queue
-          |> assign(:transfers, [])
-          |> assign(:active_transfer, nil)
-          |> assign(:transfer_progress, 0)
-          # Modals
-          |> assign(:editor_open, false)
-          |> assign(:editor_target, nil)
-          |> assign(:editor_path, nil)
-          |> assign(:editor_content, "")
-          |> assign(:editor_saving, false)
-          |> assign(:chmod_modal, false)
-          |> assign(:chmod_entry, nil)
-          |> assign(:chmod_octal, "0755")
-          |> assign(:new_folder_modal, false)
-          |> assign(:new_folder_target, :remote)
-          |> assign(:new_folder_name, "")
-          |> assign(:delete_modal, false)
-          |> assign(:delete_target, nil)
-          |> assign(:delete_path, nil)
-          |> assign(:rename_modal, false)
-          |> assign(:rename_target, nil)
-          |> assign(:rename_path, nil)
-          |> assign(:rename_name, "")
-          |> assign(:target_user, nil)
-
-        socket = load_local_dir(socket, local_start)
-
-        if connected?(socket) do
-          Phoenix.PubSub.subscribe(SSHClient.PubSub, "ssh_client:transfers")
-          send(self(), :connect_sftp)
-        end
-
-        {:ok, socket}
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(SSHClient.PubSub, "ssh_client:transfers")
+        send(self(), :connect_sftp)
       end
+
+      {:ok, socket}
     end
   end
 
@@ -598,11 +593,6 @@ defmodule SSHClientWeb.SFTPLive do
 
     {:noreply,
      socket |> assign(:theme, new_theme) |> push_event("toggle_theme", %{theme: new_theme})}
-  end
-
-  def handle_event("lock_vault", _params, socket) do
-    Vault.lock()
-    {:noreply, push_navigate(socket, to: "/lock")}
   end
 
   def handle_event("scan_and_import_ssh_config", _params, socket) do

@@ -9,19 +9,7 @@ defmodule SSHClientWeb.LiveAuthTest do
     :ok
   end
 
-  test "on_mount redirects to /lock when vault is locked" do
-    {:ok, :initialized} = Vault.init_vault("test-secret-1234")
-    :ok = Vault.lock()
-    socket = %Phoenix.LiveView.Socket{}
-
-    assert {:halt, halted_socket} =
-             LiveAuth.on_mount(:require_unlocked, %{}, %{}, socket)
-
-    assert halted_socket.redirected == {:live, :redirect, %{kind: :push, to: "/lock"}}
-  end
-
-  test "on_mount allows access when vault is unlocked" do
-    {:ok, :initialized} = Vault.init_vault("test-secret-1234")
+  test "on_mount always allows access without requiring password" do
     socket = %Phoenix.LiveView.Socket{}
 
     assert {:cont, continued_socket} =
@@ -30,8 +18,9 @@ defmodule SSHClientWeb.LiveAuthTest do
     assert continued_socket == socket
   end
 
-  test "on_mount allows access when vault is uninitialized" do
-    Vault.destroy_vault()
+  test "on_mount allows access regardless of vault state" do
+    {:ok, :initialized} = Vault.init_vault("test-secret-1234")
+    :ok = Vault.lock()
     socket = %Phoenix.LiveView.Socket{}
 
     assert {:cont, continued_socket} =

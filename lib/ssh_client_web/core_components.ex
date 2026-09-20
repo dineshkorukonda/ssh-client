@@ -123,23 +123,6 @@ defmodule SSHClientWeb.CoreComponents do
               />
             </svg>
           </button>
-
-          <!-- Vault Lock -->
-          <button
-            type="button"
-            phx-click="lock_vault"
-            class="h-7 w-7 rounded border border-border bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 text-muted-foreground flex items-center justify-center transition-colors shadow-xs"
-            title="Lock Vault"
-          >
-            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-          </button>
         </div>
       </header>
 
@@ -369,7 +352,7 @@ defmodule SSHClientWeb.CoreComponents do
           <button
             type="button"
             onclick="window.toggleAppTheme && window.toggleAppTheme()"
-            class="h-8 flex-1 flex items-center justify-center rounded-md border border-border bg-background hover:bg-accent text-foreground transition-colors shadow-sm"
+            class="h-8 w-full flex items-center justify-center rounded-md border border-border bg-background hover:bg-accent text-foreground transition-colors shadow-sm"
             title="Toggle Theme"
           >
             <svg
@@ -396,23 +379,6 @@ defmodule SSHClientWeb.CoreComponents do
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-              />
-            </svg>
-          </button>
-
-          <!-- Vault Lock -->
-          <button
-            type="button"
-            phx-click="lock_vault"
-            class="h-8 flex-1 flex items-center justify-center rounded-md border border-border bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 text-muted-foreground transition-colors shadow-sm"
-            title="Lock Master Vault"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
               />
             </svg>
           </button>
@@ -706,23 +672,6 @@ defmodule SSHClientWeb.CoreComponents do
               d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
             />
           </svg>
-        </button>
-
-        <!-- Vault Lock Button -->
-        <button
-          phx-click="lock_vault"
-          class="h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-border bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 text-muted-foreground text-xs font-mono transition-colors shadow-sm"
-          title="Lock Master Vault"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-            />
-          </svg>
-          <span class="hidden md:inline">Lock</span>
         </button>
       </div>
     </header>

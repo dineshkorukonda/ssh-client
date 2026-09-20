@@ -52,14 +52,8 @@ defmodule SSHClient.Vault do
     _ -> :unlocked
   end
 
-  @doc "Returns true if the vault is unlocked or uninitialized (when vault is not enforced)"
-  def unlocked? do
-    case status() do
-      :unlocked -> true
-      :uninitialized -> true
-      _ -> false
-    end
-  end
+  @doc "Returns true if the vault is unlocked (unconditionally true now that master password is removed)"
+  def unlocked?, do: true
 
   @doc "Initializes a fresh vault with a new master password/PIN"
   def init_vault(password) when is_binary(password) and byte_size(password) >= 4 do
