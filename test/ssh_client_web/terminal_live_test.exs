@@ -38,6 +38,17 @@ defmodule SSHClientWeb.TerminalLiveTest do
     end
   end
 
+  describe "shortcuts modal events" do
+    test "toggle_shortcuts and close_shortcuts manage shortcuts modal visibility" do
+      socket = build_socket(%{show_shortcuts_modal: false})
+      assert {:noreply, updated} = TerminalLive.handle_event("toggle_shortcuts", %{}, socket)
+      assert updated.assigns.show_shortcuts_modal == true
+
+      assert {:noreply, closed} = TerminalLive.handle_event("close_shortcuts", %{}, updated)
+      assert closed.assigns.show_shortcuts_modal == false
+    end
+  end
+
   describe "session worker integration" do
     test "reconnect without a live session does not crash" do
       socket =
@@ -124,6 +135,16 @@ defmodule SSHClientWeb.TerminalLiveTest do
       assert html =~ "href=\"/terminal\""
       assert html =~ "href=\"/\""
       assert html =~ "w-14"
+      assert html =~ "Keyboard Shortcuts"
+
+      modal_html =
+        Phoenix.LiveViewTest.rendered_to_string(
+          TerminalLive.render(Map.put(assigns, :show_shortcuts_modal, true))
+        )
+
+      assert modal_html =~ "Keyboard Shortcuts"
+      assert modal_html =~ "Command Palette"
+      assert modal_html =~ "Ctrl + Shift + ?"
     end
   end
 end

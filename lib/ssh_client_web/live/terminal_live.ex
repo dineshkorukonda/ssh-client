@@ -244,6 +244,7 @@ defmodule SSHClientWeb.TerminalLive do
           |> assign(:command_palette_index, 0)
           |> assign(:host_key_prompt, nil)
           |> assign(:active_pane_id, nil)
+          |> assign(:show_shortcuts_modal, false)
 
         {:ok, socket}
       else
@@ -290,6 +291,7 @@ defmodule SSHClientWeb.TerminalLive do
           |> assign(:command_palette_open, false)
           |> assign(:command_palette_query, "")
           |> assign(:command_palette_index, 0)
+          |> assign(:show_shortcuts_modal, false)
           |> assign(:restore_layout, nil)
           |> restore_or_prepare_sessions()
 
@@ -620,6 +622,14 @@ defmodule SSHClientWeb.TerminalLive do
     {:noreply, socket}
   end
 
+  def handle_event("toggle_shortcuts", _params, socket) do
+    {:noreply, assign(socket, :show_shortcuts_modal, !socket.assigns[:show_shortcuts_modal])}
+  end
+
+  def handle_event("close_shortcuts", _params, socket) do
+    {:noreply, assign(socket, :show_shortcuts_modal, false)}
+  end
+
   def handle_event("toggle_command_palette", _params, socket) do
     {:noreply,
      socket
@@ -746,6 +756,12 @@ defmodule SSHClientWeb.TerminalLive do
 
       ctrl? and String.downcase(to_string(key)) == "k" ->
         handle_event("toggle_command_palette", %{}, socket)
+
+      ctrl? and params["shiftKey"] == true and key in ["?", "/"] ->
+        handle_event("toggle_shortcuts", %{}, socket)
+
+      socket.assigns[:show_shortcuts_modal] && key == "Escape" ->
+        handle_event("close_shortcuts", %{}, socket)
 
       socket.assigns[:command_palette_open] && key == "Escape" ->
         handle_event("close_command_palette", %{}, socket)
@@ -1229,6 +1245,14 @@ defmodule SSHClientWeb.TerminalLive do
                 A+
               </button>
             </div>
+            <!-- Shortcuts Cheat Sheet -->
+            <button
+              phx-click="toggle_shortcuts"
+              class="h-7 px-2 bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground text-xs rounded-md transition-colors font-mono shadow-sm"
+              title="Keyboard Shortcuts (Ctrl+Shift+?)"
+            >
+              ?
+            </button>
             <!-- Reconnect -->
             <button
               phx-click="reconnect"
@@ -1611,6 +1635,95 @@ defmodule SSHClientWeb.TerminalLive do
                 </button>
               <% end %>
             <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <%= if assigns[:show_shortcuts_modal] do %>
+      <div class="fixed inset-0 z-[85] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" phx-click="close_shortcuts">
+        <div class="w-full max-w-xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden font-mono text-xs" phx-click="noop">
+          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/40">
+            <div class="flex items-center gap-2">
+              <span class="text-foreground font-semibold uppercase tracking-wider text-xs">Keyboard Shortcuts</span>
+              <span class="text-[10px] text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">Terminal & Panes</span>
+            </div>
+            <button
+              phx-click="close_shortcuts"
+              class="text-muted-foreground hover:text-foreground text-sm px-1.5 py-0.5 rounded hover:bg-muted transition-colors"
+              title="Close"
+            >
+              &times;
+            </button>
+          </div>
+
+          <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div class="space-y-2">
+              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigation & Modals</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Command Palette</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + K</kbd>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Shortcuts Cheat Sheet</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + Shift + ?</kbd>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Dismiss Modal</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Esc</kbd>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Clear Terminal</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + L</kbd>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Split Panes & Layouts</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Split Pane Right</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + Shift + |</kbd>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Split Pane Down</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + Shift + _</kbd>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Clipboard & Zoom</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Copy Selection</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + C</kbd>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Paste Clipboard</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + V</kbd>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Increase Font Size</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + +</kbd>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
+                  <span>Decrease Font Size</span>
+                  <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + -</kbd>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-5 py-3 border-t border-border bg-muted/40 flex justify-end">
+            <button
+              phx-click="close_shortcuts"
+              class="h-7 px-3 bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs rounded transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
