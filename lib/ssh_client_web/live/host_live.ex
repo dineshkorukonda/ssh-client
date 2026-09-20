@@ -21,7 +21,6 @@ defmodule SSHClientWeb.HostLive do
   alias SSHClient.Store
   alias SSHClient.Terminal.Layout
   alias SSHClient.Updater
-  alias SSHClient.Vault
   alias SSHClient.Workspace
 
   @refresh_interval 5_000
@@ -32,63 +31,59 @@ defmodule SSHClientWeb.HostLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if not Vault.unlocked?() do
-      {:ok, push_navigate(socket, to: "/lock")}
-    else
-      if connected?(socket) do
-        :timer.send_interval(@refresh_interval, :refresh)
-      end
-
-      socket =
-        socket
-        |> assign(:page_title, "ssh-client")
-        |> assign(:version, Updater.current_version())
-        |> assign(:filter, "")
-        |> assign(:add_modal, false)
-        |> assign(:new_name, "")
-        |> assign(:new_host, "")
-        |> assign(:new_user, "")
-        |> assign(:new_users, "")
-        |> assign(:new_auth_method, "key")
-        |> assign(:new_port, "22")
-        |> assign(:new_password, "")
-        |> assign(:new_remember_password, true)
-        |> assign(:connect_modal, false)
-        |> assign(:connect_server, nil)
-        |> assign(:connect_user, "")
-        |> assign(:connect_users, [])
-        |> assign(:connect_auth_method, :key)
-        |> assign(:connect_password, "")
-        |> assign(:connect_remember, true)
-        |> assign(:has_saved_password, false)
-        |> assign(:custom_user, "")
-        |> assign(:tabs, [])
-        |> assign(:active_tab_id, nil)
-        |> assign(:active_pane_id, nil)
-        |> assign(:next_tab_id, 1)
-        |> assign(:cols, 80)
-        |> assign(:rows, 24)
-        |> assign(:error, nil)
-        |> assign(:command_palette_open, false)
-        |> assign(:command_palette_query, "")
-        |> assign(:command_palette_index, 0)
-        |> assign(:workspaces, [])
-        |> assign(:workspace_name, "")
-        |> assign(:workspace_modal, false)
-        |> assign(:active_workspace_id, nil)
-        |> assign(:crash_recovery, nil)
-        |> assign(:forwards, [])
-        |> assign(:fwd_modal, false)
-        |> assign(:fwd_type, "local")
-        |> assign(:fwd_server_id, "")
-        |> assign(:fwd_listen, "18080")
-        |> assign(:fwd_dest_host, "127.0.0.1")
-        |> assign(:fwd_dest_port, "3000")
-        |> load_servers()
-        |> check_crash_recovery()
-
-      {:ok, socket}
+    if connected?(socket) do
+      :timer.send_interval(@refresh_interval, :refresh)
     end
+
+    socket =
+      socket
+      |> assign(:page_title, "ssh-client")
+      |> assign(:version, Updater.current_version())
+      |> assign(:filter, "")
+      |> assign(:add_modal, false)
+      |> assign(:new_name, "")
+      |> assign(:new_host, "")
+      |> assign(:new_user, "")
+      |> assign(:new_users, "")
+      |> assign(:new_auth_method, "key")
+      |> assign(:new_port, "22")
+      |> assign(:new_password, "")
+      |> assign(:new_remember_password, true)
+      |> assign(:connect_modal, false)
+      |> assign(:connect_server, nil)
+      |> assign(:connect_user, "")
+      |> assign(:connect_users, [])
+      |> assign(:connect_auth_method, :key)
+      |> assign(:connect_password, "")
+      |> assign(:connect_remember, true)
+      |> assign(:has_saved_password, false)
+      |> assign(:custom_user, "")
+      |> assign(:tabs, [])
+      |> assign(:active_tab_id, nil)
+      |> assign(:active_pane_id, nil)
+      |> assign(:next_tab_id, 1)
+      |> assign(:cols, 80)
+      |> assign(:rows, 24)
+      |> assign(:error, nil)
+      |> assign(:command_palette_open, false)
+      |> assign(:command_palette_query, "")
+      |> assign(:command_palette_index, 0)
+      |> assign(:workspaces, [])
+      |> assign(:workspace_name, "")
+      |> assign(:workspace_modal, false)
+      |> assign(:active_workspace_id, nil)
+      |> assign(:crash_recovery, nil)
+      |> assign(:forwards, [])
+      |> assign(:fwd_modal, false)
+      |> assign(:fwd_type, "local")
+      |> assign(:fwd_server_id, "")
+      |> assign(:fwd_listen, "18080")
+      |> assign(:fwd_dest_host, "127.0.0.1")
+      |> assign(:fwd_dest_port, "3000")
+      |> load_servers()
+      |> check_crash_recovery()
+
+    {:ok, socket}
   end
 
   # ---------------------------------------------------------------------------
@@ -578,11 +573,6 @@ defmodule SSHClientWeb.HostLive do
   def handle_event("stop_forward", %{"id" => id}, socket) do
     Forwarding.stop(id)
     {:noreply, load_servers(socket)}
-  end
-
-  def handle_event("lock_vault", _params, socket) do
-    Vault.lock()
-    {:noreply, push_navigate(socket, to: "/lock")}
   end
 
   # ---------------------------------------------------------------------------

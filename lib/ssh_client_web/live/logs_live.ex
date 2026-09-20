@@ -11,37 +11,32 @@ defmodule SSHClientWeb.LogsLive do
 
   alias SSHClient.ActivityLog
   alias SSHClient.ServerManager
-  alias SSHClient.Vault
 
   @impl true
   def mount(_params, _session, socket) do
-    if not Vault.unlocked?() do
-      {:ok, push_navigate(socket, to: "/lock")}
-    else
-      if connected?(socket) do
-        ActivityLog.subscribe()
-      end
-
-      servers = list_server_ids()
-      all_servers = list_all_servers()
-      online_count = count_online_servers()
-      logs = ActivityLog.list_logs(limit: 200)
-
-      socket =
-        socket
-        |> assign(:page_title, "Activity Logs — ssh-client")
-        |> assign(:servers, servers)
-        |> assign(:servers_count, length(all_servers))
-        |> assign(:online_count, online_count)
-        |> assign(:selected_server, "all")
-        |> assign(:selected_level, "all")
-        |> assign(:search_query, "")
-        |> assign(:logs, logs)
-        |> assign(:selected_entry, nil)
-        |> assign(:version, SSHClient.Updater.current_version())
-
-      {:ok, socket}
+    if connected?(socket) do
+      ActivityLog.subscribe()
     end
+
+    servers = list_server_ids()
+    all_servers = list_all_servers()
+    online_count = count_online_servers()
+    logs = ActivityLog.list_logs(limit: 200)
+
+    socket =
+      socket
+      |> assign(:page_title, "Activity Logs — ssh-client")
+      |> assign(:servers, servers)
+      |> assign(:servers_count, length(all_servers))
+      |> assign(:online_count, online_count)
+      |> assign(:selected_server, "all")
+      |> assign(:selected_level, "all")
+      |> assign(:search_query, "")
+      |> assign(:logs, logs)
+      |> assign(:selected_entry, nil)
+      |> assign(:version, SSHClient.Updater.current_version())
+
+    {:ok, socket}
   end
 
   @impl true
@@ -74,11 +69,6 @@ defmodule SSHClientWeb.LogsLive do
 
   def handle_event("close_details", _params, socket) do
     {:noreply, assign(socket, :selected_entry, nil)}
-  end
-
-  def handle_event("lock_vault", _params, socket) do
-    Vault.lock()
-    {:noreply, push_navigate(socket, to: "/lock")}
   end
 
   @impl true

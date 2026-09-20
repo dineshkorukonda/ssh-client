@@ -22,7 +22,6 @@ defmodule SSHClientWeb.TerminalLive do
   alias SSHClient.Store
   alias SSHClient.Terminal.Layout
   alias SSHClient.Updater
-  alias SSHClient.Vault
 
   @default_commands [
     # Zsh & Shell
@@ -208,99 +207,95 @@ defmodule SSHClientWeb.TerminalLive do
 
   @impl true
   def mount(params, _session, socket) do
-    if not Vault.unlocked?() do
-      {:ok, push_navigate(socket, to: "/lock")}
+    server_id = params["id"]
+    servers = list_all_servers()
+    online_count = count_online(servers)
+
+    if is_nil(server_id) or server_id == "" do
+      socket =
+        socket
+        |> assign(:page_title, "Terminal")
+        |> assign(:server_id, nil)
+        |> assign(:server, nil)
+        |> assign(:servers, servers)
+        |> assign(:online_count, online_count)
+        |> assign(:version, Updater.current_version())
+        |> assign(:tabs, [])
+        |> assign(:active_tab_id, 1)
+        |> assign(:next_tab_id, 2)
+        |> assign(:cols, 80)
+        |> assign(:rows, 24)
+        |> assign(:show_commands, false)
+        |> assign(:command_search, "")
+        |> assign(:selected_category, "all")
+        |> assign(:all_commands, @default_commands)
+        |> assign(:target_user, nil)
+        |> assign(:target_auth, nil)
+        |> assign(:show_deploy_modal, false)
+        |> assign(:deploy_key_info, nil)
+        |> assign(:deploy_status, :idle)
+        |> assign(:deploy_message, nil)
+        |> assign(:command_palette_open, false)
+        |> assign(:command_palette_query, "")
+        |> assign(:command_palette_index, 0)
+        |> assign(:host_key_prompt, nil)
+        |> assign(:active_pane_id, nil)
+        |> assign(:show_shortcuts_modal, false)
+
+      {:ok, socket}
     else
-      server_id = params["id"]
-      servers = list_all_servers()
-      online_count = count_online(servers)
+      server = resolve_server_struct(server_id)
 
-      if is_nil(server_id) or server_id == "" do
-        socket =
-          socket
-          |> assign(:page_title, "Terminal")
-          |> assign(:server_id, nil)
-          |> assign(:server, nil)
-          |> assign(:servers, servers)
-          |> assign(:online_count, online_count)
-          |> assign(:version, Updater.current_version())
-          |> assign(:tabs, [])
-          |> assign(:active_tab_id, 1)
-          |> assign(:next_tab_id, 2)
-          |> assign(:cols, 80)
-          |> assign(:rows, 24)
-          |> assign(:show_commands, false)
-          |> assign(:command_search, "")
-          |> assign(:selected_category, "all")
-          |> assign(:all_commands, @default_commands)
-          |> assign(:target_user, nil)
-          |> assign(:target_auth, nil)
-          |> assign(:show_deploy_modal, false)
-          |> assign(:deploy_key_info, nil)
-          |> assign(:deploy_status, :idle)
-          |> assign(:deploy_message, nil)
-          |> assign(:command_palette_open, false)
-          |> assign(:command_palette_query, "")
-          |> assign(:command_palette_index, 0)
-          |> assign(:host_key_prompt, nil)
-          |> assign(:active_pane_id, nil)
-          |> assign(:show_shortcuts_modal, false)
+      initial_tab = %{
+        id: 1,
+        title: "Shell 1",
+        layout: nil,
+        session_id: nil,
+        session_pid: nil,
+        connected: false,
+        error: nil,
+        status: :disconnected
+      }
 
-        {:ok, socket}
-      else
-        server = resolve_server_struct(server_id)
+      socket =
+        socket
+        |> assign(:page_title, "Terminal — #{server_id}")
+        |> assign(:server_id, server_id)
+        |> assign(:server, server)
+        |> assign(:servers, servers)
+        |> assign(:online_count, online_count)
+        |> assign(:version, Updater.current_version())
+        |> assign(:tabs, [initial_tab])
+        |> assign(:active_tab_id, 1)
+        |> assign(:next_tab_id, 2)
+        |> assign(:cols, 80)
+        |> assign(:rows, 24)
+        |> assign(:show_commands, false)
+        |> assign(:command_search, "")
+        |> assign(:selected_category, "all")
+        |> assign(:all_commands, @default_commands)
+        |> assign(:target_user, nil)
+        |> assign(:target_auth, nil)
+        |> assign(:show_deploy_modal, false)
+        |> assign(:deploy_key_info, nil)
+        |> assign(:deploy_status, :idle)
+        |> assign(:deploy_message, nil)
+        |> assign(:active_pane_id, nil)
+        |> assign(:host_key_prompt, nil)
+        |> assign(:editing_tab_id, nil)
+        |> assign(:edit_tab_title, "")
+        |> assign(:command_palette_open, false)
+        |> assign(:command_palette_query, "")
+        |> assign(:command_palette_index, 0)
+        |> assign(:show_shortcuts_modal, false)
+        |> assign(:restore_layout, nil)
+        |> restore_or_prepare_sessions()
 
-        initial_tab = %{
-          id: 1,
-          title: "Shell 1",
-          layout: nil,
-          session_id: nil,
-          session_pid: nil,
-          connected: false,
-          error: nil,
-          status: :disconnected
-        }
-
-        socket =
-          socket
-          |> assign(:page_title, "Terminal — #{server_id}")
-          |> assign(:server_id, server_id)
-          |> assign(:server, server)
-          |> assign(:servers, servers)
-          |> assign(:online_count, online_count)
-          |> assign(:version, Updater.current_version())
-          |> assign(:tabs, [initial_tab])
-          |> assign(:active_tab_id, 1)
-          |> assign(:next_tab_id, 2)
-          |> assign(:cols, 80)
-          |> assign(:rows, 24)
-          |> assign(:show_commands, false)
-          |> assign(:command_search, "")
-          |> assign(:selected_category, "all")
-          |> assign(:all_commands, @default_commands)
-          |> assign(:target_user, nil)
-          |> assign(:target_auth, nil)
-          |> assign(:show_deploy_modal, false)
-          |> assign(:deploy_key_info, nil)
-          |> assign(:deploy_status, :idle)
-          |> assign(:deploy_message, nil)
-          |> assign(:active_pane_id, nil)
-          |> assign(:host_key_prompt, nil)
-          |> assign(:editing_tab_id, nil)
-          |> assign(:edit_tab_title, "")
-          |> assign(:command_palette_open, false)
-          |> assign(:command_palette_query, "")
-          |> assign(:command_palette_index, 0)
-          |> assign(:show_shortcuts_modal, false)
-          |> assign(:restore_layout, nil)
-          |> restore_or_prepare_sessions()
-
-        if connected?(socket) do
-          send(self(), :ensure_session)
-        end
-
-        {:ok, socket}
+      if connected?(socket) do
+        send(self(), :ensure_session)
       end
+
+      {:ok, socket}
     end
   end
 
@@ -737,11 +732,6 @@ defmodule SSHClientWeb.TerminalLive do
 
   def handle_event("dismiss_deploy_modal", _params, socket) do
     {:noreply, assign(socket, show_deploy_modal: false, deploy_status: :dismissed)}
-  end
-
-  def handle_event("lock_vault", _params, socket) do
-    Vault.lock()
-    {:noreply, push_navigate(socket, to: "/lock")}
   end
 
   def handle_event("handle_key", %{"key" => key} = params, socket) do

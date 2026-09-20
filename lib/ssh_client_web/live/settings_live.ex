@@ -16,49 +16,44 @@ defmodule SSHClientWeb.SettingsLive do
   alias SSHClient.SSH.ConfigImporter
   alias SSHClient.SSH.HostKeyVerifier
   alias SSHClient.Updater
-  alias SSHClient.Vault
   alias SSHClient.Diagnostics
 
   @impl true
   def mount(_params, _session, socket) do
-    if not Vault.unlocked?() do
-      {:ok, push_navigate(socket, to: "/lock")}
-    else
-      config_path = Config.default_config_path()
-      known_hosts_path = HostKeyVerifier.known_hosts_path()
-      known_hosts_entries = HostKeyVerifier.load_known_hosts()
-      discovered_keys = Auth.resolve_identities()
-      active_servers = list_active_servers()
-      online_count = count_online_servers()
+    config_path = Config.default_config_path()
+    known_hosts_path = HostKeyVerifier.known_hosts_path()
+    known_hosts_entries = HostKeyVerifier.load_known_hosts()
+    discovered_keys = Auth.resolve_identities()
+    active_servers = list_active_servers()
+    online_count = count_online_servers()
 
-      socket =
-        socket
-        |> assign(:page_title, "Settings — ssh-client")
-        |> assign(:current_tab, :general)
-        |> assign(:config_path, config_path)
-        |> assign(:known_hosts_path, known_hosts_path)
-        |> assign(:known_hosts_count, length(known_hosts_entries))
-        |> assign(:discovered_keys, discovered_keys)
-        |> assign(:active_servers_count, length(active_servers))
-        |> assign(:online_count, online_count)
-        |> assign(:version, Updater.current_version())
-        |> assign(:platform, detect_platform())
-        |> assign(:checking_update, false)
-        |> assign(:update_info, nil)
-        |> assign(:update_error, nil)
-        |> assign(:downloading_update, false)
-        |> assign(:download_progress, 0)
-        |> assign(:download_path, nil)
-        |> assign(:staged_dir, nil)
-        |> assign(:install_status, nil)
-        |> assign(:install_message, nil)
-        |> assign(:install_error, nil)
-        |> assign(:import_candidates, [])
-        |> assign(:import_status, nil)
-        |> assign(:diagnostics_json, nil)
+    socket =
+      socket
+      |> assign(:page_title, "Settings — ssh-client")
+      |> assign(:current_tab, :general)
+      |> assign(:config_path, config_path)
+      |> assign(:known_hosts_path, known_hosts_path)
+      |> assign(:known_hosts_count, length(known_hosts_entries))
+      |> assign(:discovered_keys, discovered_keys)
+      |> assign(:active_servers_count, length(active_servers))
+      |> assign(:online_count, online_count)
+      |> assign(:version, Updater.current_version())
+      |> assign(:platform, detect_platform())
+      |> assign(:checking_update, false)
+      |> assign(:update_info, nil)
+      |> assign(:update_error, nil)
+      |> assign(:downloading_update, false)
+      |> assign(:download_progress, 0)
+      |> assign(:download_path, nil)
+      |> assign(:staged_dir, nil)
+      |> assign(:install_status, nil)
+      |> assign(:install_message, nil)
+      |> assign(:install_error, nil)
+      |> assign(:import_candidates, [])
+      |> assign(:import_status, nil)
+      |> assign(:diagnostics_json, nil)
 
-      {:ok, socket}
-    end
+    {:ok, socket}
   end
 
   @impl true
@@ -197,11 +192,6 @@ defmodule SSHClientWeb.SettingsLive do
        "Successfully imported #{length(candidates)} host(s) into ssh-client!"
      )
      |> assign(:active_servers_count, length(active))}
-  end
-
-  def handle_event("lock_vault", _params, socket) do
-    Vault.lock()
-    {:noreply, push_navigate(socket, to: "/lock")}
   end
 
   @impl true
