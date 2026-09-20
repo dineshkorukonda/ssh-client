@@ -7,30 +7,164 @@ defmodule SSHClientWeb.CoreComponents do
 
   use Phoenix.Component
 
-  @doc "Application Shell containing Left Sidebar and flexible Main Canvas"
+  @doc "Application Shell containing Topbar, Left Sidebar, and Main Canvas"
   attr :current_tab, :atom, default: :hosts
-  attr :version, :string, default: "0.0.43"
+  attr :version, :string, default: "0.0.52"
   attr :servers_count, :integer, default: 0
   attr :online_count, :integer, default: 0
   attr :compact, :boolean, default: false
+  attr :breadcrumbs, :list, default: []
+  attr :full_bleed, :boolean, default: false
   slot :inner_block, required: true
 
   def app_shell(assigns) do
     ~H"""
     <div
-      class="flex h-screen w-screen overflow-hidden bg-background text-foreground antialiased"
+      class="flex flex-col h-screen w-screen overflow-hidden bg-background text-foreground antialiased"
       phx-window-keydown="handle_key"
     >
-      <.sidebar_navigation
-        current_tab={@current_tab}
-        version={@version}
-        servers_count={@servers_count}
-        online_count={@online_count}
-        compact={@compact}
-      />
-      <div class="flex-1 flex flex-col min-w-0 overflow-hidden h-full">
+      <!-- Integrated Global Topbar -->
+      <header class="h-11 border-b border-border bg-card/70 backdrop-blur-md px-3 flex items-center justify-between font-mono text-xs select-none z-30 shrink-0">
+        <!-- Left: Brand Logo & Interactive Breadcrumbs -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <a href="/" class="flex items-center gap-2 shrink-0 group">
+            <div class="w-6 h-6 rounded bg-primary text-primary-foreground font-mono font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs">
+              <span>&gt;_</span>
+            </div>
+            <span class="font-semibold text-xs tracking-tight text-foreground group-hover:text-primary transition-colors">ssh-client</span>
+          </a>
+
+          <span class="px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
+            v{@version}
+          </span>
+
+          <span class="text-border text-xs hidden sm:inline shrink-0">/</span>
+
+          <!-- Breadcrumbs -->
+          <nav class="hidden sm:flex items-center gap-1.5 min-w-0 text-muted-foreground text-xs truncate">
+            <%= if @breadcrumbs != [] do %>
+              <%= for {crumb, idx} <- Enum.with_index(@breadcrumbs) do %>
+                <%= if idx > 0 do %>
+                  <span class="text-muted-foreground/40 text-[10px]">&gt;</span>
+                <% end %>
+                <%= if crumb[:to] do %>
+                  <a href={crumb.to} class="hover:text-foreground transition-colors truncate">
+                    {crumb.label}
+                  </a>
+                <% else %>
+                  <span class="text-foreground font-medium truncate">{crumb.label}</span>
+                <% end %>
+              <% end %>
+            <% else %>
+              <span class="text-foreground font-medium capitalize truncate">{to_string(@current_tab)}</span>
+            <% end %>
+          </nav>
+        </div>
+
+        <!-- Right: Search Command Palette, Server Stats, Theme Toggle, Vault Lock -->
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Command Palette Trigger -->
+          <button
+            type="button"
+            phx-click="toggle_command_palette"
+            class="h-7 px-2.5 rounded border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center gap-2 text-[11px] transition-colors"
+            title="Search Commands & Hosts (Ctrl+K)"
+          >
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span class="hidden md:inline">Search</span>
+            <kbd class="hidden md:inline px-1 py-0.2 text-[9px] bg-background border border-border rounded text-muted-foreground">Ctrl+K</kbd>
+          </button>
+
+          <%= if @servers_count > 0 do %>
+            <div class="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded border border-border bg-muted/30 text-[10px] text-muted-foreground">
+              <span class={"w-1.5 h-1.5 rounded-full " <> if(@online_count > 0, do: "bg-emerald-500 animate-pulse", else: "bg-muted-foreground")}></span>
+              <span>{@online_count}/{@servers_count} online</span>
+            </div>
+          <% end %>
+
+          <!-- Theme Toggle -->
+          <button
+            type="button"
+            onclick="window.toggleAppTheme && window.toggleAppTheme()"
+            class="h-7 w-7 rounded border border-border bg-background hover:bg-muted text-foreground flex items-center justify-center transition-colors shadow-xs"
+            title="Toggle Theme"
+          >
+            <svg class="w-3.5 h-3.5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <svg class="w-3.5 h-3.5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          </button>
+
+          <!-- Vault Lock -->
+          <button
+            type="button"
+            phx-click="lock_vault"
+            class="h-7 w-7 rounded border border-border bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 text-muted-foreground flex items-center justify-center transition-colors shadow-xs"
+            title="Lock Vault"
+          >
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Center Body: Left Sidebar + Main Canvas -->
+      <div class="flex-1 flex min-h-0 w-full overflow-hidden">
+        <.sidebar_navigation
+          current_tab={@current_tab}
+          version={@version}
+          servers_count={@servers_count}
+          online_count={@online_count}
+          compact={@compact}
+        />
+        <div class={[
+          "flex-1 flex flex-col min-w-0 overflow-hidden h-full",
+          if(@full_bleed, do: "p-0", else: "")
+        ]}>
+          {render_slot(@inner_block)}
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc "Standard Page Header Component"
+  attr :title, :string, required: true
+  attr :subtitle, :string, default: nil
+  slot :inner_block
+
+  def page_header(assigns) do
+    ~H"""
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-foreground">
+          {@title}
+        </h1>
+        <%= if @subtitle do %>
+          <p class="text-xs text-muted-foreground font-mono mt-0.5">
+            {@subtitle}
+          </p>
+        <% end %>
+      </div>
+      <div :if={@inner_block != []} class="flex items-center gap-2 flex-wrap">
         {render_slot(@inner_block)}
       </div>
+    </div>
+    """
+  end
+
+  @doc "Console Toolbar Button Group"
+  slot :inner_block, required: true
+
+  def console_toolbar(assigns) do
+    ~H"""
+    <div class="flex items-center gap-1.5 flex-wrap">
+      {render_slot(@inner_block)}
     </div>
     """
   end
@@ -51,25 +185,12 @@ defmodule SSHClientWeb.CoreComponents do
       <!-- Top Brand & Nav Section -->
       <div class="flex flex-col">
         <!-- Logo & Header -->
-        <div class="h-14 flex items-center justify-between px-3 lg:px-4 border-b border-border">
-          <a href="/" class="flex items-center gap-2.5 group overflow-hidden" title="ssh-client">
-            <div class="w-8 h-8 rounded-md bg-primary text-primary-foreground font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-              <span>&gt;_</span>
-            </div>
-            <div class={if(@compact, do: "hidden", else: "hidden lg:flex flex-col min-w-0")}>
-              <span class="text-foreground font-semibold text-sm tracking-tight truncate">ssh-client</span>
-              <span class="text-[10px] font-mono text-muted-foreground truncate">v{@version}</span>
-            </div>
-          </a>
-          <span class={
-            if(@compact,
-              do: "hidden",
-              else:
-                "hidden lg:inline-block px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20"
-            )
-          }>
-            BETA
-          </span>
+        <div class="h-11 flex items-center justify-between px-3 border-b border-border">
+          <div class="flex items-center gap-2 overflow-hidden">
+            <span class="text-[10px] uppercase font-mono font-semibold tracking-wider text-muted-foreground">
+              Navigation
+            </span>
+          </div>
         </div>
 
         <!-- Vertical Navigation Links -->
