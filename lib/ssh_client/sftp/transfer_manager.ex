@@ -33,9 +33,23 @@ defmodule SSHClient.SFTP.TransferManager do
   def get_transfer(id), do: GenServer.call(@name, {:get, id})
   def cancel_transfer(id), do: GenServer.call(@name, {:cancel, id})
   def retry_transfer(id), do: GenServer.call(@name, {:retry, id})
+  def update_transfer(id, attrs), do: GenServer.call(@name, {:update, id, attrs})
 
   @impl true
   def init(_opts), do: {:ok, %__MODULE__{}}
+
+  @impl true
+  def handle_call({:update, id, attrs}, _from, state) do
+    case Map.get(state.transfers, id) do
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      transfer ->
+        updated = Map.merge(transfer, attrs)
+        broadcast(updated)
+        {:reply, {:ok, updated}, put_in(state.transfers[id], updated)}
+    end
+  end
 
   @impl true
   def handle_call({:queue, transfer}, _from, state) do

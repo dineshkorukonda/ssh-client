@@ -659,23 +659,18 @@ defmodule SSHClientWeb.SFTPLive do
       servers_count={length(@servers)}
       online_count={@online_count}
       version={@version}
+      breadcrumbs={[%{label: "ssh-client", to: "/"}, %{label: "SFTP", to: nil}]}
     >
       <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-6">
         <!-- Header Section -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
-          <div>
-            <h1 class="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <span>SFTP File Explorer</span>
-            </h1>
-            <p class="text-sm text-muted-foreground mt-1">
-              Browse local and remote filesystems side-by-side, transfer files seamlessly, and manage file permissions.
-            </p>
-          </div>
-
-          <div class="flex items-center gap-2.5">
+        <.page_header
+          title="SFTP File Explorer"
+          subtitle="Browse local and remote filesystems side-by-side, transfer files seamlessly, and manage file permissions."
+        >
+          <.console_toolbar>
             <button
               phx-click="scan_and_import_ssh_config"
-              class="h-9 px-3.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-mono text-xs rounded-md shadow-sm transition-colors inline-flex items-center gap-2"
+              class="h-8 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-mono text-xs rounded-md shadow-xs transition-colors inline-flex items-center gap-2"
               title="Scan and import hosts from ~/.ssh/config"
             >
               <span>Import ~/.ssh/config</span>
@@ -683,12 +678,12 @@ defmodule SSHClientWeb.SFTPLive do
 
             <a
               href="/?action=new"
-              class="h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs rounded-md shadow-sm transition-colors inline-flex items-center gap-1.5 font-medium"
+              class="h-8 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs rounded-md shadow-xs transition-colors inline-flex items-center gap-1.5 font-medium"
             >
               <span>+ Add Host</span>
             </a>
-          </div>
-        </div>
+          </.console_toolbar>
+        </.page_header>
 
         <!-- Flash alerts -->
         <%= if flash = Phoenix.Flash.get(@flash, :info) do %>
@@ -792,8 +787,14 @@ defmodule SSHClientWeb.SFTPLive do
       current_tab={:sftp}
       servers_count={length(assigns[:servers] || [])}
       online_count={assigns[:online_count] || 0}
-      version={assigns[:version] || "0.0.43"}
+      version={assigns[:version] || "0.0.52"}
       compact={true}
+      full_bleed={true}
+      breadcrumbs={[
+        %{label: "ssh-client", to: "/"},
+        %{label: "SFTP", to: "/sftp"},
+        %{label: to_string(assigns[:server_id]), to: nil}
+      ]}
     >
       <div
         class="flex flex-col h-full w-full bg-background text-foreground overflow-hidden select-none font-sans"
@@ -1176,7 +1177,7 @@ defmodule SSHClientWeb.SFTPLive do
           <div class="flex items-center gap-3 min-w-0 flex-1">
             <span class="text-[10px] uppercase font-bold text-muted-foreground tracking-wider shrink-0">Queue:</span>
             <%= if @active_transfer do %>
-              <div class="flex items-center gap-3 min-w-0 flex-1 max-w-xl">
+              <div class="flex items-center gap-3 min-w-0 flex-1 max-w-2xl">
                 <span class="text-foreground text-xs truncate font-semibold">{@active_transfer.filename}</span>
                 <div class="flex-1 h-2 bg-muted rounded-full overflow-hidden border border-border">
                   <div
@@ -1186,16 +1187,21 @@ defmodule SSHClientWeb.SFTPLive do
                   </div>
                 </div>
                 <span class="text-foreground text-xs shrink-0 font-medium">{@transfer_progress}%</span>
+                <div class="flex items-center gap-2 text-[10px] text-muted-foreground shrink-0">
+                  <span>{format_speed(Map.get(@active_transfer, :speed_bps, 0))}</span>
+                  <span>&bull;</span>
+                  <span>ETA {format_eta(Map.get(@active_transfer, :eta_seconds, 0))}</span>
+                </div>
                 <button
                   phx-click="cancel_transfer"
                   phx-value-id={@active_transfer.id}
-                  class="text-[10px] font-mono text-destructive"
+                  class="text-[10px] font-mono text-destructive hover:underline ml-1"
                 >Cancel</button>
                 <%= if @active_transfer.status == :failed do %>
                   <button
                     phx-click="retry_transfer"
                     phx-value-id={@active_transfer.id}
-                    class="text-[10px] font-mono text-foreground"
+                    class="text-[10px] font-mono text-foreground hover:underline ml-1"
                   >Retry</button>
                 <% end %>
               </div>
@@ -1216,13 +1222,16 @@ defmodule SSHClientWeb.SFTPLive do
           <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
             <div class="w-full max-w-4xl h-[80vh] bg-card border border-border rounded-xl flex flex-col shadow-2xl overflow-hidden font-mono">
               <div class="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/40">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-foreground">{String.upcase(
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-xs font-bold text-foreground shrink-0">{String.upcase(
                     to_string(@editor_target)
                   )} FILE:</span>
                   <span class="text-xs text-foreground truncate">{@editor_path}</span>
+                  <span class="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border shrink-0">
+                    {count_editor_lines(@editor_content)} lines
+                  </span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 shrink-0">
                   <button
                     phx-click="save_editor"
                     phx-value-content={@editor_content}
@@ -1239,12 +1248,22 @@ defmodule SSHClientWeb.SFTPLive do
                   </button>
                 </div>
               </div>
-              <div class="flex-1 p-4 bg-background">
-                <textarea
-                  name="content"
-                  phx-change="editor_content_change"
-                  class="w-full h-full bg-transparent text-foreground font-mono text-xs focus:outline-none resize-none"
-                ><%= @editor_content %></textarea>
+              <div class="flex-1 flex overflow-hidden bg-background">
+                <!-- Line Numbers Gutter -->
+                <div class="w-12 select-none border-r border-border bg-muted/20 py-4 px-2 text-right text-[11px] text-muted-foreground/60 font-mono leading-relaxed overflow-hidden">
+                  <%= for n <- 1..max(count_editor_lines(@editor_content), 1) do %>
+                    <div>{n}</div>
+                  <% end %>
+                </div>
+                <!-- Editor Text Area -->
+                <div class="flex-1 p-4 bg-background overflow-auto">
+                  <textarea
+                    name="content"
+                    phx-change="editor_content_change"
+                    spellcheck="false"
+                    class="w-full h-full bg-transparent text-foreground font-mono text-xs leading-relaxed focus:outline-none resize-none whitespace-pre"
+                  ><%= @editor_content %></textarea>
+                </div>
               </div>
             </div>
           </div>
@@ -1463,6 +1482,19 @@ defmodule SSHClientWeb.SFTPLive do
 
   def pad(n) when n < 10, do: "0#{n}"
   def pad(n), do: "#{n}"
+
+  def format_speed(bps), do: SFTP.format_speed(bps)
+
+  def format_eta(seconds), do: SFTP.format_eta(seconds)
+
+  def count_editor_lines(content) when is_binary(content) do
+    case String.split(content, ~r/\r\n|\r|\n/) do
+      [] -> 1
+      lines -> length(lines)
+    end
+  end
+
+  def count_editor_lines(_), do: 1
 
   def resolve_server_struct(server_id) do
     try do
