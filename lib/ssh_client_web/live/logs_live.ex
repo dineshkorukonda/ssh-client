@@ -109,20 +109,15 @@ defmodule SSHClientWeb.LogsLive do
       servers_count={@servers_count}
       online_count={@online_count}
       version={@version}
+      breadcrumbs={[%{label: "ssh-client", to: "/"}, %{label: "Logs", to: nil}]}
     >
       <main class="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col space-y-4 max-w-7xl w-full mx-auto">
         <!-- Header & Action Toolbar -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-          <div>
-            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">
-              Activity & Telemetry Logs
-            </h1>
-            <p class="text-xs text-muted-foreground font-mono mt-0.5">
-              Real-time audit stream of SSH connections, authentication attempts, SFTP operations, and worker polling.
-            </p>
-          </div>
-
-          <div class="flex items-center gap-2 flex-wrap">
+        <.page_header
+          title="Activity & Telemetry Logs"
+          subtitle="Real-time audit stream of SSH connections, authentication attempts, SFTP operations, and worker polling."
+        >
+          <.console_toolbar>
             <!-- Server filter -->
             <select
               phx-change="filter_server"
@@ -188,8 +183,8 @@ defmodule SSHClientWeb.LogsLive do
             >
               Clear
             </button>
-          </div>
-        </div>
+          </.console_toolbar>
+        </.page_header>
 
         <!-- Log entries container -->
         <div class="flex-1 bg-card border border-border rounded-xl shadow-xs overflow-hidden flex flex-col min-h-[500px]">
