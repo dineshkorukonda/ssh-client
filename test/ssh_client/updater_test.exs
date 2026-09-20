@@ -180,7 +180,9 @@ defmodule SSHClient.UpdaterTest do
       # it with /RESTARTAPPLICATIONS.
       source = File.read!(Path.join(__DIR__, "../../lib/ssh_client/updater.ex"))
       refute source =~ ~s("/NORESTART"), "install_update/1 must not use /NORESTART"
-      assert source =~ ~s("/RESTARTAPPLICATIONS"), "install_update/1 must use /RESTARTAPPLICATIONS"
+
+      assert source =~ ~s("/RESTARTAPPLICATIONS"),
+             "install_update/1 must use /RESTARTAPPLICATIONS"
     end
   end
 end

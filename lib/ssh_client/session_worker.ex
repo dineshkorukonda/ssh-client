@@ -472,9 +472,7 @@ defmodule SSHClient.SessionWorker do
 
   defp flush_input_queue(%{input_queue: []} = state), do: state
 
-  defp flush_input_queue(
-         %{input_queue: queue, connection: conn, channel_id: channel_id} = state
-       )
+  defp flush_input_queue(%{input_queue: queue, connection: conn, channel_id: channel_id} = state)
        when not is_nil(conn) and not is_nil(channel_id) do
     queue
     |> Enum.reverse()
