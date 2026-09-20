@@ -1641,8 +1641,14 @@ defmodule SSHClientWeb.TerminalLive do
     <% end %>
 
     <%= if assigns[:show_shortcuts_modal] do %>
-      <div class="fixed inset-0 z-[85] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" phx-click="close_shortcuts">
-        <div class="w-full max-w-xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden font-mono text-xs" phx-click="noop">
+      <div
+        class="fixed inset-0 z-[85] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+        phx-click="close_shortcuts"
+      >
+        <div
+          class="w-full max-w-xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden font-mono text-xs"
+          phx-click="noop"
+        >
           <div class="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/40">
             <div class="flex items-center gap-2">
               <span class="text-foreground font-semibold uppercase tracking-wider text-xs">Keyboard Shortcuts</span>
@@ -1659,7 +1665,9 @@ defmodule SSHClientWeb.TerminalLive do
 
           <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
             <div class="space-y-2">
-              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigation & Modals</h4>
+              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Navigation & Modals
+              </h4>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Command Palette</span>
@@ -1681,7 +1689,9 @@ defmodule SSHClientWeb.TerminalLive do
             </div>
 
             <div class="space-y-2">
-              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Split Panes & Layouts</h4>
+              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Split Panes & Layouts
+              </h4>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Split Pane Right</span>
@@ -1695,7 +1705,9 @@ defmodule SSHClientWeb.TerminalLive do
             </div>
 
             <div class="space-y-2">
-              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Clipboard & Zoom</h4>
+              <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Clipboard & Zoom
+              </h4>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Copy Selection</span>
