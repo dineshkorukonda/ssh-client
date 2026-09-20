@@ -52,7 +52,7 @@
 
   window.getTerminalTheme = getTerminalTheme;
 
-  function setupKeyHandlers(term, onFontChange, onPaste) {
+  function setupKeyHandlers(term, onFontChange, onPaste, pushEvent) {
     term.attachCustomKeyEventHandler(function(e) {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C') && e.type === 'keydown') {
         if (term.hasSelection()) {
@@ -80,6 +80,12 @@
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_') && e.type === 'keydown') {
         if (onFontChange) onFontChange(-1);
+        return false;
+      }
+
+      // Keyboard shortcuts modal toggle (Ctrl+Shift+? or Ctrl+Shift+/)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '?' || e.key === '/') && e.type === 'keydown') {
+        if (pushEvent) pushEvent("toggle_shortcuts", {});
         return false;
       }
 
@@ -211,7 +217,8 @@
         },
         function(text) {
           safePushEvent("terminal_data", { data: text });
-        }
+        },
+        safePushEvent
       );
 
       window.addEventListener('resize', doFit);
@@ -332,7 +339,8 @@
         },
         function(text) {
           safePushEvent("pane_data", { pane_id: paneId, data: text });
-        }
+        },
+        safePushEvent
       );
 
       safePushEvent("pane_ready", { pane_id: paneId });
