@@ -286,19 +286,15 @@ defmodule SSHClientWeb.SettingsLive do
       servers_count={@active_servers_count}
       online_count={@online_count}
       version={@version}
+      breadcrumbs={[%{label: "ssh-client", to: "/"}, %{label: "Settings", to: nil}]}
     >
       <main class="flex-1 overflow-y-auto max-w-5xl w-full mx-auto p-6 md:p-8 flex flex-col space-y-6">
         <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-          <div>
-            <h1 class="text-xl font-bold tracking-tight text-foreground font-sans">
-              Settings & System Diagnostics
-            </h1>
-            <p class="text-xs text-muted-foreground font-mono mt-0.5">
-              Manage application telemetry, release updates, SSH key discovery, and host imports.
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
+        <.page_header
+          title="Settings & System Diagnostics"
+          subtitle="Manage application telemetry, release updates, SSH key discovery, and host imports."
+        >
+          <.console_toolbar>
             <button
               phx-click="check_update"
               disabled={@checking_update or @downloading_update}
@@ -319,8 +315,8 @@ defmodule SSHClientWeb.SettingsLive do
                 Check for Updates
               <% end %>
             </button>
-          </div>
-        </div>
+          </.console_toolbar>
+        </.page_header>
 
         <!-- Update Status Card (if checked) -->
         <%= if @update_info do %>

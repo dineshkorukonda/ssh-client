@@ -444,6 +444,37 @@ defmodule SSHClient.SFTP do
 
   def format_size(_), do: "0 B"
 
+  @doc "Formats transfer throughput in bytes per second to human-readable string"
+  def format_speed(bps) when is_integer(bps) and bps > 0 do
+    cond do
+      bps >= 1_048_576 -> "#{Float.round(bps / 1_048_576, 1)} MB/s"
+      bps >= 1_024 -> "#{Float.round(bps / 1_024, 1)} KB/s"
+      true -> "#{bps} B/s"
+    end
+  end
+
+  def format_speed(_), do: "0 B/s"
+
+  @doc "Formats estimated remaining seconds into human-readable duration"
+  def format_eta(seconds) when is_integer(seconds) and seconds > 0 do
+    cond do
+      seconds >= 3600 ->
+        hours = div(seconds, 3600)
+        mins = div(rem(seconds, 3600), 60)
+        "#{hours}h #{mins}m"
+
+      seconds >= 60 ->
+        mins = div(seconds, 60)
+        secs = rem(seconds, 60)
+        "#{mins}m #{secs}s"
+
+      true ->
+        "#{seconds}s"
+    end
+  end
+
+  def format_eta(_), do: "0s"
+
   # Helpers
 
   defp get_file_info(channel_pid, full_path) do

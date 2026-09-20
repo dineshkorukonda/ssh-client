@@ -924,24 +924,18 @@ defmodule SSHClientWeb.TerminalLive do
       servers_count={length(@servers)}
       online_count={@online_count}
       version={@version}
+      breadcrumbs={[%{label: "ssh-client", to: "/"}, %{label: "Terminal", to: nil}]}
     >
       <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-6 md:p-8 flex flex-col gap-6">
         <!-- Header Section -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
-          <div>
-            <h1 class="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <span>Terminal Sessions</span>
-            </h1>
-
-            <p class="text-sm text-muted-foreground mt-1">
-              Launch an interactive SSH terminal with multi-tab support, PTY multiplexing, and command autocomplete.
-            </p>
-          </div>
-
-          <div class="flex items-center gap-2.5">
+        <.page_header
+          title="Terminal Sessions"
+          subtitle="Launch an interactive SSH terminal with multi-tab support, PTY multiplexing, and command autocomplete."
+        >
+          <.console_toolbar>
             <button
               phx-click="scan_and_import_ssh_config"
-              class="h-9 px-3.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-mono text-xs rounded-md shadow-sm transition-colors inline-flex items-center gap-2"
+              class="h-8 px-2.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-mono text-xs rounded-md shadow-xs transition-colors inline-flex items-center gap-2"
               title="Scan and import hosts from ~/.ssh/config"
             >
               <span>Import ~/.ssh/config</span>
@@ -949,12 +943,12 @@ defmodule SSHClientWeb.TerminalLive do
 
             <a
               href="/?action=new"
-              class="h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs rounded-md shadow-sm transition-colors inline-flex items-center gap-1.5 font-medium"
+              class="h-8 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs rounded-md shadow-xs transition-colors inline-flex items-center gap-1.5 font-medium"
             >
               <span>+ Add Host</span>
             </a>
-          </div>
-        </div>
+          </.console_toolbar>
+        </.page_header>
         <!-- Flash alerts -->
         <%= if flash = Phoenix.Flash.get(@flash, :info) do %>
           <div class="p-3.5 rounded-lg bg-primary/10 border border-primary/20 text-xs font-mono text-primary flex items-center justify-between">
@@ -1082,8 +1076,14 @@ defmodule SSHClientWeb.TerminalLive do
       current_tab={:terminal}
       servers_count={length(assigns[:servers] || [])}
       online_count={assigns[:online_count] || 0}
-      version={assigns[:version] || "0.0.43"}
+      version={assigns[:version] || "0.0.52"}
       compact={true}
+      full_bleed={true}
+      breadcrumbs={[
+        %{label: "ssh-client", to: "/"},
+        %{label: "Terminal", to: "/terminal"},
+        %{label: to_string(assigns[:server_id]), to: nil}
+      ]}
     >
       <div class="flex flex-col h-full w-full bg-background text-foreground overflow-hidden select-none font-sans">
         <!-- Terminal topbar -->
