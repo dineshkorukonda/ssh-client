@@ -314,23 +314,21 @@ defmodule SSHClientWeb.TerminalLive do
 
   @impl true
   def handle_event("terminal_ready", _params, socket) do
+    {:noreply, ensure_tab_session(socket)}
+  end
+
+  def handle_event("pane_ready", params, socket) do
+    pane_id = params["pane_id"]
     tab = active_tab(socket)
 
     socket =
-      cond do
-        is_nil(tab) ->
-          socket
-
-        tab_session_id(tab) ->
-          replay_tab_buffer(socket, tab)
-
-        true ->
-          socket
-          |> start_tab_session(tab.id)
-          |> maybe_restore_layout_panes()
+      if tab && is_binary(pane_id) && pane_id in tab_session_ids(tab) do
+        assign(socket, :active_pane_id, pane_id)
+      else
+        socket
       end
 
-    {:noreply, socket}
+    {:noreply, ensure_tab_session(socket)}
   end
 
   def handle_event("terminal_data", params, socket), do: send_pane_input(socket, params)
@@ -1305,6 +1303,7 @@ defmodule SSHClientWeb.TerminalLive do
                 <div
                   id={"terminal-pane-#{pane_id}"}
                   phx-hook="TerminalPane"
+                  phx-update="ignore"
                   phx-click="focus_pane"
                   phx-value-pane_id={pane_id}
                   data-session-id={pane_id}
@@ -1764,6 +1763,23 @@ defmodule SSHClientWeb.TerminalLive do
 
       _ ->
         nil
+    end
+  end
+
+  defp ensure_tab_session(socket) do
+    tab = active_tab(socket)
+
+    cond do
+      is_nil(tab) ->
+        socket
+
+      tab_session_id(tab) ->
+        replay_tab_buffer(socket, tab)
+
+      true ->
+        socket
+        |> start_tab_session(tab.id)
+        |> maybe_restore_layout_panes()
     end
   end
 

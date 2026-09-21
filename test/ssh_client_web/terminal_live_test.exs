@@ -1,6 +1,7 @@
 defmodule SSHClientWeb.TerminalLiveTest do
   use ExUnit.Case, async: true
 
+  alias SSHClient.Terminal.Layout
   alias SSHClientWeb.TerminalLive
 
   test "module is defined and compiled" do
@@ -46,6 +47,129 @@ defmodule SSHClientWeb.TerminalLiveTest do
 
       assert {:noreply, closed} = TerminalLive.handle_event("close_shortcuts", %{}, updated)
       assert closed.assigns.show_shortcuts_modal == false
+    end
+  end
+
+  describe "pane_ready hook event" do
+    test "does not crash and keeps the existing pane session" do
+      session_id = "pane-sess-1"
+
+      socket =
+        build_socket(%{
+          tabs: [
+            %{
+              id: 1,
+              title: "Shell 1",
+              session_id: session_id,
+              session_pid: nil,
+              connected: false,
+              error: nil,
+              status: :connecting,
+              layout: Layout.new(session_id)
+            }
+          ],
+          active_tab_id: 1,
+          active_pane_id: session_id,
+          server: nil,
+          server_id: "henry",
+          cols: 80,
+          rows: 24,
+          target_user: nil,
+          target_auth: nil
+        })
+
+      assert {:noreply, updated} =
+               TerminalLive.handle_event("pane_ready", %{"pane_id" => session_id}, socket)
+
+      tab = hd(updated.assigns.tabs)
+      assert tab.session_id == session_id
+      assert tab.status == :connecting
+      refute tab.connected
+      assert updated.assigns.active_pane_id == session_id
+    end
+
+    test "starts a session when none exists and records a missing-host error" do
+      socket =
+        build_socket(%{
+          tabs: [
+            %{
+              id: 1,
+              title: "Shell 1",
+              session_id: nil,
+              session_pid: nil,
+              connected: false,
+              error: nil,
+              status: :disconnected,
+              layout: nil
+            }
+          ],
+          active_tab_id: 1,
+          active_pane_id: nil,
+          server: nil,
+          server_id: "henry",
+          cols: 80,
+          rows: 24,
+          target_user: nil,
+          target_auth: nil
+        })
+
+      assert {:noreply, updated} =
+               TerminalLive.handle_event("pane_ready", %{"pane_id" => "missing"}, socket)
+
+      tab = hd(updated.assigns.tabs)
+      assert tab.status == :error
+      assert tab.error =~ "not found"
+      refute tab.connected
+    end
+
+    test "is a no-op when there is no active tab" do
+      socket =
+        build_socket(%{
+          tabs: [],
+          active_tab_id: 1,
+          active_pane_id: nil,
+          server: nil,
+          server_id: "henry"
+        })
+
+      assert {:noreply, updated} = TerminalLive.handle_event("pane_ready", %{}, socket)
+      assert updated.assigns.tabs == []
+    end
+
+    test "unknown pane_id does not replace an existing session" do
+      session_id = "pane-sess-keep"
+
+      socket =
+        build_socket(%{
+          tabs: [
+            %{
+              id: 1,
+              title: "Shell 1",
+              session_id: session_id,
+              session_pid: nil,
+              connected: true,
+              error: nil,
+              status: :connected,
+              layout: Layout.new(session_id)
+            }
+          ],
+          active_tab_id: 1,
+          active_pane_id: session_id,
+          server: nil,
+          server_id: "henry",
+          cols: 80,
+          rows: 24,
+          target_user: nil,
+          target_auth: nil
+        })
+
+      assert {:noreply, updated} =
+               TerminalLive.handle_event("pane_ready", %{"pane_id" => "unknown-pane"}, socket)
+
+      tab = hd(updated.assigns.tabs)
+      assert tab.session_id == session_id
+      assert tab.status == :connected
+      assert tab.connected
     end
   end
 
@@ -145,6 +269,46 @@ defmodule SSHClientWeb.TerminalLiveTest do
       assert modal_html =~ "Keyboard Shortcuts"
       assert modal_html =~ "Command Palette"
       assert modal_html =~ "Ctrl + Shift + ?"
+    end
+
+    test "render/1 uses a TerminalPane hook with phx-update ignore when a layout exists" do
+      session_id = "pane-layout-1"
+
+      assigns = %{
+        server_id: "henry",
+        server: nil,
+        servers: [%{id: "henry", name: "henry", host: "10.0.0.8"}],
+        online_count: 0,
+        version: "0.0.54",
+        tabs: [
+          %{
+            id: 1,
+            title: "Shell 1",
+            connected: false,
+            error: nil,
+            layout: Layout.new(session_id),
+            session_id: session_id
+          }
+        ],
+        active_tab_id: 1,
+        cols: 80,
+        rows: 24,
+        show_commands: false,
+        all_commands: [],
+        selected_category: "all",
+        command_search: "",
+        show_deploy_modal: false,
+        host_key_prompt: nil,
+        command_palette_open: false,
+        flash: %{}
+      }
+
+      html = Phoenix.LiveViewTest.rendered_to_string(TerminalLive.render(assigns))
+      assert html =~ "phx-hook=\"TerminalPane\""
+      assert html =~ "id=\"terminal-pane-#{session_id}\""
+      assert html =~ "data-session-id=\"#{session_id}\""
+      assert html =~ "phx-update=\"ignore\""
+      refute html =~ "id=\"xterm-container\""
     end
   end
 end
