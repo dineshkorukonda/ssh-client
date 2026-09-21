@@ -52,6 +52,40 @@
 
   window.getTerminalTheme = getTerminalTheme;
 
+  function cancelFitTimers(lv) {
+    if (lv._fitTimers) {
+      lv._fitTimers.forEach(function(id) { clearTimeout(id); });
+      lv._fitTimers = [];
+    }
+    if (lv._fitRaf) {
+      cancelAnimationFrame(lv._fitRaf);
+      lv._fitRaf = null;
+    }
+  }
+
+  function teardownTerminal(lv) {
+    lv._destroyed = true;
+    cancelFitTimers(lv);
+    if (lv.doFit) window.removeEventListener('resize', lv.doFit);
+    if (lv.resizeObserver) {
+      try { lv.resizeObserver.disconnect(); } catch (e) {}
+      lv.resizeObserver = null;
+    }
+    if (lv.term) {
+      try { lv.term.dispose(); } catch (e) {}
+      lv.term = null;
+    }
+  }
+
+  function makeSafeWrite(lv, term) {
+    return function(data) {
+      if (lv._destroyed || !term || !data) return;
+      try {
+        term.write(data);
+      } catch (e) {}
+    };
+  }
+
   function setupKeyHandlers(term, onFontChange, onPaste, pushEvent) {
     term.attachCustomKeyEventHandler(function(e) {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C') && e.type === 'keydown') {
@@ -135,6 +169,10 @@
 
       lv._destroyed = false;
       lv._fitTimers = [];
+      lv._fitRaf = null;
+      var started = false;
+      var pendingOutput = [];
+      var safeWrite = makeSafeWrite(lv, term);
 
       var safePushEvent = function(event, payload) {
         try {
@@ -150,11 +188,36 @@
         }
       };
 
+      var flushPending = function() {
+        if (!started || lv._destroyed) return;
+        for (var i = 0; i < pendingOutput.length; i++) {
+          safeWrite(pendingOutput[i]);
+        }
+        pendingOutput = [];
+      };
+
+      var enqueueWrite = function(data) {
+        if (lv._destroyed || !data) return;
+        if (!started) {
+          pendingOutput.push(data);
+          return;
+        }
+        safeWrite(data);
+      };
+
       var doFit = function() {
         if (lv._destroyed || !fitAddon || !el.clientWidth || !el.clientHeight) return;
         try {
           fitAddon.fit();
           if (term.cols > 0 && term.rows > 0) {
+            if (!started) {
+              started = true;
+              term.writeln('\x1b[1;34mssh-client\x1b[0m');
+              term.writeln('\x1b[2mConnecting to ' + (el.dataset.serverId || 'server') + '...\x1b[0m');
+              term.writeln('');
+              safePushEvent("terminal_ready", {});
+              flushPending();
+            }
             safePushEvent("resize", { cols: term.cols, rows: term.rows });
           }
         } catch(e) {
@@ -162,7 +225,7 @@
         }
       };
 
-      requestAnimationFrame(doFit);
+      lv._fitRaf = requestAnimationFrame(doFit);
       lv._fitTimers.push(setTimeout(doFit, 30));
       lv._fitTimers.push(setTimeout(doFit, 150));
       lv._fitTimers.push(setTimeout(doFit, 400));
@@ -170,19 +233,14 @@
       var resizeObserver = null;
       if (window.ResizeObserver) {
         resizeObserver = new ResizeObserver(function() {
-          requestAnimationFrame(doFit);
+          if (lv._destroyed) return;
+          lv._fitRaf = requestAnimationFrame(doFit);
         });
         resizeObserver.observe(el);
       }
 
-      term.writeln('\x1b[1;34mssh-client\x1b[0m');
-      term.writeln('\x1b[2mConnecting to ' + (el.dataset.serverId || 'server') + '...\x1b[0m');
-      term.writeln('');
-
-      safePushEvent("terminal_ready", {});
-
       this.handleEvent("terminal_output", function(payload) {
-        term.write(payload.data);
+        enqueueWrite(payload.data);
       });
 
       this.handleEvent("terminal_paste", function() {
@@ -198,17 +256,19 @@
       this.handleEvent("terminal_insert_command", function(payload) {
         var data = payload.execute ? (payload.command + "\n") : payload.command;
         safePushEvent("terminal_data", { data: data });
-        term.focus();
+        if (!lv._destroyed) term.focus();
       });
 
       this.handleEvent("terminal_clear", function() {
-        term.clear();
+        if (lv._destroyed) return;
+        try { term.clear(); } catch (e) {}
       });
 
       this.handleEvent("terminal_font_change", function(payload) {
+        if (lv._destroyed) return;
         currentFontSize = Math.max(9, Math.min(24, currentFontSize + payload.delta));
         term.options.fontSize = currentFontSize;
-        requestAnimationFrame(doFit);
+        lv._fitRaf = requestAnimationFrame(doFit);
       });
 
       term.onData(function(data) {
@@ -218,9 +278,10 @@
       setupKeyHandlers(
         term,
         function(delta) {
+          if (lv._destroyed) return;
           currentFontSize = Math.max(9, Math.min(24, currentFontSize + delta));
           term.options.fontSize = currentFontSize;
-          requestAnimationFrame(doFit);
+          lv._fitRaf = requestAnimationFrame(doFit);
         },
         function(text) {
           safePushEvent("terminal_data", { data: text });
@@ -234,14 +295,7 @@
       this.term = term;
     },
     destroyed: function() {
-      this._destroyed = true;
-      if (this._fitTimers) {
-        this._fitTimers.forEach(function(id) { clearTimeout(id); });
-        this._fitTimers = [];
-      }
-      if (this.doFit) window.removeEventListener('resize', this.doFit);
-      if (this.resizeObserver) this.resizeObserver.disconnect();
-      if (this.term) this.term.dispose();
+      teardownTerminal(this);
     }
   };
 
@@ -277,6 +331,10 @@
 
       lv._destroyed = false;
       lv._fitTimers = [];
+      lv._fitRaf = null;
+      var started = false;
+      var pendingOutput = [];
+      var safeWrite = makeSafeWrite(lv, term);
 
       var safePushEvent = function(event, payload) {
         try {
@@ -292,17 +350,39 @@
         }
       };
 
+      var flushPending = function() {
+        if (!started || lv._destroyed) return;
+        for (var i = 0; i < pendingOutput.length; i++) {
+          safeWrite(pendingOutput[i]);
+        }
+        pendingOutput = [];
+      };
+
+      var enqueueWrite = function(data) {
+        if (lv._destroyed || !data) return;
+        if (!started) {
+          pendingOutput.push(data);
+          return;
+        }
+        safeWrite(data);
+      };
+
       var doFit = function() {
         if (lv._destroyed || !fitAddon || !el.clientWidth || !el.clientHeight) return;
         try {
           fitAddon.fit();
           if (term.cols > 0 && term.rows > 0) {
+            if (!started) {
+              started = true;
+              safePushEvent("pane_ready", { pane_id: paneId });
+              flushPending();
+            }
             safePushEvent("pane_resize", { pane_id: paneId, cols: term.cols, rows: term.rows });
           }
         } catch(e) {}
       };
 
-      requestAnimationFrame(doFit);
+      lv._fitRaf = requestAnimationFrame(doFit);
       lv._fitTimers.push(setTimeout(doFit, 40));
       lv._fitTimers.push(setTimeout(doFit, 150));
       lv._fitTimers.push(setTimeout(doFit, 400));
@@ -310,7 +390,8 @@
       var resizeObserver = null;
       if (window.ResizeObserver) {
         resizeObserver = new ResizeObserver(function() {
-          requestAnimationFrame(doFit);
+          if (lv._destroyed) return;
+          lv._fitRaf = requestAnimationFrame(doFit);
         });
         resizeObserver.observe(el);
       }
@@ -320,19 +401,17 @@
       });
 
       this.handleEvent("terminal_output_" + paneId, function(payload) {
-        term.write(payload.data);
-      });
-
-      this.handleEvent("terminal_output:" + paneId, function(payload) {
-        term.write(payload.data);
+        enqueueWrite(payload.data);
       });
 
       this.handleEvent("terminal_clear_" + paneId, function() {
-        term.clear();
+        if (lv._destroyed) return;
+        pendingOutput = [];
+        try { term.clear(); } catch (e) {}
       });
 
       this.handleEvent("terminal_focus_" + paneId, function() {
-        term.focus();
+        if (!lv._destroyed) term.focus();
       });
 
       this.handleEvent("terminal_paste_" + paneId, function() {
@@ -344,17 +423,19 @@
       });
 
       this.handleEvent("terminal_font_change_" + paneId, function(payload) {
+        if (lv._destroyed) return;
         currentFontSize = Math.max(9, Math.min(24, currentFontSize + payload.delta));
         term.options.fontSize = currentFontSize;
-        requestAnimationFrame(doFit);
+        lv._fitRaf = requestAnimationFrame(doFit);
       });
 
       setupKeyHandlers(
         term,
         function(delta) {
+          if (lv._destroyed) return;
           currentFontSize = Math.max(9, Math.min(24, currentFontSize + delta));
           term.options.fontSize = currentFontSize;
-          requestAnimationFrame(doFit);
+          lv._fitRaf = requestAnimationFrame(doFit);
         },
         function(text) {
           safePushEvent("pane_data", { pane_id: paneId, data: text });
@@ -362,22 +443,13 @@
         safePushEvent
       );
 
-      safePushEvent("pane_ready", { pane_id: paneId });
-
       window.addEventListener('resize', doFit);
       this.doFit = doFit;
       this.resizeObserver = resizeObserver;
       this.term = term;
     },
     destroyed: function() {
-      this._destroyed = true;
-      if (this._fitTimers) {
-        this._fitTimers.forEach(function(id) { clearTimeout(id); });
-        this._fitTimers = [];
-      }
-      if (this.doFit) window.removeEventListener('resize', this.doFit);
-      if (this.resizeObserver) this.resizeObserver.disconnect();
-      if (this.term) this.term.dispose();
+      teardownTerminal(this);
     }
   };
 })();

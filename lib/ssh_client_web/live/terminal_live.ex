@@ -1296,8 +1296,11 @@ defmodule SSHClientWeb.TerminalLive do
               layout && layout.type == :split_v -> "grid grid-rows-2 gap-1"
               layout && layout.type == :grid -> "grid grid-cols-2 grid-rows-2 gap-1"
               true -> "flex"
-            end %>
-          <%= if panes != [] do %>
+            end
+
+          use_split_panes? =
+            length(panes) > 1 or (match?(%SSHClient.Terminal.Layout{}, layout) && layout.maximized) %>
+          <%= if use_split_panes? do %>
             <div class={"flex-1 min-h-0 w-full h-full " <> grid_class}>
               <%= for pane_id <- panes do %>
                 <div

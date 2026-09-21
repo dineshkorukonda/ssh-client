@@ -271,25 +271,14 @@ defmodule SSHClientWeb.TerminalLiveTest do
       assert modal_html =~ "Ctrl + Shift + ?"
     end
 
-    test "render/1 uses a TerminalPane hook with phx-update ignore when a layout exists" do
-      session_id = "pane-layout-1"
-
-      assigns = %{
+    defp terminal_assigns(tabs) do
+      %{
         server_id: "henry",
         server: nil,
         servers: [%{id: "henry", name: "henry", host: "10.0.0.8"}],
         online_count: 0,
-        version: "0.0.54",
-        tabs: [
-          %{
-            id: 1,
-            title: "Shell 1",
-            connected: false,
-            error: nil,
-            layout: Layout.new(session_id),
-            session_id: session_id
-          }
-        ],
+        version: "0.0.55",
+        tabs: tabs,
         active_tab_id: 1,
         cols: 80,
         rows: 24,
@@ -302,11 +291,58 @@ defmodule SSHClientWeb.TerminalLiveTest do
         command_palette_open: false,
         flash: %{}
       }
+    end
 
-      html = Phoenix.LiveViewTest.rendered_to_string(TerminalLive.render(assigns))
+    test "render/1 keeps TerminalHook for a single-pane layout so xterm is not remounted" do
+      session_id = "pane-layout-1"
+
+      html =
+        Phoenix.LiveViewTest.rendered_to_string(
+          TerminalLive.render(
+            terminal_assigns([
+              %{
+                id: 1,
+                title: "Shell 1",
+                connected: true,
+                error: nil,
+                layout: Layout.new(session_id),
+                session_id: session_id
+              }
+            ])
+          )
+        )
+
+      assert html =~ "id=\"xterm-container\""
+      assert html =~ "phx-hook=\"TerminalHook\""
+      refute html =~ "phx-hook=\"TerminalPane\""
+      refute html =~ "id=\"terminal-pane-#{session_id}\""
+    end
+
+    test "render/1 uses TerminalPane hooks with phx-update ignore when the layout is split" do
+      layout =
+        "pane-a"
+        |> Layout.new()
+        |> Layout.split("pane-a", :horizontal, "pane-b")
+
+      html =
+        Phoenix.LiveViewTest.rendered_to_string(
+          TerminalLive.render(
+            terminal_assigns([
+              %{
+                id: 1,
+                title: "Shell 1",
+                connected: true,
+                error: nil,
+                layout: layout,
+                session_id: "pane-a"
+              }
+            ])
+          )
+        )
+
       assert html =~ "phx-hook=\"TerminalPane\""
-      assert html =~ "id=\"terminal-pane-#{session_id}\""
-      assert html =~ "data-session-id=\"#{session_id}\""
+      assert html =~ "id=\"terminal-pane-pane-a\""
+      assert html =~ "id=\"terminal-pane-pane-b\""
       assert html =~ "phx-update=\"ignore\""
       refute html =~ "id=\"xterm-container\""
     end
