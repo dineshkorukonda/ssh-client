@@ -133,9 +133,16 @@
 
       term.open(el);
 
+      lv._destroyed = false;
+      lv._fitTimers = [];
+
       var safePushEvent = function(event, payload) {
         try {
-          if (lv.pushEvent) {
+          if (lv._destroyed) return;
+          if (lv.liveSocket && typeof lv.liveSocket.isConnected === "function" && !lv.liveSocket.isConnected()) {
+            return;
+          }
+          if (typeof lv.pushEvent === "function") {
             lv.pushEvent(event, payload);
           }
         } catch(e) {
@@ -144,7 +151,7 @@
       };
 
       var doFit = function() {
-        if (!fitAddon || !el.clientWidth || !el.clientHeight) return;
+        if (lv._destroyed || !fitAddon || !el.clientWidth || !el.clientHeight) return;
         try {
           fitAddon.fit();
           if (term.cols > 0 && term.rows > 0) {
@@ -156,9 +163,9 @@
       };
 
       requestAnimationFrame(doFit);
-      setTimeout(doFit, 30);
-      setTimeout(doFit, 150);
-      setTimeout(doFit, 400);
+      lv._fitTimers.push(setTimeout(doFit, 30));
+      lv._fitTimers.push(setTimeout(doFit, 150));
+      lv._fitTimers.push(setTimeout(doFit, 400));
 
       var resizeObserver = null;
       if (window.ResizeObserver) {
@@ -227,6 +234,11 @@
       this.term = term;
     },
     destroyed: function() {
+      this._destroyed = true;
+      if (this._fitTimers) {
+        this._fitTimers.forEach(function(id) { clearTimeout(id); });
+        this._fitTimers = [];
+      }
       if (this.doFit) window.removeEventListener('resize', this.doFit);
       if (this.resizeObserver) this.resizeObserver.disconnect();
       if (this.term) this.term.dispose();
@@ -263,9 +275,16 @@
 
       term.open(el);
 
+      lv._destroyed = false;
+      lv._fitTimers = [];
+
       var safePushEvent = function(event, payload) {
         try {
-          if (lv.pushEvent) {
+          if (lv._destroyed) return;
+          if (lv.liveSocket && typeof lv.liveSocket.isConnected === "function" && !lv.liveSocket.isConnected()) {
+            return;
+          }
+          if (typeof lv.pushEvent === "function") {
             lv.pushEvent(event, payload);
           }
         } catch(e) {
@@ -274,7 +293,7 @@
       };
 
       var doFit = function() {
-        if (!fitAddon || !el.clientWidth || !el.clientHeight) return;
+        if (lv._destroyed || !fitAddon || !el.clientWidth || !el.clientHeight) return;
         try {
           fitAddon.fit();
           if (term.cols > 0 && term.rows > 0) {
@@ -284,9 +303,9 @@
       };
 
       requestAnimationFrame(doFit);
-      setTimeout(doFit, 40);
-      setTimeout(doFit, 150);
-      setTimeout(doFit, 400);
+      lv._fitTimers.push(setTimeout(doFit, 40));
+      lv._fitTimers.push(setTimeout(doFit, 150));
+      lv._fitTimers.push(setTimeout(doFit, 400));
 
       var resizeObserver = null;
       if (window.ResizeObserver) {
@@ -351,6 +370,11 @@
       this.term = term;
     },
     destroyed: function() {
+      this._destroyed = true;
+      if (this._fitTimers) {
+        this._fitTimers.forEach(function(id) { clearTimeout(id); });
+        this._fitTimers = [];
+      }
       if (this.doFit) window.removeEventListener('resize', this.doFit);
       if (this.resizeObserver) this.resizeObserver.disconnect();
       if (this.term) this.term.dispose();
