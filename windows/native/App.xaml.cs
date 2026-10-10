@@ -17,6 +17,42 @@ public partial class App : Application
     {
         base.OnStartup(e);
         DispatcherUnhandledException += (_, args) => { ShowError(args.Exception); args.Handled = true; };
+        if (e.Args.FirstOrDefault() == "--terminal-smoke")
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var report = e.Args[1];
+            try
+            {
+                using var owned = new OwnedBackend(AppContext.BaseDirectory);
+                using var api = await owned.StartAsync();
+                var session = await api.PostAsync("sessions", new { id = "native-smoke", host = "127.0.0.1", port = int.Parse(e.Args[2]), user = "fixture", identity_file = e.Args[3] });
+                var id = session.GetProperty("session_id").GetString()!;
+                var window = new Window { Width = 800, Height = 500, ShowInTaskbar = false, Opacity = 0, WindowStyle = WindowStyle.None };
+                using var terminal = new TerminalView(api, id, window, _ => { });
+                window.Content = terminal; window.Show();
+                await terminal.Ready.WaitAsync(TimeSpan.FromSeconds(30));
+                await terminal.SendSmokeInputAsync("native-smoke\r");
+                string screen = "";
+                for (var i = 0; i < 100; i++)
+                {
+                    screen = await terminal.ReadScreenAsync();
+                    if (screen.Contains("echo:native-smoke")) break;
+                    await Task.Delay(100);
+                }
+                if (!screen.Contains("echo:native-smoke")) throw new IOException("Native terminal failed to render remote output: " + screen);
+                var local = Path.Combine(Path.GetDirectoryName(report)!, "native-upload.txt");
+                var downloaded = Path.Combine(Path.GetDirectoryName(report)!, "native-download.txt");
+                File.WriteAllText(local, "native-transfer-content");
+                await api.PostAsync($"files/{id}/upload", new { path = "native-roundtrip.txt", local_path = local });
+                await api.PostAsync($"files/{id}/download", new { path = "native-roundtrip.txt", local_path = downloaded });
+                if (File.ReadAllText(downloaded) != "native-transfer-content") throw new IOException("Native SFTP content mismatch");
+                await api.PostAsync($"files/{id}/delete", new { path = "native-roundtrip.txt" });
+                File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, screen }));
+                window.Close(); Shutdown(0);
+            }
+            catch (Exception error) { File.WriteAllText(report, error.ToString()); Shutdown(1); }
+            return;
+        }
         if (e.Args.FirstOrDefault() == "--backend-smoke")
         {
             var report = e.Args.ElementAtOrDefault(1) ?? "backend-smoke.json";
@@ -35,7 +71,7 @@ public partial class App : Application
         {
             try
             {
-                var window = new MainWindow(null);
+                var window = new MainWindow(null, preview: true);
                 var surface = (FrameworkElement)window.Content;
                 surface.Measure(new Size(1120, 740));
                 surface.Arrange(new Rect(0, 0, 1120, 740));

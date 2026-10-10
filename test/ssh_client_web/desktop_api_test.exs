@@ -77,5 +77,65 @@ defmodule SSHClientWeb.DesktopAPITest do
     assert request(:get, "/sessions/missing?since=invalid").status == 422
     assert request(:post, "/settings", %{font_size: 999, scrollback: 1000}).status == 422
     assert request(:post, "/files/missing/upload", %{path: %{bad: true}}).status == 422
+    assert request(:post, "/sessions", %{host: "localhost", user: %{bad: true}}).status == 422
+
+    assert request(:post, "/sessions", %{host: "localhost", auth_order: ["untrusted-atom"]}).status ==
+             422
+
+    assert request(:post, "/sessions", %{host: "localhost", jump_credentials: []}).status == 422
+    assert request(:post, "/workspace", %{host_ids: [123]}).status == 422
+  end
+
+  test "host edits preserve monitoring checks and workspace identifiers" do
+    attrs = %{
+      id: "preserved",
+      name: "Preserved",
+      host: "localhost",
+      user: "fixture",
+      checks: [%{type: "systemctl", name: "sshd"}],
+      last_connected_at: "2026-10-10T00:00:00Z"
+    }
+
+    assert request(:post, "/hosts", attrs).status == 200
+    [saved] = Jason.decode!(request(:get, "/hosts").resp_body)
+    assert saved["last_connected_at"] == attrs.last_connected_at
+    assert [%{"name" => "sshd"}] = saved["checks"]
+    assert request(:post, "/hosts", Map.put(saved, "name", "Renamed")).status == 200
+    [renamed] = Jason.decode!(request(:get, "/hosts").resp_body)
+    assert renamed["checks"] == saved["checks"]
+  end
+
+  test "native workspace browsing retains legacy named host groups" do
+    {:ok, workspace} = SSHClient.Workspace.create("Native migration regression", ["legacy-host"])
+    on_exit(fn -> SSHClient.Workspace.delete(workspace["id"]) end)
+    saved = Jason.decode!(request(:get, "/workspaces").resp_body)
+    migrated = Enum.find(saved, &(&1["id"] == workspace["id"]))
+    assert migrated["host_ids"] == ["legacy-host"]
+    assert SSHClient.Workspace.get(workspace["id"])["server_ids"] == ["legacy-host"]
+  end
+
+  test "workspace backup includes committed SQLite WAL data" do
+    root = Path.join(System.tmp_dir!(), "native-backup-#{System.unique_integer([:positive])}")
+    on_exit(fn -> File.rm_rf(root) end)
+
+    Ecto.Adapters.SQL.Sandbox.unboxed_run(SSHClient.Repo, fn ->
+      table = "native_backup_#{System.unique_integer([:positive])}"
+      Ecto.Adapters.SQL.query!(SSHClient.Repo, "CREATE TABLE #{table} (value TEXT)", [])
+
+      try do
+        Ecto.Adapters.SQL.query!(SSHClient.Repo, "INSERT INTO #{table} (value) VALUES (?)", [
+          "committed-workspace"
+        ])
+
+        assert {:ok, %{path: ^root}} = SSHClient.Desktop.backup(root)
+        {:ok, connection} = Exqlite.Sqlite3.open(Path.join(root, "terminal_workspaces.db"))
+        {:ok, statement} = Exqlite.Sqlite3.prepare(connection, "SELECT value FROM #{table}")
+        assert {:row, ["committed-workspace"]} = Exqlite.Sqlite3.step(connection, statement)
+        Exqlite.Sqlite3.release(connection, statement)
+        Exqlite.Sqlite3.close(connection)
+      after
+        Ecto.Adapters.SQL.query!(SSHClient.Repo, "DROP TABLE #{table}", [])
+      end
+    end)
   end
 end
