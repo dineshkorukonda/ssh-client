@@ -5,6 +5,8 @@ defmodule SSHClientWeb.Router do
   import Phoenix.Controller
   import Phoenix.LiveView.Router
 
+  forward "/desktop/v1", SSHClientWeb.DesktopAPI
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session

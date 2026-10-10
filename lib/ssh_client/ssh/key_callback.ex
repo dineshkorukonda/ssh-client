@@ -30,11 +30,11 @@ defmodule SSHClient.SSH.KeyCallback do
 
           {:error, {:first_connect, details}} ->
             notify_host_key_event(:first_connect, details, extra_opts)
-            false
+            {:error, {:first_connect, Map.drop(details, [:key])}}
 
           {:error, {:host_key_changed, details}} ->
             notify_host_key_event(:host_key_changed, details, extra_opts)
-            false
+            {:error, {:host_key_changed, Map.drop(details, [:key])}}
         end
     end
   end

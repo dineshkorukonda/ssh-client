@@ -83,18 +83,19 @@ defmodule SSHClient.LauncherScriptTest do
   end
 
   describe "packaging" do
-    test "windows installer bundles launch-gui.ps1" do
+    test "Windows installer launches the native executable and shuts down only this app" do
       script = File.read!(@installer)
-
-      assert script =~ "launch-gui.ps1"
-      assert script =~ "{app}\\bin"
+      assert script =~ ~s(#define AppExeName "ssh-client.exe")
+      assert script =~ "--shutdown"
+      refute script =~ "wscript.exe"
+      refute script =~ "taskkill.exe"
     end
 
-    test "windows packaging job copies launch-gui.ps1 into the release bin" do
+    test "Windows packaging builds and validates the native application" do
       script = File.read!(@ci)
-
-      assert script =~ "launch-gui.ps1"
-      assert script =~ "rel\\ssh_client\\bin\\launch-gui.ps1"
+      assert script =~ "./scripts/build_windows.ps1"
+      assert script =~ "./scripts/test_native_windows.ps1"
+      refute script =~ "Copy-Item priv\\launch-gui"
     end
   end
 end

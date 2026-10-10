@@ -25,7 +25,7 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
       :ssh.daemon({127, 0, 0, 1}, 0,
         system_dir: String.to_charlist(root),
         user_dir: String.to_charlist(root),
-        auth_methods: ~c"publickey,password",
+        auth_methods: ~c"publickey,password,keyboard-interactive",
         user_passwords: [{~c"fixture", ~c"secret"}],
         shell: shell,
         exec: {:direct, fn command -> {:ok, "executed:" <> to_string(command)} end},
@@ -40,7 +40,7 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
     port = Keyword.fetch!(info, :port)
     server = %Server{id: "local-#{port}", host: "127.0.0.1", port: port, user: "fixture"}
     known_hosts = Path.join(root, "known_hosts")
-    opts = [identity_file: identity, known_hosts_file: known_hosts, timeout: 3000]
+    opts = [identity_file: identity, known_hosts_file: known_hosts, timeout: 10_000]
 
     on_exit(fn ->
       :ssh.stop_daemon(daemon)
@@ -151,6 +151,95 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
     assert {:ok, output, 0} = SSH.exec(conn, "through-bastion", timeout: 3000)
     assert output =~ "through-bastion"
     SSH.close(conn)
+  end
+
+  test "native desktop sessions expose terminal events, approve trust and share SFTP", %{
+    server: server,
+    opts: opts
+  } do
+    assert {:ok, id} = SSHClient.SessionManager.create_session(server, ssh_opts: opts)
+    on_exit(fn -> SSHClient.SessionManager.close_session(id) end)
+    {:ok, worker} = SSHClient.SessionManager.get_session(id)
+    monitor = Process.monitor(worker)
+    Phoenix.PubSub.subscribe(SSHClient.PubSub, "ssh_client:session:#{id}")
+    wait_prompt(worker, 100)
+    assert {:ok, %{host_key_prompt: %{details: details}}} = SSHClient.Desktop.session(id, 0)
+    refute Map.has_key?(details, :key)
+    refute Map.has_key?(details, :known_hosts_file)
+    assert :ok = SSHClient.Desktop.session_action(id, "trust", %{})
+    assert_receive {:session_status, ^id, :connected}, 5000
+    assert :ok = SSHClient.Desktop.session_action(id, "input", %{"data" => "native\r"})
+    wait_output(id, "echo:native", "")
+    assert {:ok, snapshot} = SSHClient.Desktop.session(id, 0)
+    assert Enum.any?(snapshot.output, fn chunk -> Base.decode64!(chunk.data) =~ "native" end)
+
+    assert {:ok, []} =
+             SSHClient.Desktop.session(id, snapshot.cursor)
+             |> then(fn {:ok, data} -> {:ok, data.output} end)
+
+    local = Path.join(System.tmp_dir!(), "native-transfer-#{server.port}.txt")
+    File.write!(local, "native transfer")
+    on_exit(fn -> File.rm(local) end)
+
+    assert :ok =
+             SSHClient.Desktop.files(id, "upload", %{
+               "local_path" => local,
+               "path" => "native.txt"
+             })
+
+    assert {:ok, entries} = SSHClient.Desktop.files(id, "list", %{"path" => "."})
+    assert Enum.any?(entries, &(&1.name == "native.txt"))
+    assert :ok = SSHClient.SessionManager.close_session(id)
+    assert_receive {:DOWN, ^monitor, :process, ^worker, _}, 3000
+  end
+
+  test "native keyboard-interactive prompts accept scoped answers without console IO", %{
+    server: server,
+    opts: opts
+  } do
+    approve(server, opts)
+    id = "interactive-#{server.port}"
+
+    opts =
+      opts |> Keyword.delete(:identity_file) |> Keyword.put(:auth_order, [:keyboard_interactive])
+
+    Phoenix.PubSub.subscribe(SSHClient.PubSub, "ssh_client:session:#{id}")
+    worker = start_supervised!({SessionWorker, session_id: id, server: server, ssh_opts: opts})
+    prompt = wait_auth_prompt(worker, 150)
+    assert [%{echo: false}] = prompt.prompts
+
+    assert {:error, :no_auth_prompt} =
+             SessionWorker.answer_auth(worker, "stale-challenge", ["secret"])
+
+    assert :ok = SessionWorker.answer_auth(worker, prompt.challenge, ["secret"])
+    assert_receive {:session_status, ^id, :connected}, 5000
+    assert SessionWorker.desktop_snapshot(worker).auth_prompt == nil
+  end
+
+  defp wait_auth_prompt(_worker, 0), do: flunk("Authentication prompt missing")
+
+  defp wait_auth_prompt(worker, n) do
+    case SessionWorker.desktop_snapshot(worker).auth_prompt do
+      nil ->
+        Process.sleep(20)
+        wait_auth_prompt(worker, n - 1)
+
+      prompt ->
+        prompt
+    end
+  end
+
+  defp wait_prompt(_worker, 0), do: flunk("Native trust prompt was not delivered")
+
+  defp wait_prompt(worker, remaining) do
+    case SessionWorker.desktop_snapshot(worker).host_key_prompt do
+      nil ->
+        Process.sleep(20)
+        wait_prompt(worker, remaining - 1)
+
+      _ ->
+        :ok
+    end
   end
 
   defp wait_output(id, expected, acc) do

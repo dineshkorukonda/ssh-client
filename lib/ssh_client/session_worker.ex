@@ -36,7 +36,10 @@ defmodule SSHClient.SessionWorker do
     :connect_monitor,
     :attempt_id,
     :host_key_prompt,
+    :auth_prompt,
     ssh_opts: [],
+    output_seq: 0,
+    output_chunks: [],
     status: :disconnected,
     error_reason: nil,
     reconnect_attempts: 0,
@@ -98,6 +101,13 @@ defmodule SSHClient.SessionWorker do
   def get_status(worker) do
     GenServer.call(worker, :get_status)
   end
+
+  def desktop_snapshot(worker, since \\ 0), do: GenServer.call(worker, {:desktop_snapshot, since})
+  def connection(worker), do: GenServer.call(worker, :connection)
+  def approve_host(worker), do: GenServer.call(worker, :approve_host)
+
+  def answer_auth(worker, challenge, answers),
+    do: GenServer.call(worker, {:answer_auth, challenge, answers})
 
   @doc """
   Disconnects the active session, transitioning through :disconnecting to :disconnected,
@@ -165,6 +175,80 @@ defmodule SSHClient.SessionWorker do
   def handle_call(:get_status, _from, state) do
     {:reply, state.status, state}
   end
+
+  def handle_call({:desktop_snapshot, since}, _from, state) do
+    prompt =
+      case state.host_key_prompt do
+        %{type: type, details: details} ->
+          %{type: type, details: Map.drop(details, [:key, :known_hosts_file])}
+
+        _ ->
+          nil
+      end
+
+    chunks = state.output_chunks |> Enum.reverse() |> Enum.filter(fn {seq, _} -> seq > since end)
+
+    oldest =
+      case List.last(state.output_chunks) do
+        {seq, _} -> seq
+        nil -> state.output_seq + 1
+      end
+
+    snapshot = %{
+      status: state.status,
+      cursor: state.output_seq,
+      reset: since < oldest - 1,
+      screen: if(since < oldest - 1, do: Buffer.to_snapshot(state.buffer).text, else: nil),
+      output: Enum.map(chunks, fn {seq, data} -> %{seq: seq, data: Base.encode64(data)} end),
+      host_key_prompt: prompt,
+      auth_prompt: if(state.auth_prompt, do: Map.drop(state.auth_prompt, [:caller]), else: nil),
+      error: if(state.error_reason, do: SSH.plain_language_error(state.error_reason), else: nil)
+    }
+
+    {:reply, snapshot, state}
+  end
+
+  def handle_call(:connection, _from, %{status: :connected, connection: conn} = state),
+    do: {:reply, {:ok, conn}, state}
+
+  def handle_call(:connection, _from, state), do: {:reply, {:error, :not_connected}, state}
+
+  def handle_call(
+        :approve_host,
+        _from,
+        %{host_key_prompt: %{type: type, details: details}} = state
+      ) do
+    verifier = SSHClient.SSH.HostKeyVerifier
+    opts = [known_hosts_file: details.known_hosts_file]
+
+    result =
+      if type == :host_key_changed,
+        do: verifier.update_host_key(details.host, details.port, details.key, opts),
+        else: verifier.save_host_key(details.host, details.port, details.key, opts)
+
+    case result do
+      :ok -> {:reply, :ok, do_connect(do_teardown(state))}
+      error -> {:reply, error, state}
+    end
+  end
+
+  def handle_call(:approve_host, _from, state), do: {:reply, {:error, :no_host_key_prompt}, state}
+
+  def handle_call(
+        {:answer_auth, challenge, answers},
+        _from,
+        %{auth_prompt: %{challenge: challenge} = prompt} = state
+      ) do
+    if length(answers) == length(prompt.prompts) do
+      send(prompt.caller, {:auth_answers, challenge, answers})
+      {:reply, :ok, %{state | auth_prompt: nil}}
+    else
+      {:reply, {:error, :invalid_answers}, state}
+    end
+  end
+
+  def handle_call({:answer_auth, _, _}, _from, state),
+    do: {:reply, {:error, :no_auth_prompt}, state}
 
   @impl true
   def handle_call(:get_buffer, _from, state) do
@@ -252,7 +336,9 @@ defmodule SSHClient.SessionWorker do
     if current_channel?(state, conn_ref, channel_id) do
       new_buf = if state.buffer, do: Buffer.feed(state.buffer, data), else: nil
       broadcast_pty_output(state.session_id, data)
-      {:noreply, %{state | buffer: new_buf}}
+      seq = state.output_seq + 1
+      chunks = Enum.take([{seq, data} | state.output_chunks], 256)
+      {:noreply, %{state | buffer: new_buf, output_seq: seq, output_chunks: chunks}}
     else
       {:noreply, state}
     end
@@ -363,6 +449,19 @@ defmodule SSHClient.SessionWorker do
   end
 
   @impl true
+
+  def handle_info(
+        {:auth_prompt, attempt, prompt},
+        %{attempt_id: attempt, status: :connecting} = state
+      ) do
+    {:noreply, %{state | auth_prompt: prompt}}
+  end
+
+  def handle_info({:auth_prompt, _attempt, prompt}, state) do
+    send(prompt.caller, {:auth_answers, prompt.challenge, :cancelled})
+    {:noreply, state}
+  end
+
   def handle_info(_msg, state) do
     {:noreply, state}
   end
@@ -402,6 +501,33 @@ defmodule SSHClient.SessionWorker do
       |> (fn o -> if auth_method, do: [{:auth_method, auth_method} | o], else: o end).()
       |> Keyword.put(:host_key_handler, fn type, details ->
         send(worker_pid, {:ssh_host_key_event, attempt, type, details})
+      end)
+      |> Keyword.put_new(:keyboard_interact_fun, fn name, instruction, prompts ->
+        if password && length(prompts) == 1 &&
+             String.contains?(String.downcase(elem(hd(prompts), 0)), "password") do
+          [password]
+        else
+          challenge = Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+
+          send(
+            worker_pid,
+            {:auth_prompt, attempt,
+             %{
+               challenge: challenge,
+               caller: self(),
+               name: name,
+               instruction: instruction,
+               prompts: Enum.map(prompts, fn {text, echo} -> %{text: text, echo: echo} end)
+             }}
+          )
+
+          receive do
+            {:auth_answers, ^challenge, answers} when is_list(answers) -> answers
+            {:auth_answers, ^challenge, :cancelled} -> List.duplicate("", length(prompts))
+          after
+            60_000 -> List.duplicate("", length(prompts))
+          end
+        end
       end)
 
     {task, monitor} =
@@ -468,7 +594,7 @@ defmodule SSHClient.SessionWorker do
     )
 
     broadcast_error(state.session_id, reason)
-    new_state = %{state | error_reason: reason}
+    new_state = %{state | error_reason: reason, auth_prompt: nil}
 
     if is_nil(state.host_key_prompt) and transient_error?(reason) do
       schedule_reconnect(new_state)
@@ -497,6 +623,9 @@ defmodule SSHClient.SessionWorker do
   end
 
   defp do_teardown(state) do
+    if state.auth_prompt,
+      do: send(state.auth_prompt.caller, {:auth_answers, state.auth_prompt.challenge, :cancelled})
+
     if state.connect_task, do: send(state.connect_task, :cancel)
     if state.connect_monitor, do: Process.demonitor(state.connect_monitor, [:flush])
 
@@ -516,6 +645,7 @@ defmodule SSHClient.SessionWorker do
         connect_monitor: nil,
         attempt_id: nil,
         host_key_prompt: nil,
+        auth_prompt: nil,
         connection: nil,
         channel_id: nil,
         input_queue: []
