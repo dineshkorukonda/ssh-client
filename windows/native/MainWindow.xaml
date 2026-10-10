@@ -1,30 +1,55 @@
-<Window x:Class="SSHClient.Windows.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="ssh-client" Width="1120" Height="740" MinWidth="850" MinHeight="540">
-  <Grid Background="{StaticResource Surface}">
-    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <DockPanel Margin="24,22,24,22">
-      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Workspaces" Click="Workspaces_Click"/><Button Content="Files" Click="Files_Click"/><Button Content="Settings" Click="Settings_Click"/><Button Content="Backup" Click="Backup_Click" Margin="0"/></StackPanel>
-      <StackPanel Orientation="Horizontal"><TextBlock Text="ssh-client" FontSize="26" FontWeight="SemiBold"/><TextBlock Text="WINDOWS DESKTOP" FontSize="11" Foreground="#9298A4" Margin="20,14,0,0"/></StackPanel>
-    </DockPanel>
-    <Grid Grid.Row="1" Margin="24,0,24,0">
-      <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-      <DockPanel>
-        <TextBlock DockPanel.Dock="Top" Text="HOSTS" FontSize="11" Foreground="#9298A4" Margin="0,0,0,12"/>
-        <TextBox x:Name="Search" DockPanel.Dock="Top" TextChanged="Search_Changed" ToolTip="Search saved hosts"/>
-        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-          <Button Content="Connect" Click="Connect_Click" Background="#263A54" Margin="0,0,0,8"/>
-          <UniformGrid Columns="3"><Button Content="Add" Click="Add_Click"/><Button Content="Edit" Click="Edit_Click"/><Button Content="Remove" Click="Remove_Click" Margin="0"/></UniformGrid>
-        </StackPanel>
-        <ListBox x:Name="Hosts" MouseDoubleClick="Connect_Click">
-          <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="8,10"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Text="{Binding Description}" FontFamily="Consolas" FontSize="11" Foreground="#9298A4" Margin="0,5,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
-        </ListBox>
-      </DockPanel>
-      <Grid Grid.Column="2">
-        <TabControl x:Name="Sessions"/>
-        <Border x:Name="Empty" Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" Padding="32">
-          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock Text="Connect to a server" FontSize="24"/><TextBlock Text="Select a saved host or add a connection.&#10;Terminal sessions stay open when you switch tabs." Foreground="#9298A4" Margin="0,14,0,0" LineHeight="24"/></StackPanel>
-        </Border>
-      </Grid>
-    </Grid>
-    <TextBlock x:Name="Status" Grid.Row="2" Text="Starting the local SSH backend..." FontSize="11" Foreground="#9298A4" Margin="24,16,24,16" TextWrapping="Wrap"/>
+<Window x:Class="SSHClient.Windows.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework" Title="ssh-client" Width="1280" Height="820" MinWidth="960" MinHeight="620" WindowStyle="None" Style="{StaticResource AppWindow}">
+<shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="36" ResizeBorderThickness="6" GlassFrameThickness="0" UseAeroCaptionButtons="False"/></shell:WindowChrome.WindowChrome>
+<Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" UseLayoutRounding="True"><Grid>
+<Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+<Border Background="{StaticResource Sidebar}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1"><DockPanel>
+  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True"><Button Content="-" Width="46" Padding="0" Style="{StaticResource NavButton}" Click="Minimize_Click" ToolTip="Minimize"/><Button Content="[]" Width="46" Padding="0" Style="{StaticResource NavButton}" Click="Maximize_Click" ToolTip="Maximize"/><Button Content="x" Width="46" Padding="0" Style="{StaticResource NavButton}" Click="CloseWindow_Click" ToolTip="Close"/></StackPanel>
+  <TextBlock Text="ssh-client" Foreground="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center" Margin="18,0"/>
+</DockPanel></Border>
+<Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<Border Background="{StaticResource Sidebar}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,1,0"><DockPanel Margin="14,20,14,14">
+  <StackPanel DockPanel.Dock="Top">
+    <StackPanel Orientation="Horizontal" Margin="10,0,0,28"><Border Background="#263D68" CornerRadius="7" Width="32" Height="32"><TextBlock Text="&gt;_" FontFamily="Cascadia Code, Consolas" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Text="ssh-client" FontWeight="SemiBold" FontSize="18" VerticalAlignment="Center" Margin="10,0"/></StackPanel>
+    <Button x:Name="HostsNav" Content="Hosts" Click="Library_Click" Style="{StaticResource NavButton}" Background="#252F43"/>
+    <Button x:Name="FavoritesNav" Content="Favorites" Click="Favorites_Click" Style="{StaticResource NavButton}"/>
+    <Button Content="Workspaces" Click="Workspaces_Click" Style="{StaticResource NavButton}"/>
+    <Button Content="SFTP" Click="Files_Click" Style="{StaticResource NavButton}"/>
+    <Border Height="1" Background="{StaticResource Border}" Margin="10,20"/>
+    <TextBlock Text="Open sessions" Foreground="{StaticResource Muted}" FontSize="12" Margin="14,0,0,12"/>
+    <ListBox x:Name="SessionLinks" SelectionChanged="SessionLink_Changed" MaxHeight="300"/>
+  </StackPanel>
+  <StackPanel DockPanel.Dock="Bottom"><Button Content="Settings" Click="Settings_Click" Style="{StaticResource NavButton}"/><Button Content="Back up data" Click="Backup_Click" Style="{StaticResource NavButton}"/><Border Background="#1B1F28" CornerRadius="6" Padding="12" Margin="0,14,0,0"><StackPanel><TextBlock Text="Local workspace" FontSize="12"/><TextBlock Text="Saved on this device" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0"/></StackPanel></Border></StackPanel>
+  <Grid/>
+</DockPanel></Border>
+<Grid Grid.Column="1"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="28"/></Grid.RowDefinitions>
+<TabControl x:Name="Sessions" SelectionChanged="SessionTab_Changed"><TabItem x:Name="LibraryTab" Header="Hosts">
+<Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions>
+  <Grid Margin="28,28,16,20"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <DockPanel Margin="0,0,0,20"><Button DockPanel.Dock="Right" Content="+  New host" Click="Add_Click" Style="{StaticResource PrimaryButton}" Height="38" VerticalAlignment="Center"/><StackPanel><TextBlock x:Name="LibraryTitle" Text="Hosts" FontSize="26" FontWeight="SemiBold"/><TextBlock x:Name="HostCount" Text="Your servers, one connection away." Foreground="{StaticResource Muted}" Margin="0,7,0,0"/></StackPanel></DockPanel>
+    <Grid Grid.Row="1" Height="68" Margin="0,0,12,10"><TextBox x:Name="Search" Height="42" VerticalAlignment="Top" TextChanged="Search_Changed" ToolTip="Search hosts by name, address or tag" Padding="12,11"/><TextBlock x:Name="SearchHint" Text="Search hosts" Foreground="{StaticResource Muted}" Margin="13,17,0,0" IsHitTestVisible="False" VerticalAlignment="Top"/></Grid>
+    <ListBox Grid.Row="2" x:Name="Hosts" SelectionChanged="Host_Changed" MouseDoubleClick="Connect_Click">
+      <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+      <ListBox.ItemTemplate><DataTemplate><Grid Width="168" Height="110" Margin="14,16"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid><Border Width="32" Height="32" CornerRadius="6" Background="#303B50" HorizontalAlignment="Left"><TextBlock Text="&gt;_" FontFamily="Cascadia Code, Consolas" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border><TextBlock Text="{Binding Badge}" FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+        <StackPanel Grid.Row="1" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Address}" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+        <TextBlock Grid.Row="2" Text="{Binding Description}" FontFamily="Cascadia Code, Consolas" FontSize="11" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+      </Grid></DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+    <StackPanel x:Name="Empty" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center"><TextBlock x:Name="EmptyTitle" Text="Add your first host" FontSize="20"/><TextBlock x:Name="EmptyDescription" Text="Open a terminal and transfer files." Foreground="{StaticResource Muted}" Margin="0,10,0,22" TextWrapping="Wrap"/><Button Content="Add host" Click="Add_Click" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"/></StackPanel>
   </Grid>
+  <Border Grid.Column="1" Background="#1B1E25" BorderBrush="{StaticResource Border}" BorderThickness="1,0,0,0"><DockPanel Margin="24,30,24,24">
+    <StackPanel DockPanel.Dock="Bottom"><Button x:Name="DetailConnect" Content="Connect" Click="Connect_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,0,12"/><UniformGrid Columns="2"><Button x:Name="DetailEdit" Content="Edit" Click="Edit_Click" Margin="0,0,6,0"/><Button x:Name="DetailRemove" Content="Remove" Click="Remove_Click" Margin="6,0,0,0"/></UniformGrid></StackPanel>
+    <StackPanel><Border Background="#303B50" Width="48" Height="48" CornerRadius="9" HorizontalAlignment="Left" Margin="0,0,0,20"><TextBlock Text="&gt;_" FontFamily="Cascadia Code, Consolas" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <TextBlock x:Name="DetailName" Text="Select a host" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock x:Name="DetailAddress" Text="Connection details appear here." Foreground="{StaticResource Muted}" Margin="0,8,0,24" TextWrapping="Wrap"/>
+      <Border Background="{StaticResource Border}" Height="1" Margin="0,0,0,24"/><TextBlock Text="Connection" Foreground="{StaticResource Muted}" FontSize="12"/><TextBlock x:Name="DetailConnection" Text="SSH" Margin="0,8,0,22" TextWrapping="Wrap"/>
+      <TextBlock Text="Authentication" Foreground="{StaticResource Muted}" FontSize="12"/><TextBlock x:Name="DetailAuth" Text="Select a saved host" Margin="0,8,0,22"/><TextBlock Text="Notes" Foreground="{StaticResource Muted}" FontSize="12"/><TextBlock x:Name="DetailNotes" Text="No notes" Foreground="{StaticResource Muted}" Margin="0,8,0,22" TextWrapping="Wrap"/>
+      <Button x:Name="FavoriteButton" Content="Add to favorites" Click="ToggleFavorite_Click"/>
+    </StackPanel>
+  </DockPanel></Border>
+</Grid>
+</TabItem></TabControl>
+<Border Grid.Row="1" Background="{StaticResource Sidebar}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0"><TextBlock x:Name="Status" Text="Starting local workspace..." Foreground="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center" Margin="16,0" TextTrimming="CharacterEllipsis"/></Border>
+</Grid>
+</Grid>
+</Grid></Border>
 </Window>

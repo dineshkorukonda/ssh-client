@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using Microsoft.Win32;
 namespace SSHClient.Windows;
 
@@ -9,14 +10,20 @@ public sealed class FilesWindow : Window
     private readonly DesktopClient api;
     private readonly string session;
     private readonly TextBox path = new() { Text = "." };
-    private readonly ListBox entries = new();
+    private readonly ListView entries = new();
     private readonly TextBlock status = new() { Text = "Loading...", Margin = new Thickness(0, 12, 0, 0) };
     private readonly StackPanel toolbar = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
     public FilesWindow(DesktopClient api, string session)
     {
         this.api = api; this.session = session; Title = "Remote files"; Width = 760; Height = 540;
+        Style = (Style)Application.Current.Resources["AppWindow"];
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new DockPanel { Margin = new Thickness(24) };
+        var heading = new TextBlock { Text = "Remote files", FontSize = 24, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 18) };
+        DockPanel.SetDock(heading, Dock.Top); root.Children.Add(heading);
+        var columns = new GridView();
+        foreach (var column in new[] { ("Name", "Name", 300d), ("Type", "Type", 100d), ("Size", "SizeLabel", 130d), ("Permissions", "Permissions", 110d) }) columns.Columns.Add(new GridViewColumn { Header = column.Item1, DisplayMemberBinding = new Binding(column.Item2), Width = column.Item3 });
+        entries.View = columns;
         DockPanel.SetDock(path, Dock.Top); root.Children.Add(path);
         DockPanel.SetDock(toolbar, Dock.Top); root.Children.Add(toolbar);
         AddButton("Open", LoadAsync); AddButton("Up", () => { var current = path.Text.TrimEnd('/'); var slash = current.LastIndexOf('/'); path.Text = slash > 0 ? current[..slash] : "/"; return LoadAsync(); });
@@ -31,7 +38,7 @@ public sealed class FilesWindow : Window
     }
     private void AddButton(string title, Func<Task> action)
     {
-        var button = new Button { Content = title }; button.Click += async (_, _) => await GuardAsync(action); toolbar.Children.Add(button);
+        var button = new Button { Content = title, Margin = new Thickness(0, 0, 8, 0) }; button.Click += async (_, _) => await GuardAsync(action); toolbar.Children.Add(button);
     }
     private async Task GuardAsync(Func<Task> action)
     {
@@ -86,6 +93,7 @@ public sealed class FilesWindow : Window
         public string Type { get; set; } = "";
         public long Size { get; set; }
         public string Permissions { get; set; } = "";
+        public string SizeLabel => Type == "directory" ? "--" : Size < 1024 ? $"{Size} B" : Size < 1048576 ? $"{Size / 1024d:N1} KB" : $"{Size / 1048576d:N1} MB";
         public override string ToString() => $"{(Type == "directory" ? "DIR " : "FILE")}   {Name}   {Size:N0} bytes   {Permissions}";
     }
 }
