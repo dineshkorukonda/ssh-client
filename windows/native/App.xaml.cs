@@ -11,6 +11,8 @@ public partial class App : Application
     private Mutex? instance;
     private EventWaitHandle? activate;
     private RegisteredWaitHandle? activationWait;
+    private EventWaitHandle? shutdownSignal;
+    private RegisteredWaitHandle? shutdownWait;
     private OwnedBackend? backend;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -89,6 +91,12 @@ public partial class App : Application
 
         var identity = WindowsIdentity.GetCurrent().User?.Value ?? Environment.UserName;
         var name = "Local\\ssh-client-" + identity;
+        if (e.Args.FirstOrDefault() == "--shutdown")
+        {
+            try { using var signal = EventWaitHandle.OpenExisting(name + "-shutdown"); signal.Set(); }
+            catch (WaitHandleCannotBeOpenedException) { }
+            Shutdown(); return;
+        }
         instance = new Mutex(true, name, out var firstInstance);
         if (!firstInstance)
         {
@@ -97,6 +105,8 @@ public partial class App : Application
             Shutdown(); return;
         }
         activate = new EventWaitHandle(false, EventResetMode.AutoReset, name + "-activate");
+        shutdownSignal = new EventWaitHandle(false, EventResetMode.AutoReset, name + "-shutdown");
+        shutdownWait = ThreadPool.RegisterWaitForSingleObject(shutdownSignal, (_, _) => Dispatcher.BeginInvoke(() => Shutdown()), null, Timeout.Infinite, false);
         var starting = new MainWindow(null);
         MainWindow = starting;
         starting.Show();
@@ -143,8 +153,10 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         activationWait?.Unregister(null);
+        shutdownWait?.Unregister(null);
         backend?.Dispose();
         activate?.Dispose();
+        shutdownSignal?.Dispose();
         if (instance != null) { try { instance.ReleaseMutex(); } catch (ApplicationException) { } instance.Dispose(); }
         base.OnExit(e);
     }

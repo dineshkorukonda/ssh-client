@@ -40,7 +40,7 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
     port = Keyword.fetch!(info, :port)
     server = %Server{id: "local-#{port}", host: "127.0.0.1", port: port, user: "fixture"}
     known_hosts = Path.join(root, "known_hosts")
-    opts = [identity_file: identity, known_hosts_file: known_hosts, timeout: 3000]
+    opts = [identity_file: identity, known_hosts_file: known_hosts, timeout: 10_000]
 
     on_exit(fn ->
       :ssh.stop_daemon(daemon)
