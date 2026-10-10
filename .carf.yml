@@ -1,4 +1,4 @@
-analysisTrigger: both
+analysisTrigger: pull_requests
 deploymentIntegration: github_actions
 runtimeAdapter: none
 mode: augment
