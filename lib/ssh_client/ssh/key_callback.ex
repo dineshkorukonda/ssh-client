@@ -20,8 +20,7 @@ defmodule SSHClient.SSH.KeyCallback do
         true
 
       Keyword.get(extra_opts, :accept_host_key, false) ->
-        HostKeyVerifier.save_host_key(host_str, port, key, extra_opts)
-        true
+        HostKeyVerifier.save_host_key(host_str, port, key, extra_opts) == :ok
 
       true ->
         case HostKeyVerifier.verify(key, host_str, port, extra_opts) do
@@ -98,6 +97,8 @@ defmodule SSHClient.SSH.KeyCallback do
   defp extract_extra_opts(_), do: []
 
   defp notify_host_key_event(event_type, details, opts) do
+    details = Map.put(details, :known_hosts_file, HostKeyVerifier.known_hosts_path(opts))
+
     case Keyword.get(opts, :host_key_handler) do
       handler when is_function(handler, 2) ->
         handler.(event_type, details)

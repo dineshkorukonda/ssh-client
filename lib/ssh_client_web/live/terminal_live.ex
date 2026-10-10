@@ -493,19 +493,42 @@ defmodule SSHClientWeb.TerminalLive do
       port = details[:port] || details["port"] || 22
       key = details[:key] || details["key"]
 
-      if prompt[:type] in [:host_key_changed, "host_key_changed"] do
-        HostKeyVerifier.update_host_key(host, port, key)
-      else
-        HostKeyVerifier.save_host_key(host, port, key)
-      end
+      result =
+        if prompt[:type] in [:host_key_changed, "host_key_changed"] do
+          HostKeyVerifier.update_host_key(host, port, key,
+            known_hosts_file: details[:known_hosts_file] || HostKeyVerifier.known_hosts_path()
+          )
+        else
+          HostKeyVerifier.save_host_key(host, port, key,
+            known_hosts_file: details[:known_hosts_file] || HostKeyVerifier.known_hosts_path()
+          )
+        end
 
-      handle_event("reconnect", %{}, assign(socket, :host_key_prompt, nil))
+      case result do
+        :ok ->
+          reconnect_prompt_session(prompt)
+          {:noreply, assign(socket, :host_key_prompt, nil)}
+
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Cannot save host key: #{inspect(reason)}")}
+      end
     else
       {:noreply, assign(socket, :host_key_prompt, nil)}
     end
   end
 
   def handle_event("reject_host_key", _params, socket) do
+    case socket.assigns[:host_key_prompt] do
+      %{session_id: id} ->
+        case SessionManager.get_session(id) do
+          {:ok, pid} -> SessionWorker.disconnect(pid)
+          _ -> :ok
+        end
+
+      _ ->
+        :ok
+    end
+
     {:noreply, assign(socket, :host_key_prompt, nil)}
   end
 
@@ -886,13 +909,27 @@ defmodule SSHClientWeb.TerminalLive do
     {:noreply, push_session_output(socket, session_id, msg)}
   end
 
-  def handle_info({:ssh_host_key_event, _session_id, event_type, details}, socket) do
-    {:noreply, assign(socket, :host_key_prompt, %{type: event_type, details: details})}
+  def handle_info({:ssh_host_key_event, session_id, event_type, details}, socket) do
+    {:noreply,
+     assign(socket, :host_key_prompt, %{
+       session_id: session_id,
+       type: event_type,
+       details: details
+     })}
   end
 
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
+
+  defp reconnect_prompt_session(%{session_id: id}) do
+    case SessionManager.get_session(id) do
+      {:ok, pid} -> SessionWorker.reconnect(pid)
+      _ -> :ok
+    end
+  end
+
+  defp reconnect_prompt_session(_), do: :ok
 
   @impl true
   def terminate(_reason, _socket) do

@@ -75,20 +75,21 @@ defmodule SSHClient.SSH.HostKeyVerifier do
   def load_known_hosts(opts \\ []) do
     path = known_hosts_path(opts)
 
-    if File.exists?(path) do
-      path
-      |> File.read!()
-      |> String.split("\n", trim: true)
-      |> Enum.reject(&String.starts_with?(&1, "#"))
-      |> Enum.map(&parse_known_host_line/1)
-      |> Enum.reject(&is_nil/1)
-    else
-      []
+    case File.read(path) do
+      {:ok, content} ->
+        content
+        |> String.split("\n", trim: true)
+        |> Enum.reject(&String.starts_with?(&1, "#"))
+        |> Enum.map(&parse_known_host_line/1)
+        |> Enum.reject(&is_nil/1)
+
+      _ ->
+        []
     end
   end
 
   defp parse_known_host_line(line) do
-    parts = String.split(line, " ", trim: true)
+    parts = String.split(line, ~r/\s+/, trim: true)
 
     case parts do
       [hosts, type, b64_key | _rest] ->
@@ -167,9 +168,22 @@ defmodule SSHClient.SSH.HostKeyVerifier do
       end
 
     Enum.any?(patterns, fn pattern ->
-      pattern == host or pattern == expected_host_port or pattern == "[#{host}]:#{port}"
+      pattern == expected_host_port or pattern == "[#{host}]:#{port}" or
+        hashed_host_matches?(pattern, expected_host_port)
     end)
   end
+
+  defp hashed_host_matches?("|1|" <> hash, host) do
+    with [salt, digest] <- String.split(hash, "|"),
+         {:ok, salt} <- Base.decode64(salt),
+         {:ok, digest} <- Base.decode64(digest) do
+      :crypto.mac(:hmac, :sha, salt, host) == digest
+    else
+      _ -> false
+    end
+  end
+
+  defp hashed_host_matches?(_, _), do: false
 
   @doc """
   Saves an accepted host key into known_hosts.
@@ -178,7 +192,6 @@ defmodule SSHClient.SSH.HostKeyVerifier do
   def save_host_key(host, port, key, opts \\ []) do
     path = known_hosts_path(opts)
     dir = Path.dirname(path)
-    File.mkdir_p!(dir)
 
     target_host = to_string(host)
 
@@ -194,13 +207,28 @@ defmodule SSHClient.SSH.HostKeyVerifier do
 
     key_type =
       cond do
-        is_tuple(key) -> to_string(elem(key, 0))
-        true -> "ssh-ed25519"
+        is_tuple(key) ->
+          <<length::32, type::binary-size(length), _::binary>> = encoded_key
+          type
+
+        true ->
+          "ssh-ed25519"
       end
 
     line = "#{host_token} #{key_type} #{b64_key}\n"
 
-    case File.write(path, line, [:append]) do
+    case File.mkdir_p(dir) do
+      :ok -> File.write(path, line, [:append])
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp write_replacement(path, content) do
+    temp = path <> ".#{System.unique_integer([:positive])}.tmp"
+    result = with :ok <- File.write(temp, content), do: File.rename(temp, path)
+    File.rm(temp)
+
+    case result do
       :ok -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -226,12 +254,15 @@ defmodule SSHClient.SSH.HostKeyVerifier do
           end
         end)
 
-      File.write!(
-        path,
-        Enum.join(filtered_lines, "\n") <> if(filtered_lines == [], do: "", else: "\n")
-      )
+      with :ok <-
+             write_replacement(
+               path,
+               Enum.join(filtered_lines, "\n") <> if(filtered_lines == [], do: "", else: "\n")
+             ) do
+        save_host_key(host, port, key, opts)
+      end
+    else
+      save_host_key(host, port, key, opts)
     end
-
-    save_host_key(host, port, key, opts)
   end
 end

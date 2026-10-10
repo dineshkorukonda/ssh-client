@@ -3,6 +3,21 @@ defmodule SSHClientWeb.HostLiveTest do
 
   alias SSHClientWeb.HostLive
 
+  test "hosts workspace exposes first-use trust prompts and rejection clears them" do
+    socket = build_socket(%{host_key_prompt: nil})
+    details = %{host: "example", port: 22, fingerprint: "SHA256:test"}
+
+    assert {:noreply, socket} =
+             HostLive.handle_info(
+               {:ssh_host_key_event, "missing-session", :first_connect, details},
+               socket
+             )
+
+    assert socket.assigns.host_key_prompt.details == details
+    assert {:noreply, socket} = HostLive.handle_event("reject_host_key", %{}, socket)
+    assert socket.assigns.host_key_prompt == nil
+  end
+
   test "filter_servers returns all servers when query is empty" do
     servers = [
       %{id: "srv-1", name: "Production Web Alpha", host: "10.0.0.1"},
