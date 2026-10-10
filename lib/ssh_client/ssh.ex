@@ -193,6 +193,12 @@ defmodule SSHClient.SSH do
   end
 
   defp build_ssh_options(target, user, extra_opts) do
+    extra_opts =
+      case get_field(target, :identity_file) do
+        nil -> extra_opts
+        path -> Keyword.put_new(extra_opts, :identity_file, path)
+      end
+
     silent = Keyword.get(extra_opts, :silently_accept_hosts, false)
 
     base = [

@@ -41,7 +41,27 @@ defmodule SSHClient.SSH.KeyCallback do
 
   @impl :ssh_client_key_api
   def user_key(algorithm, connect_opts) do
-    :ssh_file.user_key(algorithm, connect_opts)
+    opts = extract_extra_opts(connect_opts)
+
+    case Keyword.get(opts, :identity_file) do
+      path when is_binary(path) and path != "" ->
+        passphrase = Keyword.get(opts, :passphrase, :ignore)
+
+        passphrase =
+          if is_binary(passphrase), do: String.to_charlist(passphrase), else: passphrase
+
+        with {:ok, pem} <- File.read(Path.expand(path)),
+             {:ok, [{key, _attrs} | _]} <-
+               :ssh_file.decode_ssh_file(:private, algorithm, pem, passphrase) do
+          {:ok, key}
+        else
+          {:error, reason} -> {:error, {:identity_file, reason}}
+          _ -> {:error, {:identity_file, :no_key_found}}
+        end
+
+      _ ->
+        :ssh_file.user_key(algorithm, connect_opts)
+    end
   end
 
   @impl :ssh_client_key_api
@@ -72,7 +92,7 @@ defmodule SSHClient.SSH.KeyCallback do
   defp normalize_host_param(host), do: to_string(host)
 
   defp extract_extra_opts(connect_opts) when is_list(connect_opts) do
-    connect_opts
+    Keyword.merge(connect_opts, Keyword.get(connect_opts, :key_cb_private, []))
   end
 
   defp extract_extra_opts(_), do: []
