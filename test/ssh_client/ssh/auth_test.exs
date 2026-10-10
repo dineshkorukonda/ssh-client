@@ -153,6 +153,7 @@ defmodule SSHClient.SSH.AuthTest do
     end
 
     test "resolves password from PassphraseCache if cached in memory" do
+      on_exit(fn -> SSHClient.PassphraseCache.delete("password:deploy@staging-box") end)
       SSHClient.PassphraseCache.put("password:deploy@staging-box", "ephemeral-secret-999")
       target = %{id: "staging-box", user: "deploy", auth_method: :password}
       opts = Auth.build_options(target)
