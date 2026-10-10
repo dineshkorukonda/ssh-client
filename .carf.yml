@@ -1,0 +1,4 @@
+analysisTrigger: both
+deploymentIntegration: github_actions
+runtimeAdapter: none
+mode: augment
