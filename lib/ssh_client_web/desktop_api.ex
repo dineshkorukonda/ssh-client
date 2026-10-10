@@ -77,6 +77,11 @@ defmodule SSHClientWeb.DesktopAPI do
           is_integer(attrs["cols"]) and attrs["cols"] in 1..1000 and is_integer(attrs["rows"]) and
             attrs["rows"] in 1..1000
 
+        "answer" ->
+          is_binary(attrs["challenge"]) and is_list(attrs["answers"]) and
+            length(attrs["answers"]) <= 20 and
+            Enum.all?(attrs["answers"], &(is_binary(&1) and byte_size(&1) <= 4096))
+
         _ ->
           action in ~w(trust disconnect reconnect)
       end
@@ -114,6 +119,23 @@ defmodule SSHClientWeb.DesktopAPI do
 
   post "/backup" do
     result(conn, Desktop.backup())
+  end
+
+  get "/workspace" do
+    result(conn, {:ok, Desktop.workspace()})
+  end
+
+  get "/workspaces" do
+    result(conn, {:ok, Desktop.workspaces()})
+  end
+
+  post "/workspace" do
+    ids = conn.body_params["host_ids"]
+
+    if is_list(ids) and length(ids) <= 100 and
+         Enum.all?(ids, &(is_binary(&1) and byte_size(&1) <= 4096)),
+       do: result(conn, Desktop.save_workspace(conn.body_params)),
+       else: result(conn, {:error, :invalid_workspace})
   end
 
   match _ do

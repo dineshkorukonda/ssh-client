@@ -1,8 +1,30 @@
 <Window x:Class="SSHClient.Windows.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="ssh-client" Width="1120" Height="740" MinWidth="850" MinHeight="540">
-  <Grid Margin="24" Background="{StaticResource Surface}">
+  <Grid Background="{StaticResource Surface}">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <StackPanel Orientation="Horizontal" Margin="0,0,0,24"><TextBlock Text="ssh-client" FontSize="26" FontWeight="SemiBold"/><TextBlock Text="WINDOWS DESKTOP" FontSize="11" Foreground="#9298A4" Margin="20,14,0,0"/></StackPanel>
-    <Border Grid.Row="1" BorderBrush="{StaticResource Border}" BorderThickness="1" Padding="24"><TextBlock Text="Starting the local SSH backend..." VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#9298A4"/></Border>
-    <TextBlock Grid.Row="2" Text="Local sessions. Native Windows controls." FontSize="11" Foreground="#9298A4" Margin="0,16,0,0"/>
+    <DockPanel Margin="24,22,24,22">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Workspaces" Click="Workspaces_Click"/><Button Content="Files" Click="Files_Click"/><Button Content="Settings" Click="Settings_Click"/><Button Content="Backup" Click="Backup_Click" Margin="0"/></StackPanel>
+      <StackPanel Orientation="Horizontal"><TextBlock Text="ssh-client" FontSize="26" FontWeight="SemiBold"/><TextBlock Text="WINDOWS DESKTOP" FontSize="11" Foreground="#9298A4" Margin="20,14,0,0"/></StackPanel>
+    </DockPanel>
+    <Grid Grid.Row="1" Margin="24,0,24,0">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="HOSTS" FontSize="11" Foreground="#9298A4" Margin="0,0,0,12"/>
+        <TextBox x:Name="Search" DockPanel.Dock="Top" TextChanged="Search_Changed" ToolTip="Search saved hosts"/>
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+          <Button Content="Connect" Click="Connect_Click" Background="#263A54" Margin="0,0,0,8"/>
+          <UniformGrid Columns="3"><Button Content="Add" Click="Add_Click"/><Button Content="Edit" Click="Edit_Click"/><Button Content="Remove" Click="Remove_Click" Margin="0"/></UniformGrid>
+        </StackPanel>
+        <ListBox x:Name="Hosts" MouseDoubleClick="Connect_Click">
+          <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="8,10"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Text="{Binding Description}" FontFamily="Consolas" FontSize="11" Foreground="#9298A4" Margin="0,5,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+      <Grid Grid.Column="2">
+        <TabControl x:Name="Sessions"/>
+        <Border x:Name="Empty" Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" Padding="32">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock Text="Connect to a server" FontSize="24"/><TextBlock Text="Select a saved host or add a connection.&#10;Terminal sessions stay open when you switch tabs." Foreground="#9298A4" Margin="0,14,0,0" LineHeight="24"/></StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+    <TextBlock x:Name="Status" Grid.Row="2" Text="Starting the local SSH backend..." FontSize="11" Foreground="#9298A4" Margin="24,16,24,16" TextWrapping="Wrap"/>
   </Grid>
 </Window>

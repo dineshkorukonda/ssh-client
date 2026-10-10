@@ -247,11 +247,12 @@ defmodule SSHClient.SSH do
         path -> Keyword.put_new(extra_opts, :identity_file, path)
       end
 
+    auth_opts = Auth.build_options(target, extra_opts)
     silent = Keyword.get(extra_opts, :silently_accept_hosts, false)
 
     base = [
       key_cb: {SSHClient.SSH.KeyCallback, extra_opts},
-      user_interaction: false
+      user_interaction: is_function(auth_opts[:keyboard_interact_fun], 3)
     ]
 
     base =
@@ -268,7 +269,6 @@ defmodule SSHClient.SSH do
         base
       end
 
-    auth_opts = Auth.build_options(target, extra_opts)
     Keyword.merge(base, auth_opts)
   end
 

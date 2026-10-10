@@ -25,7 +25,7 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
       :ssh.daemon({127, 0, 0, 1}, 0,
         system_dir: String.to_charlist(root),
         user_dir: String.to_charlist(root),
-        auth_methods: ~c"publickey,password",
+        auth_methods: ~c"publickey,password,keyboard-interactive",
         user_passwords: [{~c"fixture", ~c"secret"}],
         shell: shell,
         exec: {:direct, fn command -> {:ok, "executed:" <> to_string(command)} end},
@@ -191,6 +191,42 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
     assert Enum.any?(entries, &(&1.name == "native.txt"))
     assert :ok = SSHClient.SessionManager.close_session(id)
     assert_receive {:DOWN, ^monitor, :process, ^worker, _}, 3000
+  end
+
+  test "native keyboard-interactive prompts accept scoped answers without console IO", %{
+    server: server,
+    opts: opts
+  } do
+    approve(server, opts)
+    id = "interactive-#{server.port}"
+
+    opts =
+      opts |> Keyword.delete(:identity_file) |> Keyword.put(:auth_order, [:keyboard_interactive])
+
+    Phoenix.PubSub.subscribe(SSHClient.PubSub, "ssh_client:session:#{id}")
+    worker = start_supervised!({SessionWorker, session_id: id, server: server, ssh_opts: opts})
+    prompt = wait_auth_prompt(worker, 150)
+    assert [%{echo: false}] = prompt.prompts
+
+    assert {:error, :no_auth_prompt} =
+             SessionWorker.answer_auth(worker, "stale-challenge", ["secret"])
+
+    assert :ok = SessionWorker.answer_auth(worker, prompt.challenge, ["secret"])
+    assert_receive {:session_status, ^id, :connected}, 5000
+    assert SessionWorker.desktop_snapshot(worker).auth_prompt == nil
+  end
+
+  defp wait_auth_prompt(_worker, 0), do: flunk("Authentication prompt missing")
+
+  defp wait_auth_prompt(worker, n) do
+    case SessionWorker.desktop_snapshot(worker).auth_prompt do
+      nil ->
+        Process.sleep(20)
+        wait_auth_prompt(worker, n - 1)
+
+      prompt ->
+        prompt
+    end
   end
 
   defp wait_prompt(_worker, 0), do: flunk("Native trust prompt was not delivered")

@@ -24,7 +24,8 @@ defmodule SSHClient.Desktop do
   end
 
   def save_host(attrs) when is_map(attrs) do
-    with {:ok, server} <- Server.from_map(Map.take(attrs, @host_fields)),
+    with :ok <- validate_host(attrs),
+         {:ok, server} <- Server.from_map(Map.take(attrs, @host_fields)),
          {:ok, existing} <- hosts() do
       servers = Enum.map(existing, &parse_saved_host/1)
       merged = [server | Enum.reject(servers, &(&1.id == server.id))]
@@ -43,17 +44,26 @@ defmodule SSHClient.Desktop do
 
   defp parse_saved_host(attrs) do
     {:ok, server} =
-      Server.from_map(Map.new(attrs, fn {key, value} -> {to_string(key), value} end))
+      Server.from_map(Jason.decode!(Jason.encode!(attrs)))
 
     server
   end
 
   def open_session(attrs) do
-    with {:ok, server} <- Server.from_map(Map.take(attrs, @host_fields)) do
+    with :ok <- validate_host(attrs),
+         {:ok, server} <- Server.from_map(Map.take(attrs, @host_fields)) do
       ssh_opts =
         attrs
         |> Map.take(~w(identity_file passphrase password))
         |> Enum.map(fn {key, value} -> {String.to_existing_atom(key), value} end)
+
+      ssh_opts = Enum.reject(ssh_opts, fn {_, value} -> is_nil(value) end)
+
+      ssh_opts =
+        case Application.get_env(:ssh_client, :desktop_known_hosts_file) do
+          nil -> ssh_opts
+          path -> Keyword.put(ssh_opts, :known_hosts_file, path)
+        end
 
       jump_opts =
         (attrs["jump_credentials"] || %{})
@@ -72,6 +82,38 @@ defmodule SSHClient.Desktop do
     end
   end
 
+  defp validate_host(attrs) do
+    strings =
+      ~w(id name host user identity_file proxy_jump notes last_connected_at password passphrase)
+
+    valid_strings =
+      Enum.all?(strings, fn key ->
+        is_nil(attrs[key]) or (is_binary(attrs[key]) and byte_size(attrs[key]) <= 4096)
+      end)
+
+    valid_lists =
+      Enum.all?(~w(users tags), fn key ->
+        is_nil(attrs[key]) or (is_list(attrs[key]) and Enum.all?(attrs[key], &is_binary/1))
+      end)
+
+    order = attrs["auth_order"]
+
+    valid_order =
+      is_nil(order) or
+        (is_list(order) and
+           Enum.all?(
+             order,
+             &(&1 in ~w(key publickey password keyboard_interactive keyboard-interactive agent))
+           ))
+
+    jump = attrs["jump_credentials"]
+    valid_jump = is_nil(jump) or (is_map(jump) and Enum.all?(Map.values(jump), &is_binary/1))
+
+    if valid_strings and valid_lists and valid_order and valid_jump,
+      do: :ok,
+      else: {:error, :invalid_host}
+  end
+
   def session(id, since) do
     with {:ok, worker} <- SessionManager.get_session(id),
          do: {:ok, SessionWorker.desktop_snapshot(worker, since)}
@@ -83,6 +125,7 @@ defmodule SSHClient.Desktop do
         "input" -> SessionWorker.send_input(worker, attrs["data"])
         "resize" -> SessionWorker.resize(worker, attrs["cols"], attrs["rows"])
         "trust" -> SessionWorker.approve_host(worker)
+        "answer" -> SessionWorker.answer_auth(worker, attrs["challenge"], attrs["answers"])
         "disconnect" -> SessionWorker.disconnect(worker)
         "reconnect" -> SessionWorker.reconnect(worker)
         _ -> {:error, :unknown_action}
@@ -127,14 +170,22 @@ defmodule SSHClient.Desktop do
   def save_settings(attrs),
     do: Store.put(:preferences, "native-desktop", Map.take(attrs, ~w(font_size scrollback)))
 
-  def backup do
-    paths = [
-      Config.default_config_path(),
-      Store.default_path(),
-      SSHClient.DatabasePath.default_path()
-    ]
+  def workspace, do: Store.get(:workspaces, "native-desktop") || %{"host_ids" => []}
 
-    destination = Path.join(Config.os_config_dir(), "backups/#{System.os_time(:millisecond)}")
+  def workspaces do
+    Enum.map(Store.list(:workspaces), fn record ->
+      Map.put_new(record, "host_ids", record["server_ids"] || [])
+    end)
+  end
+
+  def save_workspace(attrs),
+    do: Store.put(:workspaces, "native-desktop", Map.take(attrs, ~w(host_ids)))
+
+  def backup(destination \\ nil) do
+    paths = [Config.default_config_path(), Store.default_path()]
+
+    destination =
+      destination || Path.join(Config.os_config_dir(), "backups/#{System.os_time(:millisecond)}")
 
     with :ok <- File.mkdir_p(destination) do
       results =
@@ -142,9 +193,17 @@ defmodule SSHClient.Desktop do
             File.exists?(path),
             do: File.cp(path, Path.join(destination, Path.basename(path)))
 
-      if Enum.all?(results, &(&1 == :ok)),
-        do: {:ok, %{path: destination}},
-        else: {:error, :backup_failed}
+      database_backup = Path.join(destination, "terminal_workspaces.db")
+
+      case Ecto.Adapters.SQL.query(SSHClient.Repo, "VACUUM INTO ?", [database_backup]) do
+        {:ok, _} ->
+          if Enum.all?(results, &(&1 == :ok)),
+            do: {:ok, %{path: destination}},
+            else: {:error, :backup_failed}
+
+        _ ->
+          {:error, :database_backup_failed}
+      end
     end
   end
 end

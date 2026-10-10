@@ -223,46 +223,51 @@ defmodule SSHClient.SSH.HostKeyVerifier do
     end
   end
 
-  defp write_replacement(path, content) do
-    temp = path <> ".#{System.unique_integer([:positive])}.tmp"
-    result = with :ok <- File.write(temp, content), do: File.rename(temp, path)
-    File.rm(temp)
-
-    case result do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
   @doc """
   Replaces or updates a host key entry in known_hosts after explicit confirmation.
   """
   @spec update_host_key(String.t(), pos_integer(), term(), keyword()) :: :ok | {:error, term()}
   def update_host_key(host, port, key, opts \\ []) do
     path = known_hosts_path(opts)
-    target_host = to_string(host)
 
-    if File.exists?(path) do
-      filtered_lines =
-        path
-        |> File.read!()
-        |> String.split("\n", trim: true)
-        |> Enum.reject(fn line ->
-          case parse_known_host_line(line) do
-            nil -> false
-            entry -> host_matches?(entry.hosts, target_host, port)
-          end
-        end)
+    case File.read(path) do
+      {:ok, content} ->
+        lines =
+          content
+          |> String.split("\n", trim: true)
+          |> Enum.flat_map(fn line ->
+            case parse_known_host_line(line) do
+              nil ->
+                [line]
 
-      with :ok <-
-             write_replacement(
-               path,
-               Enum.join(filtered_lines, "\n") <> if(filtered_lines == [], do: "", else: "\n")
-             ) do
+              entry ->
+                remaining = Enum.reject(entry.hosts, &host_matches?([&1], to_string(host), port))
+
+                if remaining == [],
+                  do: [],
+                  else: [String.replace(line, ~r/^\S+/, Enum.join(remaining, ","))]
+            end
+          end)
+
+        temp = path <> ".replacement-#{System.unique_integer([:positive])}"
+
+        with :ok <-
+               File.write(temp, Enum.join(lines, "\n") <> if(lines == [], do: "", else: "\n")),
+             :ok <- save_host_key(host, port, key, Keyword.put(opts, :known_hosts_file, temp)) do
+          result = File.rename(temp, path)
+          File.rm(temp)
+          result
+        else
+          error ->
+            File.rm(temp)
+            error
+        end
+
+      {:error, :enoent} ->
         save_host_key(host, port, key, opts)
-      end
-    else
-      save_host_key(host, port, key, opts)
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end
