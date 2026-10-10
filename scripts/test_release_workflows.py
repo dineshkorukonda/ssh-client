@@ -79,14 +79,14 @@ class TestCIWorkflow(unittest.TestCase):
         self.assertNotIn("if: github.event_name", block)
 
     def test_release_packages_require_successful_backend_tests(self):
-        for name in ("package-windows", "package-linux", "publish-container"):
+        for name in ("native-windows", "package-linux", "publish-container"):
             block = job_block(self.workflow, name)
             self.assertIn("needs: [metadata-check, test]", block)
-        self.assertIn("needs: [package-windows, package-linux, publish-container]", job_block(self.workflow, "release"))
+        self.assertIn("needs: [native-windows, package-linux, publish-container]", job_block(self.workflow, "release"))
         self.assertIn("platforms: linux/amd64,linux/arm64", job_block(self.workflow, "publish-container"))
 
     def test_release_keeps_required_assets_and_container_tags(self):
-        windows = job_block(self.workflow, "package-windows")
+        windows = job_block(self.workflow, "native-windows")
         linux = job_block(self.workflow, "package-linux")
         container = job_block(self.workflow, "publish-container")
         release = job_block(self.workflow, "release")
@@ -100,6 +100,17 @@ class TestCIWorkflow(unittest.TestCase):
         )
         self.assertIn("ghcr.io/${{ github.repository }}:latest", container)
         self.assertRegex(release, r"(?m)^          make_latest:\s*true\s*$")
+
+    def test_native_application_and_installer_are_validated_on_pull_requests(self):
+        windows = job_block(self.workflow, "native-windows")
+        self.assertNotRegex(windows, r"(?m)^    if:")
+        self.assertIn("dotnet-version: '10.0.x'", windows)
+        self.assertIn("./scripts/build_windows.ps1", windows)
+        self.assertIn("./scripts/test_native_windows.ps1", windows)
+        installer = (ROOT / "windows" / "installer.iss").read_text(encoding="utf-8")
+        self.assertIn('#define AppExeName "ssh-client.exe"', installer)
+        self.assertNotIn("taskkill.exe", installer)
+        self.assertNotIn("wscript.exe", installer)
 
     def test_release_download_excludes_build_metadata_artifacts(self):
         release = job_block(self.workflow, "release")

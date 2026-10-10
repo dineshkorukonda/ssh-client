@@ -5,7 +5,7 @@
 #define AppVersion "0.0.58"
 #define AppPublisher "Dinesh Korukonda"
 #define AppURL "https://github.com/dineshkorukonda/ssh-client"
-#define AppExeName "ssh_client.bat"
+#define AppExeName "ssh-client.exe"
 
 [Setup]
 AppId={{8F3C4A2B-1D6E-4F9A-B7C5-0E2D8A3F1C4B}
@@ -16,7 +16,7 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}/issues
 AppUpdatesURL={#AppURL}/releases
-DefaultDirName={autopf}\{#AppName}
+DefaultDirName={localappdata}\Programs\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
 LicenseFile=..\LICENSE
@@ -27,7 +27,8 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
+CloseApplications=yes
+RestartApplications=no
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\app.ico
@@ -42,31 +43,26 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Ship the entire OTP release tree
 Source: "..\_build\prod\rel\ssh_client\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
-; Explicitly bundle launcher scripts so local builds work without the CI copy step
-Source: "..\priv\launch-gui.bat"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "..\priv\launch-gui.vbs"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "..\priv\launch-gui.ps1"; DestDir: "{app}\bin"; Flags: ignoreversion
-
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; WorkingDir: "{app}\bin"; IconFilename: "{app}\app.ico"
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#AppName}"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; Tasks: desktopicon; WorkingDir: "{app}\bin"; IconFilename: "{app}\app.ico"
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"
 
 [Run]
-Filename: "{sys}\wscript.exe"; Parameters: """{app}\bin\launch-gui.vbs"""; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}\bin"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{app}\bin\{#AppExeName}"; Parameters: "stop"; RunOnceId: "StopService"; Flags: nowait
+Filename: "{app}\{#AppExeName}"; Parameters: "--shutdown"; RunOnceId: "StopApplication"; Flags: runhidden waituntilterminated skipifdoesntexist
 
 [Code]
-// Close any running daemon instances before installation begins to prevent locked file errors
+// Request shutdown from this user's ssh-client instance; Restart Manager handles remaining file locks.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ErrorCode: Integer;
+  AppPath: String;
 begin
   Result := '';
-  Exec('taskkill.exe', '/F /IM erl.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
-  Exec('taskkill.exe', '/F /IM werl.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
-  Exec('taskkill.exe', '/F /IM beam.smp /T', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
-  Exec('taskkill.exe', '/F /IM epmd.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  AppPath := ExpandConstant('{app}\{#AppExeName}');
+  if FileExists(AppPath) then
+    Exec(AppPath, '--shutdown', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 end;
