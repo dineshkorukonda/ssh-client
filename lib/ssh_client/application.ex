@@ -8,7 +8,8 @@ defmodule SSHClient.Application do
     SSHClient.InitSystem.init_cache()
 
     config_path =
-      if Code.ensure_loaded?(Mix) and Mix.env() == :test do
+      if System.get_env("SSH_CLIENT_DESKTOP") == "1" or
+           (Code.ensure_loaded?(Mix) and Mix.env() == :test) do
         nil
       else
         SSHClient.Config.default_config_path()
