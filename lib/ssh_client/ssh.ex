@@ -12,13 +12,14 @@ defmodule SSHClient.SSH do
     @moduledoc """
     Represents an active SSH connection, tracking channel and optional jump host tunnel.
     """
-    defstruct [:conn_ref, :jump_ref, :jump_port, :server]
+    defstruct [:conn_ref, :jump_ref, :jump_port, :jump_tunnel, :server]
   end
 
   @type t :: %Connection{
           conn_ref: :ssh.connection_ref(),
           jump_ref: :ssh.connection_ref() | nil,
           jump_port: integer() | nil,
+          jump_tunnel: pid() | nil,
           server: Server.t() | map()
         }
 
@@ -150,7 +151,8 @@ defmodule SSHClient.SSH do
         target_port = get_field(target, :port, 22)
 
         result =
-          with {:ok, listen_port} <- open_jump_tunnel(jump_ref, target_host, target_port),
+          with {:ok, {listen_port, tunnel}} <-
+                 open_jump_tunnel(jump_ref, target_host, target_port, timeout),
                {:ok, conn_ref} <-
                  connect_direct(
                    target,
@@ -167,6 +169,7 @@ defmodule SSHClient.SSH do
                conn_ref: conn_ref,
                jump_ref: jump_ref,
                jump_port: listen_port,
+               jump_tunnel: tunnel,
                server: target
              }}
           end
@@ -185,8 +188,8 @@ defmodule SSHClient.SSH do
     end
   end
 
-  defp open_jump_tunnel(jump_ref, host, port) do
-    :ssh.tcpip_tunnel_to_server(jump_ref, ~c"127.0.0.1", 0, ensure_charlist(host), port)
+  defp open_jump_tunnel(jump_ref, host, port, timeout) do
+    SSHClient.SSH.Tunnel.open(jump_ref, host, port, timeout)
   catch
     kind, reason -> {:error, {kind, reason}}
   end
@@ -350,7 +353,8 @@ defmodule SSHClient.SSH do
   Closes an active SSH connection, its jump tunnel, and jump host connection if present.
   """
   @spec close(Connection.t() | term()) :: :ok
-  def close(%Connection{conn_ref: conn_ref, jump_ref: jump_ref}) do
+  def close(%Connection{conn_ref: conn_ref, jump_ref: jump_ref, jump_tunnel: tunnel}) do
+    if is_pid(tunnel), do: send(tunnel, :stop)
     if conn_ref, do: :ssh.close(conn_ref)
     if jump_ref, do: :ssh.close(jump_ref)
     :ok

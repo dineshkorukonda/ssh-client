@@ -16,7 +16,7 @@ mix test test/integration/local_ssh_integration_test.exs --include integration
 
 The build produces `_build/prod/rel/ssh_client/ssh-client.exe` with the OTP runtime, terminal assets and Microsoft's signed Evergreen WebView2 standalone installer. This offline installer is bundled in both Windows distributions. The app uses an existing WebView2 runtime or installs the bundled runtime per user when needed. No development SDK, external browser or network download is required on the destination machine. `-SkipRuntimeDownload` is for developer validation with an already installed WebView2 runtime; do not use it for distributed packages.
 
-GitHub CI validates the native executable, real SSH terminal rendering, input/output, SFTP and owned-process cleanup, then compiles the Inno Setup installer and portable ZIP on every phase PR. Release publishing waits for Windows validation, Linux packaging and multi-platform container publishing. The Release Bot advances synchronized beta versions after merge; the native executable's version is derived from the same release metadata.
+GitHub CI validates the native executable, real SSH terminal rendering, input/output, SFTP and owned-process cleanup, then compiles the Inno Setup installer and portable ZIP on every PR. Releases currently target Windows x64 only and wait for Windows validation and both Windows artifacts. The Release Bot advances synchronized beta versions after merge; the native executable's version is derived from the same release metadata.
 
 ## Data and session lifecycle
 
@@ -41,6 +41,6 @@ The loopback desktop API is disabled outside native launch mode. Each backend re
 - Verify password, key and keyboard-interactive login; first-use approval and changed-key rejection; separate bastion credentials; PTY resize; SFTP upload/download.
 - Verify reconnect after network loss and sleep/resume, multiple tabs, settings and saved workspace restoration.
 - Upgrade over the preceding beta and uninstall while running; verify the app closes and unrelated Erlang applications remain alive.
-- Verify both Windows artifacts, Linux tarball, amd64/arm64 container tags and the latest GitHub Release before deleting phase branches.
+- Verify both Windows artifacts and the latest GitHub Release before deleting phase branches.
 
 Automated smoke tests cover packaged backend startup, the WebView2 terminal bridge, real SSH/SFTP and backend cleanup. Offline runtime installation on a clean machine, sleep/resume, installer upgrade/uninstall and application signing require release-environment validation; do not treat compilation alone as proof of those behaviors.

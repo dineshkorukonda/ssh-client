@@ -45,6 +45,22 @@ class TestReleaseBotWorkflow(unittest.TestCase):
         permissions = top_level_block(self.workflow, "permissions")
         self.assertRegex(permissions, r"(?m)^  actions:\s*write\s*$")
 
+    def test_release_bumps_are_serialized_from_current_main(self):
+        concurrency = top_level_block(self.workflow, "concurrency")
+        self.assertIn("group: release-bot-${{ github.ref }}", concurrency)
+        self.assertIn("cancel-in-progress: false", concurrency)
+        self.assertIn("ref: main", job_block(self.workflow, "auto-release"))
+
+    def test_repository_link_only_changes_do_not_create_releases(self):
+        push = indented_block(top_level_block(self.workflow, "on"), "push", 2)
+        self.assertIn('paths-ignore: [ ".carf.yml" ]', push)
+
+    def test_commit_messages_and_titles_are_passed_as_environment_data(self):
+        self.assertIn("COMMIT_MSG: ${{ github.event.head_commit.message }}", self.workflow)
+        self.assertIn("PR_TITLE: ${{ github.event.pull_request.title }}", self.workflow)
+        self.assertNotIn('COMMIT_MSG="${{', self.workflow)
+        self.assertNotIn('PR_TITLE="${{', self.workflow)
+
     def test_dispatches_ci_at_new_tag_after_pushing_tag(self):
         auto_release = job_block(self.workflow, "auto-release")
         tag_push = 'git push origin "v${NEW_VER}"'
@@ -71,34 +87,25 @@ class TestCIWorkflow(unittest.TestCase):
         self.assertRegex(concurrency, r"(?m)^  group:.*github\.ref")
         self.assertRegex(concurrency, r"(?m)^  cancel-in-progress:\s*false\s*$")
 
-    def test_backend_matrix_runs_real_connections_on_windows_and_linux(self):
+    def test_backend_runs_real_connections_on_windows(self):
         block = job_block(self.workflow, "test")
-        self.assertIn("os: [ubuntu-latest, windows-latest]", block)
+        self.assertIn("os: [windows-latest]", block)
         self.assertIn("run: mix test", block)
         self.assertIn("local_ssh_integration_test.exs --include integration", block)
         self.assertNotIn("if: github.event_name", block)
 
     def test_release_packages_require_successful_backend_tests(self):
-        for name in ("native-windows", "package-linux", "publish-container"):
-            block = job_block(self.workflow, name)
-            self.assertIn("needs: [metadata-check, test]", block)
-        self.assertIn("needs: [native-windows, package-linux, publish-container]", job_block(self.workflow, "release"))
-        self.assertIn("platforms: linux/amd64,linux/arm64", job_block(self.workflow, "publish-container"))
+        self.assertIn("needs: [metadata-check, test]", job_block(self.workflow, "native-windows"))
+        self.assertIn("needs: [native-windows]", job_block(self.workflow, "release"))
+        self.assertNotIn("  package-linux:", self.workflow)
+        self.assertNotIn("  publish-container:", self.workflow)
 
-    def test_release_keeps_required_assets_and_container_tags(self):
+    def test_release_keeps_windows_installer_and_portable_assets(self):
         windows = job_block(self.workflow, "native-windows")
-        linux = job_block(self.workflow, "package-linux")
-        container = job_block(self.workflow, "publish-container")
         release = job_block(self.workflow, "release")
 
         self.assertIn("ssh-client-windows-x64.zip", windows)
         self.assertIn("installer\\ssh-client-setup-v*-windows-x64.exe", windows)
-        self.assertIn("ssh-client-linux-x64.tar.gz", linux)
-        self.assertIn(
-            "ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}",
-            container,
-        )
-        self.assertIn("ghcr.io/${{ github.repository }}:latest", container)
         self.assertRegex(release, r"(?m)^          make_latest:\s*true\s*$")
 
     def test_native_application_and_installer_are_validated_on_pull_requests(self):
@@ -114,7 +121,7 @@ class TestCIWorkflow(unittest.TestCase):
 
     def test_release_download_excludes_build_metadata_artifacts(self):
         release = job_block(self.workflow, "release")
-        self.assertRegex(release, r"(?m)^          pattern:\s*ssh-client-\*\s*$")
+        self.assertRegex(release, r"(?m)^          pattern:\s*ssh-client-windows-\*\s*$")
 
 
 if __name__ == "__main__":

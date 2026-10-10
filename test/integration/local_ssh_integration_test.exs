@@ -148,9 +148,28 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
 
     assert {:ok, conn} = SSH.connect(target, Keyword.put(opts, :jump_opts, jump_opts))
     assert conn.jump_ref != nil
-    assert {:ok, output, 0} = SSH.exec(conn, "through-bastion", timeout: 3000)
-    assert output =~ "through-bastion"
-    SSH.close(conn)
+    jump_monitor = Process.monitor(conn.jump_ref)
+    tunnel_monitor = Process.monitor(conn.jump_tunnel)
+
+    try do
+      assert {:ok, output, 0} = SSH.exec(conn, "through-bastion", timeout: 3000)
+      assert output =~ "through-bastion"
+      assert {:ok, channel} = :ssh_sftp.start_channel(conn.conn_ref)
+
+      try do
+        # Cross the SSH window boundary to detect forwarding that stalls after its first packets.
+        payload = :binary.copy("bastion-stream", 180_000)
+        assert :ok = :ssh_sftp.write_file(channel, ~c"bastion-roundtrip.txt", payload)
+        assert {:ok, ^payload} = :ssh_sftp.read_file(channel, ~c"bastion-roundtrip.txt")
+      after
+        :ssh_sftp.stop_channel(channel)
+      end
+    after
+      SSH.close(conn)
+    end
+
+    assert_receive {:DOWN, ^jump_monitor, :process, _, _}, 3000
+    assert_receive {:DOWN, ^tunnel_monitor, :process, _, :normal}, 3000
   end
 
   test "native desktop sessions expose terminal events, approve trust and share SFTP", %{
