@@ -10,6 +10,7 @@ defmodule SSHClientWeb.DesktopAPITest do
     original_path = System.get_env("SSH_CLIENT_SERVERS_CONFIG")
     path = Path.join(System.tmp_dir!(), "native-hosts-#{System.unique_integer([:positive])}.json")
     System.put_env("SSH_CLIENT_SERVERS_CONFIG", path)
+    for host <- SSHClient.Store.list(:hosts), do: SSHClient.Store.delete(:hosts, host["id"])
 
     on_exit(fn ->
       if original,
@@ -67,7 +68,8 @@ defmodule SSHClientWeb.DesktopAPITest do
     assert request(:post, "/hosts", attrs).status == 200
     conn = request(:get, "/hosts")
     assert [%{"id" => "native"}] = Jason.decode!(conn.resp_body)
-    refute File.read!(SSHClient.Config.default_config_path()) =~ credential
+    refute Jason.encode!(SSHClient.Store.list(:hosts)) =~ credential
+    refute File.exists?(SSHClient.Config.default_config_path())
     assert request(:delete, "/hosts/native").status == 200
     assert request(:get, "/hosts").resp_body == "[]"
   end
@@ -117,6 +119,7 @@ defmodule SSHClientWeb.DesktopAPITest do
   test "workspace backup includes committed SQLite WAL data" do
     root = Path.join(System.tmp_dir!(), "native-backup-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf(root) end)
+    assert :ok = SSHClient.Desktop.save_host(%{"id" => "backup-host", "host" => "localhost"})
 
     Ecto.Adapters.SQL.Sandbox.unboxed_run(SSHClient.Repo, fn ->
       table = "native_backup_#{System.unique_integer([:positive])}"
@@ -128,6 +131,11 @@ defmodule SSHClientWeb.DesktopAPITest do
         ])
 
         assert {:ok, %{path: ^root}} = SSHClient.Desktop.backup(root)
+
+        {:ok, app_store} =
+          start_supervised({SSHClient.Store, name: nil, path: Path.join(root, "app.sqlite3")})
+
+        assert %{"host" => "localhost"} = SSHClient.Store.get(app_store, :hosts, "backup-host")
         {:ok, connection} = Exqlite.Sqlite3.open(Path.join(root, "terminal_workspaces.db"))
         {:ok, statement} = Exqlite.Sqlite3.prepare(connection, "SELECT value FROM #{table}")
         assert {:row, ["committed-workspace"]} = Exqlite.Sqlite3.step(connection, statement)

@@ -19,6 +19,26 @@ public partial class App : Application
     {
         base.OnStartup(e);
         DispatcherUnhandledException += (_, args) => { ShowError(args.Exception); args.Handled = true; };
+        if (e.Args.FirstOrDefault() == "--design-smoke")
+        {
+            try
+            {
+                var folder = e.Args[1]; Directory.CreateDirectory(folder);
+                var window = new MainWindow(null, preview: true);
+                Capture(window, 1280, 820, Path.Combine(folder, "hosts.png"));
+                Capture(window, 960, 620, Path.Combine(folder, "hosts-compact.png"));
+                window.Opacity = 0; window.ShowInTaskbar = false; window.Show();
+                var dialog = new FormDialog(window, "Connect to Production EU", [new("user", "Username", "deploy"), new("password", "Password", Secret: true)], "Connect", "deploy@prod-eu.example.com:22\nCredentials are used for this session only.");
+                if (dialog.Background is not SolidColorBrush background || background.Color != Color.FromRgb(24, 26, 32)) throw new IOException("Derived dialog lost its dark theme.");
+                Capture(dialog, 480, 390, Path.Combine(folder, "connection.png"));
+                var editor = new FormDialog(window, "SSH host", [new("name", "Name", "Production EU"), new("host", "Server address", "prod-eu.example.com"), new("auth", "Authentication", "key", Options: ["key", "password"]), new("identity", "Private key", "C:\\Users\\deploy\\.ssh\\production", File: true), new("notes", "Notes", "Primary application server", Multiline: true)]);
+                Capture(editor, 480, 630, Path.Combine(folder, "host-editor.png"));
+                window.Close();
+                Shutdown(0);
+            }
+            catch (Exception error) { File.WriteAllText("native-smoke-error.txt", error.ToString()); Shutdown(1); }
+            return;
+        }
         if (e.Args.FirstOrDefault() == "--terminal-smoke")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -127,6 +147,15 @@ public partial class App : Application
             _ = MonitorBackendAsync(backend);
         }
         catch (Exception error) { ShowError(error); Shutdown(1); }
+    }
+
+    private static void Capture(Window window, int width, int height, string path)
+    {
+        var surface = (FrameworkElement)window.Content;
+        surface.Measure(new Size(width, height)); surface.Arrange(new Rect(0, 0, width, height)); surface.UpdateLayout();
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(surface);
+        var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap));
+        using var output = File.Create(path); png.Save(output);
     }
 
     private async Task MonitorBackendAsync(OwnedBackend owned)
