@@ -20,8 +20,14 @@ defmodule SSHClientWeb.DesktopAPI do
   end
 
   get "/health" do
+    ready =
+      Enum.all?(
+        [SSHClient.SessionManager, SSHClient.Store, SSHClient.SFTP.TransferManager],
+        &is_pid(Process.whereis(&1))
+      )
+
     respond(conn, 200, %{
-      ready: true,
+      ready: ready,
       api_version: 1,
       version: SSHClient.Updater.current_version()
     })

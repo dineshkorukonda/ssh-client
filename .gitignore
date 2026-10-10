@@ -21,3 +21,10 @@ __pycache__/
 /node_modules/
 
 .worktrees/
+/windows/native/bin/
+/windows/native/obj/
+/windows/native/publish/
+/windows/runtime/
+/installer/
+native-smoke*.png
+native-smoke-error.txt
