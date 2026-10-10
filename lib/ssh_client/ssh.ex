@@ -44,19 +44,23 @@ defmodule SSHClient.SSH do
         [r] -> {nil, r}
       end
 
-    {host, port} =
-      case String.split(rest, ":", parts: 2) do
-        [h, p] ->
-          case Integer.parse(p) do
-            {parsed_port, ""} -> {h, parsed_port}
-            _ -> {h, 22}
+    case Regex.run(~r/^(?:\[([^\]]+)\]|([^:]+))(?::([0-9]+))?$/, rest) do
+      [_, bracket_host, plain_host | port_parts] ->
+        port =
+          case port_parts do
+            [p] when p != "" -> String.to_integer(p)
+            _ -> 22
           end
 
-        [h] ->
-          {h, 22}
-      end
+        host = if bracket_host != "", do: bracket_host, else: plain_host
 
-    %{host: host, port: port, user: user}
+        if port in 1..65_535 and host != "",
+          do: %{host: host, port: port, user: user},
+          else: {:error, :invalid_proxy_jump}
+
+      _ ->
+        {:error, :invalid_proxy_jump}
+    end
   end
 
   @doc """
@@ -100,39 +104,76 @@ defmodule SSHClient.SSH do
   end
 
   defp do_connect(target, proxy_jump, opts) do
-    jump_info = parse_proxy_jump(proxy_jump)
+    case parse_proxy_jump(proxy_jump) do
+      {:error, reason} -> {:error, reason}
+      jump_info -> connect_via_jump(target, jump_info, opts)
+    end
+  end
+
+  defp connect_via_jump(target, jump_info, opts) do
     timeout = Keyword.get(opts, :timeout, 10_000)
     user = Keyword.get(opts, :user) || get_field(target, :user)
-    opts = resolve_keychain_password(target, user, opts)
+    target_opts = resolve_keychain_password(target, user, opts)
 
-    case connect_direct(target, jump_info.host, jump_info.port, jump_info.user, timeout, opts) do
+    jump_opts =
+      Keyword.merge(
+        Keyword.take(opts, [
+          :timeout,
+          :host_key_handler,
+          :known_hosts_file,
+          :silently_accept_hosts
+        ]),
+        Keyword.get(opts, :jump_opts, [])
+      )
+
+    jump_user = Keyword.get(jump_opts, :user) || jump_info.user || user
+
+    jump_target = %{
+      id: "jump:#{jump_user}@#{jump_info.host}:#{jump_info.port}",
+      host: jump_info.host,
+      port: jump_info.port,
+      user: jump_user
+    }
+
+    jump_opts = resolve_keychain_password(jump_target, jump_user, jump_opts)
+
+    case connect_direct(
+           jump_target,
+           jump_info.host,
+           jump_info.port,
+           jump_user,
+           timeout,
+           jump_opts
+         ) do
       {:ok, jump_ref} ->
         target_host = get_field(target, :host)
         target_port = get_field(target, :port, 22)
-        target_host_charlist = String.to_charlist(target_host)
 
-        case :ssh.tcpip_tunnel_to_server(
-               jump_ref,
-               ~c"127.0.0.1",
-               0,
-               target_host_charlist,
-               target_port
-             ) do
-          {:ok, listen_port} ->
-            case connect_direct(target, "127.0.0.1", listen_port, user, timeout, opts) do
-              {:ok, conn_ref} ->
-                {:ok,
-                 %Connection{
-                   conn_ref: conn_ref,
-                   jump_ref: jump_ref,
-                   jump_port: listen_port,
-                   server: target
-                 }}
+        result =
+          with {:ok, listen_port} <- open_jump_tunnel(jump_ref, target_host, target_port),
+               {:ok, conn_ref} <-
+                 connect_direct(
+                   target,
+                   "127.0.0.1",
+                   listen_port,
+                   user,
+                   timeout,
+                   target_opts
+                   |> Keyword.put(:host_key_host, target_host)
+                   |> Keyword.put(:host_key_port, target_port)
+                 ) do
+            {:ok,
+             %Connection{
+               conn_ref: conn_ref,
+               jump_ref: jump_ref,
+               jump_port: listen_port,
+               server: target
+             }}
+          end
 
-              {:error, reason} ->
-                :ssh.close(jump_ref)
-                {:error, {:connection_failed, reason}}
-            end
+        case result do
+          {:ok, _} ->
+            result
 
           {:error, reason} ->
             :ssh.close(jump_ref)
@@ -142,6 +183,12 @@ defmodule SSHClient.SSH do
       {:error, reason} ->
         {:error, {:jump_host_failed, reason}}
     end
+  end
+
+  defp open_jump_tunnel(jump_ref, host, port) do
+    :ssh.tcpip_tunnel_to_server(jump_ref, ~c"127.0.0.1", 0, ensure_charlist(host), port)
+  catch
+    kind, reason -> {:error, {kind, reason}}
   end
 
   defp resolve_keychain_password(target, user, opts) do
@@ -182,6 +229,7 @@ defmodule SSHClient.SSH do
 
   defp connect_direct(target, host, port, user, timeout, opts) do
     host_charlist = ensure_charlist(host)
+    opts = opts |> Keyword.put_new(:host_key_host, host) |> Keyword.put_new(:host_key_port, port)
     ssh_opts = build_ssh_options(target, user, opts)
 
     try do
@@ -193,6 +241,12 @@ defmodule SSHClient.SSH do
   end
 
   defp build_ssh_options(target, user, extra_opts) do
+    extra_opts =
+      case get_field(target, :identity_file) do
+        nil -> extra_opts
+        path -> Keyword.put_new(extra_opts, :identity_file, path)
+      end
+
     silent = Keyword.get(extra_opts, :silently_accept_hosts, false)
 
     base = [

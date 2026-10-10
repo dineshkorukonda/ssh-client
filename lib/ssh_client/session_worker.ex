@@ -32,6 +32,11 @@ defmodule SSHClient.SessionWorker do
     :user,
     :password,
     :auth_method,
+    :connect_task,
+    :connect_monitor,
+    :attempt_id,
+    :host_key_prompt,
+    ssh_opts: [],
     status: :disconnected,
     error_reason: nil,
     reconnect_attempts: 0,
@@ -137,6 +142,7 @@ defmodule SSHClient.SessionWorker do
       user: user,
       password: password,
       auth_method: auth_method,
+      ssh_opts: Keyword.get(opts, :ssh_opts, []),
       channel_id: channel_id,
       buffer: buffer,
       status: :disconnected,
@@ -233,14 +239,17 @@ defmodule SSHClient.SessionWorker do
   # Scheduled reconnect timer tick
   @impl true
   def handle_info(:scheduled_reconnect, state) do
-    state = %{state | reconnect_timer: nil}
-    {:noreply, do_connect(state)}
+    if state.status == :reconnecting do
+      {:noreply, do_connect(%{state | reconnect_timer: nil})}
+    else
+      {:noreply, state}
+    end
   end
 
   # Incoming PTY data from SSH connection (standard OTP :ssh channel message)
   @impl true
-  def handle_info({:ssh_cm, _conn_ref, {:data, channel_id, 0, data}}, state) do
-    if channel_id == state.channel_id do
+  def handle_info({:ssh_cm, conn_ref, {:data, channel_id, _type, data}}, state) do
+    if current_channel?(state, conn_ref, channel_id) do
       new_buf = if state.buffer, do: Buffer.feed(state.buffer, data), else: nil
       broadcast_pty_output(state.session_id, data)
       {:noreply, %{state | buffer: new_buf}}
@@ -251,8 +260,8 @@ defmodule SSHClient.SessionWorker do
 
   # EOF from SSH channel
   @impl true
-  def handle_info({:ssh_cm, _conn_ref, {:eof, channel_id}}, state) do
-    if channel_id == state.channel_id do
+  def handle_info({:ssh_cm, conn_ref, {:eof, channel_id}}, state) do
+    if current_channel?(state, conn_ref, channel_id) do
       ActivityLog.info(state.server.id, "Session '#{state.session_id}' received EOF")
     end
 
@@ -261,24 +270,24 @@ defmodule SSHClient.SessionWorker do
 
   # Exit status from remote process
   @impl true
-  def handle_info({:ssh_cm, _conn_ref, {:exit_status, channel_id, exit_code}}, state) do
-    if channel_id == state.channel_id do
+  def handle_info({:ssh_cm, conn_ref, {:exit_status, channel_id, exit_code}}, state) do
+    if current_channel?(state, conn_ref, channel_id) do
       ActivityLog.info(
         state.server.id,
         "Session '#{state.session_id}' exited with code #{exit_code}"
       )
-    end
 
-    state_disconnecting = set_status(state, :disconnecting)
-    cleaned = do_teardown(state_disconnecting)
-    final_state = set_status(cleaned, :disconnected)
-    {:noreply, final_state}
+      cleaned = do_teardown(set_status(state, :disconnecting))
+      {:noreply, set_status(cleaned, :disconnected)}
+    else
+      {:noreply, state}
+    end
   end
 
   # Remote channel closed unexpectedly
   @impl true
-  def handle_info({:ssh_cm, _conn_ref, {:closed, channel_id}}, state) do
-    if channel_id == state.channel_id do
+  def handle_info({:ssh_cm, conn_ref, {:closed, channel_id}}, state) do
+    if current_channel?(state, conn_ref, channel_id) do
       ActivityLog.info(state.server.id, "Session '#{state.session_id}' remote channel closed")
       state_disconnecting = set_status(state, :disconnecting)
       cleaned = do_teardown(state_disconnecting)
@@ -290,7 +299,10 @@ defmodule SSHClient.SessionWorker do
 
   # Connection completed message from background connection Task
   @impl true
-  def handle_info({:connect_completed, result}, state) do
+  def handle_info(
+        {:connect_completed, attempt, result},
+        %{attempt_id: attempt, status: :connecting} = state
+      ) do
     case result do
       {:ok, conn, channel_id} ->
         target_user = state.user || state.server.user || "default"
@@ -323,10 +335,31 @@ defmodule SSHClient.SessionWorker do
     end
   end
 
-  @impl true
-  def handle_info({:ssh_host_key_event, event_type, details}, state) do
-    broadcast(state.session_id, {:ssh_host_key_event, state.session_id, event_type, details})
+  def handle_info({:connect_completed, _attempt, {:ok, conn, channel}}, state) do
+    SSH.close_pty(conn, channel)
+    SSH.close(conn)
     {:noreply, state}
+  end
+
+  def handle_info({:connect_completed, _attempt, _result}, state), do: {:noreply, state}
+
+  def handle_info({:DOWN, ref, :process, _pid, reason}, %{connect_monitor: ref} = state) do
+    cleaned = %{state | connect_task: nil, connect_monitor: nil}
+
+    if state.status in [:connecting, :connected] do
+      {:noreply, handle_connect_error(do_teardown(cleaned), {:connection_task_failed, reason})}
+    else
+      {:noreply, cleaned}
+    end
+  end
+
+  @impl true
+  def handle_info(
+        {:ssh_host_key_event, attempt, event_type, details},
+        %{attempt_id: attempt} = state
+      ) do
+    broadcast(state.session_id, {:ssh_host_key_event, state.session_id, event_type, details})
+    {:noreply, %{state | host_key_prompt: %{type: event_type, details: details}}}
   end
 
   @impl true
@@ -350,7 +383,8 @@ defmodule SSHClient.SessionWorker do
       Process.cancel_timer(state.reconnect_timer)
     end
 
-    state = set_status(state, :connecting)
+    attempt = make_ref()
+    state = set_status(%{state | attempt_id: attempt, host_key_prompt: nil}, :connecting)
 
     server = state.server
     user = state.user
@@ -362,34 +396,69 @@ defmodule SSHClient.SessionWorker do
     worker_pid = self()
 
     connect_opts =
-      []
+      state.ssh_opts
       |> (fn o -> if user, do: [{:user, user} | o], else: o end).()
       |> (fn o -> if password, do: [{:password, password} | o], else: o end).()
       |> (fn o -> if auth_method, do: [{:auth_method, auth_method} | o], else: o end).()
-      |> (fn o -> [{:host_key_handler, worker_pid} | o] end).()
+      |> Keyword.put(:host_key_handler, fn type, details ->
+        send(worker_pid, {:ssh_host_key_event, attempt, type, details})
+      end)
 
-    Task.start(fn ->
-      result =
-        case SSH.connect(server, connect_opts) do
-          {:ok, conn} ->
-            case SSH.open_pty(conn, cols: cols, rows: rows, term: term) do
-              {:ok, channel_id} ->
-                {:ok, conn, channel_id}
+    {task, monitor} =
+      spawn_monitor(fn ->
+        parent_monitor = Process.monitor(worker_pid)
 
-              {:error, reason} ->
-                SSH.close(conn)
-                {:error, reason}
+        result =
+          case SSH.connect(server, connect_opts) do
+            {:ok, conn} ->
+              case SSH.open_pty(conn, cols: cols, rows: rows, term: term) do
+                {:ok, channel_id} ->
+                  {:ok, conn, channel_id}
+
+                {:error, reason} ->
+                  SSH.close(conn)
+                  {:error, reason}
+              end
+
+            {:error, reason} ->
+              {:error, reason}
+          end
+
+        case result do
+          {:ok, conn, _channel} ->
+            try do
+              send(worker_pid, {:connect_completed, attempt, result})
+              relay_channel(worker_pid, parent_monitor)
+            after
+              SSH.close(conn)
             end
 
-          {:error, reason} ->
-            {:error, reason}
+          _ ->
+            send(worker_pid, {:connect_completed, attempt, result})
         end
+      end)
 
-      send(worker_pid, {:connect_completed, result})
-    end)
-
-    state
+    %{state | connect_task: task, connect_monitor: monitor}
   end
+
+  defp relay_channel(worker, parent_monitor) do
+    receive do
+      {:ssh_cm, _, _} = message ->
+        send(worker, message)
+        relay_channel(worker, parent_monitor)
+
+      :cancel ->
+        :ok
+
+      {:DOWN, ^parent_monitor, :process, ^worker, _} ->
+        :ok
+    end
+  end
+
+  defp current_channel?(%{connection: %SSH.Connection{conn_ref: ref}, channel_id: id}, ref, id),
+    do: true
+
+  defp current_channel?(_, _, _), do: false
 
   defp handle_connect_error(state, reason) do
     ActivityLog.error(
@@ -400,8 +469,18 @@ defmodule SSHClient.SessionWorker do
 
     broadcast_error(state.session_id, reason)
     new_state = %{state | error_reason: reason}
-    schedule_reconnect(new_state)
+
+    if is_nil(state.host_key_prompt) and transient_error?(reason) do
+      schedule_reconnect(new_state)
+    else
+      set_status(new_state, :error)
+    end
   end
+
+  defp transient_error?({:connection_failed, reason}), do: transient_error?(reason)
+
+  defp transient_error?(reason),
+    do: reason in [:timeout, :econnrefused, :ehostunreach, :enetunreach, :closed, :econnreset]
 
   defp schedule_reconnect(state) do
     attempts = state.reconnect_attempts
@@ -418,6 +497,9 @@ defmodule SSHClient.SessionWorker do
   end
 
   defp do_teardown(state) do
+    if state.connect_task, do: send(state.connect_task, :cancel)
+    if state.connect_monitor, do: Process.demonitor(state.connect_monitor, [:flush])
+
     if state.reconnect_timer do
       Process.cancel_timer(state.reconnect_timer)
     end
@@ -430,6 +512,10 @@ defmodule SSHClient.SessionWorker do
     %{
       state
       | reconnect_timer: nil,
+        connect_task: nil,
+        connect_monitor: nil,
+        attempt_id: nil,
+        host_key_prompt: nil,
         connection: nil,
         channel_id: nil,
         input_queue: []

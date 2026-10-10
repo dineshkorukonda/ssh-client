@@ -6,6 +6,17 @@ defmodule SSHClient.SSHTest do
   alias SSHClient.SSH.Connection
 
   describe "parse_proxy_jump/1" do
+    test "supports bracketed IPv6 and rejects malformed ports" do
+      assert SSH.parse_proxy_jump("bastion@[::1]:2222") == %{
+               host: "::1",
+               port: 2222,
+               user: "bastion"
+             }
+
+      assert SSH.parse_proxy_jump("host:invalid") == {:error, :invalid_proxy_jump}
+      assert SSH.parse_proxy_jump("host:70000") == {:error, :invalid_proxy_jump}
+    end
+
     test "returns nil for nil or empty string" do
       assert SSH.parse_proxy_jump(nil) == nil
       assert SSH.parse_proxy_jump("") == nil

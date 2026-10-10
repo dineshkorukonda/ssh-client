@@ -113,6 +113,10 @@ defmodule SSHClient.SessionWorkerTest do
         )
 
       # Send authentic OTP :ssh channel data message
+      :sys.replace_state(pid, fn state ->
+        %{state | connection: %SSHClient.SSH.Connection{conn_ref: :fake_conn}}
+      end)
+
       send(pid, {:ssh_cm, :fake_conn, {:data, 0, 0, "hello world\r\n"}})
 
       assert_receive {:pty_output, ^session_id, "hello world\r\n"}, 1000
@@ -180,6 +184,46 @@ defmodule SSHClient.SessionWorkerTest do
   end
 
   describe "input buffering" do
+    test "disconnect ignores stale successful connections and old channel exits", %{
+      session_id: id,
+      server: server
+    } do
+      pid =
+        start_supervised!({SessionWorker, session_id: id, server: server, auto_connect: false})
+
+      :sys.replace_state(pid, fn state ->
+        %{
+          state
+          | connection: %SSHClient.SSH.Connection{conn_ref: :current},
+            channel_id: 7,
+            status: :connected
+        }
+      end)
+
+      send(pid, {:ssh_cm, :old, {:exit_status, 7, 0}})
+      assert SessionWorker.get_status(pid) == :connected
+      :ok = SessionWorker.disconnect(pid)
+      send(pid, {:connect_completed, make_ref(), {:error, :timeout}})
+      send(pid, :scheduled_reconnect)
+      assert SessionWorker.get_status(pid) == :disconnected
+    end
+
+    test "authentication errors settle without retries", %{session_id: id, server: server} do
+      pid =
+        start_supervised!({SessionWorker, session_id: id, server: server, auto_connect: false})
+
+      attempt = make_ref()
+      :sys.replace_state(pid, fn state -> %{state | attempt_id: attempt, status: :connecting} end)
+
+      send(
+        pid,
+        {:connect_completed, attempt, {:error, {:connection_failed, "Authentication failed."}}}
+      )
+
+      assert SessionWorker.get_status(pid) == :error
+      assert :sys.get_state(pid).reconnect_timer == nil
+    end
+
     test "send_input while disconnected returns :ok and does not crash", %{
       session_id: session_id,
       server: server

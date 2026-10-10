@@ -65,6 +65,7 @@ defmodule SSHClientWeb.HostLive do
       |> assign(:cols, 80)
       |> assign(:rows, 24)
       |> assign(:error, nil)
+      |> assign(:host_key_prompt, nil)
       |> assign(:command_palette_open, false)
       |> assign(:command_palette_query, "")
       |> assign(:command_palette_index, 0)
@@ -1040,6 +1041,50 @@ defmodule SSHClientWeb.HostLive do
 
   def handle_event("noop", _params, socket), do: {:noreply, socket}
 
+  def handle_event("accept_host_key", _params, socket) do
+    case socket.assigns[:host_key_prompt] do
+      %{session_id: session_id, type: type, details: details} ->
+        verifier = SSHClient.SSH.HostKeyVerifier
+        opts = [known_hosts_file: details.known_hosts_file]
+
+        result =
+          if type == :host_key_changed,
+            do: verifier.update_host_key(details.host, details.port, details.key, opts),
+            else: verifier.save_host_key(details.host, details.port, details.key, opts)
+
+        case result do
+          :ok ->
+            case SessionManager.get_session(session_id) do
+              {:ok, pid} -> SessionWorker.reconnect(pid)
+              _ -> :ok
+            end
+
+            {:noreply, assign(socket, :host_key_prompt, nil)}
+
+          {:error, reason} ->
+            {:noreply, assign(socket, :error, "Cannot save host key: #{inspect(reason)}")}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("reject_host_key", _params, socket) do
+    case socket.assigns[:host_key_prompt] do
+      %{session_id: id} ->
+        case SessionManager.get_session(id) do
+          {:ok, pid} -> SessionWorker.disconnect(pid)
+          _ -> :ok
+        end
+
+      _ ->
+        :ok
+    end
+
+    {:noreply, assign(socket, :host_key_prompt, nil)}
+  end
+
   # ---------------------------------------------------------------------------
   # Info
   # ---------------------------------------------------------------------------
@@ -1047,6 +1092,11 @@ defmodule SSHClientWeb.HostLive do
   @impl true
   def handle_info(:refresh, socket) do
     {:noreply, load_servers(socket)}
+  end
+
+  def handle_info({:ssh_host_key_event, session_id, type, details}, socket) do
+    {:noreply,
+     assign(socket, :host_key_prompt, %{session_id: session_id, type: type, details: details})}
   end
 
   def handle_info({:pty_output, session_id, data}, socket) do

@@ -882,6 +882,32 @@
   </div>
 <% end %>
 
+<%= if @host_key_prompt do %>
+  <div class="fixed inset-0 z-[90] bg-black/70 flex items-center justify-center">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Verify SSH host key"
+      class="bg-card border border-border rounded p-6 max-w-xl space-y-4"
+    >
+      <h2>Verify SSH host key</h2>
+      <p>{@host_key_prompt.details.host}:{@host_key_prompt.details.port}</p>
+      <%= if @host_key_prompt.type == :host_key_changed do %>
+        <p class="text-red-400">
+          The saved host key has changed. Verify this change with the server administrator.
+        </p>
+        <p class="font-mono break-all">Previous: {@host_key_prompt.details.old_fingerprint}</p>
+      <% end %>
+      <p class="font-mono break-all">
+        New: {@host_key_prompt.details[:fingerprint] || @host_key_prompt.details[:new_fingerprint]}
+      </p>
+      <p>Verify this fingerprint before trusting the server.</p>
+      <button phx-click="reject_host_key" class="border border-border px-4 py-2">Reject</button>
+      <button phx-click="accept_host_key" class="bg-primary text-primary-foreground px-4 py-2">Trust and connect</button>
+    </div>
+  </div>
+<% end %>
+
 <%= if @command_palette_open do %>
   <% items = SSHClient.CommandPalette.items(@servers, @command_palette_query) %>
   <div class="fixed inset-0 z-[80] bg-black/50" phx-click="close_command_palette">

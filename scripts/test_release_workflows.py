@@ -71,25 +71,19 @@ class TestCIWorkflow(unittest.TestCase):
         self.assertRegex(concurrency, r"(?m)^  group:.*github\.ref")
         self.assertRegex(concurrency, r"(?m)^  cancel-in-progress:\s*false\s*$")
 
-    def test_full_unit_suite_runs_for_pull_requests_only(self):
-        test_job = job_block(self.workflow, "test")
-        self.assertRegex(
-            test_job,
-            r"(?m)^    if:\s*github\.event_name\s*==\s*'pull_request'\s*$",
-        )
-        self.assertIn("run: mix test", test_job)
+    def test_backend_matrix_runs_real_connections_on_windows_and_linux(self):
+        block = job_block(self.workflow, "test")
+        self.assertIn("os: [ubuntu-latest, windows-latest]", block)
+        self.assertIn("run: mix test", block)
+        self.assertIn("local_ssh_integration_test.exs --include integration", block)
+        self.assertNotIn("if: github.event_name", block)
 
-    def test_release_packages_start_after_metadata_in_parallel(self):
+    def test_release_packages_require_successful_backend_tests(self):
         for name in ("package-windows", "package-linux", "publish-container"):
             block = job_block(self.workflow, name)
-            self.assertRegex(block, r"(?m)^    needs:\s*(?:metadata-check|\[metadata-check\])\s*$")
-            self.assertNotRegex(block, r"(?m)^    needs:.*\btest\b")
-
-        release = job_block(self.workflow, "release")
-        self.assertRegex(
-            release,
-            r"(?m)^    needs:\s*\[package-windows,\s*package-linux\]\s*$",
-        )
+            self.assertIn("needs: [metadata-check, test]", block)
+        self.assertIn("needs: [package-windows, package-linux, publish-container]", job_block(self.workflow, "release"))
+        self.assertIn("platforms: linux/amd64,linux/arm64", job_block(self.workflow, "publish-container"))
 
     def test_release_keeps_required_assets_and_container_tags(self):
         windows = job_block(self.workflow, "package-windows")

@@ -102,6 +102,64 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
   end
 
   describe "KeyCallback integration" do
+    test "tunneled destination trust uses its original identity rather than localhost" do
+      refute KeyCallback.is_host_key(@sample_key_1, ~c"127.0.0.1", 45678, :"ssh-ed25519",
+               key_cb_private: [
+                 known_hosts_file: @known_hosts_file,
+                 host_key_host: "destination",
+                 host_key_port: 2222,
+                 host_key_handler: self()
+               ]
+             )
+
+      assert_receive {:ssh_host_key_event, :first_connect, %{host: "destination", port: 2222}}
+    end
+
+    test "nested OTP callback options deliver host-key prompts" do
+      refute KeyCallback.is_host_key(@sample_key_1, ~c"new-host", 22, :"ssh-ed25519",
+               key_cb_private: [known_hosts_file: @known_hosts_file, host_key_handler: self()]
+             )
+
+      assert_receive {:ssh_host_key_event, :first_connect, %{known_hosts_file: path}}
+      assert path == Path.expand(@known_hosts_file)
+    end
+
+    test "trust is isolated by port and hashed OpenSSH entries are recognized" do
+      assert :ok =
+               HostKeyVerifier.save_host_key("host", 22, @sample_key_1,
+                 known_hosts_file: @known_hosts_file
+               )
+
+      assert {:error, {:first_connect, _}} =
+               HostKeyVerifier.verify(@sample_key_1, "host", 2222,
+                 known_hosts_file: @known_hosts_file
+               )
+
+      salt = :crypto.strong_rand_bytes(20)
+      hash = :crypto.mac(:hmac, :sha, salt, "[host]:2222")
+
+      File.write!(
+        @known_hosts_file,
+        "|1|#{Base.encode64(salt)}|#{Base.encode64(hash)} ssh-ed25519 #{Base.encode64(@sample_key_1)}\n"
+      )
+
+      assert {:ok, :trusted, _} =
+               HostKeyVerifier.verify(@sample_key_1, "host", 2222,
+                 known_hosts_file: @known_hosts_file
+               )
+
+      assert {:error, {:first_connect, _}} =
+               HostKeyVerifier.verify(@sample_key_1, "host", 22,
+                 known_hosts_file: @known_hosts_file
+               )
+    end
+
+    test "failed persistence never accepts a host key" do
+      refute KeyCallback.is_host_key(@sample_key_1, ~c"host", 22, :"ssh-ed25519",
+               key_cb_private: [known_hosts_file: @temp_dir, accept_host_key: true]
+             )
+    end
+
     test "rejects untrusted key by default and notifies handler" do
       test_pid = self()
 
