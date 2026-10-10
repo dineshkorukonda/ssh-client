@@ -45,6 +45,22 @@ class TestReleaseBotWorkflow(unittest.TestCase):
         permissions = top_level_block(self.workflow, "permissions")
         self.assertRegex(permissions, r"(?m)^  actions:\s*write\s*$")
 
+    def test_release_bumps_are_serialized_from_current_main(self):
+        concurrency = top_level_block(self.workflow, "concurrency")
+        self.assertIn("group: release-bot-${{ github.ref }}", concurrency)
+        self.assertIn("cancel-in-progress: false", concurrency)
+        self.assertIn("ref: main", job_block(self.workflow, "auto-release"))
+
+    def test_repository_link_only_changes_do_not_create_releases(self):
+        push = indented_block(top_level_block(self.workflow, "on"), "push", 2)
+        self.assertIn('paths-ignore: [ ".carf.yml" ]', push)
+
+    def test_commit_messages_and_titles_are_passed_as_environment_data(self):
+        self.assertIn("COMMIT_MSG: ${{ github.event.head_commit.message }}", self.workflow)
+        self.assertIn("PR_TITLE: ${{ github.event.pull_request.title }}", self.workflow)
+        self.assertNotIn('COMMIT_MSG="${{', self.workflow)
+        self.assertNotIn('PR_TITLE="${{', self.workflow)
+
     def test_dispatches_ci_at_new_tag_after_pushing_tag(self):
         auto_release = job_block(self.workflow, "auto-release")
         tag_push = 'git push origin "v${NEW_VER}"'
