@@ -11,8 +11,9 @@ defmodule SSHClient.SSH.KeyCallback do
 
   @impl :ssh_client_key_api
   def is_host_key(key, host, port, _algorithm, connect_opts) do
-    host_str = normalize_host_param(host)
     extra_opts = extract_extra_opts(connect_opts)
+    host_str = Keyword.get(extra_opts, :host_key_host, normalize_host_param(host))
+    port = Keyword.get(extra_opts, :host_key_port, port)
 
     cond do
       # Test or explicit override
@@ -66,7 +67,13 @@ defmodule SSHClient.SSH.KeyCallback do
   @impl :ssh_client_key_api
   def add_host_key(host, port, key, connect_opts) do
     extra_opts = extract_extra_opts(connect_opts)
-    HostKeyVerifier.save_host_key(normalize_host_param(host), port, key, extra_opts)
+
+    HostKeyVerifier.save_host_key(
+      Keyword.get(extra_opts, :host_key_host, normalize_host_param(host)),
+      Keyword.get(extra_opts, :host_key_port, port),
+      key,
+      extra_opts
+    )
   end
 
   defp normalize_host_param(host) when is_binary(host), do: host

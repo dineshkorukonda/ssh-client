@@ -102,6 +102,19 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
   end
 
   describe "KeyCallback integration" do
+    test "tunneled destination trust uses its original identity rather than localhost" do
+      refute KeyCallback.is_host_key(@sample_key_1, ~c"127.0.0.1", 45678, :"ssh-ed25519",
+               key_cb_private: [
+                 known_hosts_file: @known_hosts_file,
+                 host_key_host: "destination",
+                 host_key_port: 2222,
+                 host_key_handler: self()
+               ]
+             )
+
+      assert_receive {:ssh_host_key_event, :first_connect, %{host: "destination", port: 2222}}
+    end
+
     test "nested OTP callback options deliver host-key prompts" do
       refute KeyCallback.is_host_key(@sample_key_1, ~c"new-host", 22, :"ssh-ed25519",
                key_cb_private: [known_hosts_file: @known_hosts_file, host_key_handler: self()]
