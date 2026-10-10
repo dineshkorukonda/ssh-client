@@ -103,22 +103,24 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
 
   describe "KeyCallback integration" do
     test "tunneled destination trust uses its original identity rather than localhost" do
-      refute KeyCallback.is_host_key(@sample_key_1, ~c"127.0.0.1", 45678, :"ssh-ed25519",
-               key_cb_private: [
-                 known_hosts_file: @known_hosts_file,
-                 host_key_host: "destination",
-                 host_key_port: 2222,
-                 host_key_handler: self()
-               ]
-             )
+      assert {:error, {:first_connect, _}} =
+               KeyCallback.is_host_key(@sample_key_1, ~c"127.0.0.1", 45678, :"ssh-ed25519",
+                 key_cb_private: [
+                   known_hosts_file: @known_hosts_file,
+                   host_key_host: "destination",
+                   host_key_port: 2222,
+                   host_key_handler: self()
+                 ]
+               )
 
       assert_receive {:ssh_host_key_event, :first_connect, %{host: "destination", port: 2222}}
     end
 
     test "nested OTP callback options deliver host-key prompts" do
-      refute KeyCallback.is_host_key(@sample_key_1, ~c"new-host", 22, :"ssh-ed25519",
-               key_cb_private: [known_hosts_file: @known_hosts_file, host_key_handler: self()]
-             )
+      assert {:error, {:first_connect, _}} =
+               KeyCallback.is_host_key(@sample_key_1, ~c"new-host", 22, :"ssh-ed25519",
+                 key_cb_private: [known_hosts_file: @known_hosts_file, host_key_handler: self()]
+               )
 
       assert_receive {:ssh_host_key_event, :first_connect, %{known_hosts_file: path}}
       assert path == Path.expand(@known_hosts_file)
@@ -173,7 +175,7 @@ defmodule SSHClient.SSH.HostKeyVerifierTest do
       ]
 
       result = KeyCallback.is_host_key(@sample_key_1, ~c"10.0.0.5", 22, ~c"ssh-ed25519", opts)
-      assert result == false
+      assert {:error, {:first_connect, _}} = result
 
       assert_receive {:host_key_event, :first_connect, details}
       assert details.host == "10.0.0.5"

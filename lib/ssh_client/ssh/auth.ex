@@ -223,6 +223,12 @@ defmodule SSHClient.SSH.Auth do
 
   defp do_build_options(opts) do
     auth_order = Keyword.get(opts, :auth_order, @default_auth_order)
+
+    auth_order =
+      if Keyword.has_key?(opts, :keyboard_interact_fun) and not Keyword.has_key?(opts, :password),
+        do: Enum.reject(auth_order, &(&1 in [:password, "password"])),
+        else: auth_order
+
     auth_methods = auth_methods_for_order(auth_order)
 
     base = [auth_methods: auth_methods]
