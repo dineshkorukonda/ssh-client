@@ -212,7 +212,10 @@ defmodule SSHClient.SSH do
                   Keyword.put(opts, :password, secret)
 
                 _ ->
-                  case Keychain.retrieve(account) do
+                  case if(System.get_env("SSH_CLIENT_DESKTOP") == "1",
+                         do: {:error, :not_found},
+                         else: Keychain.retrieve(account)
+                       ) do
                     {:ok, secret} when is_binary(secret) and secret != "" ->
                       Keyword.put(opts, :password, secret)
 

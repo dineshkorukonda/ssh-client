@@ -20,9 +20,11 @@ GitHub CI validates the native executable, real SSH terminal rendering, input/ou
 
 ## Data and session lifecycle
 
-Existing host configuration, named workspaces and preferences remain in the same per-user configuration directory. Native edits retain SSH identities, jump hosts and monitoring checks. Existing named workspaces are readable without rewriting their records. Terminal tabs restore from their saved host IDs after an explicit restore action; passwords and passphrases are requested again when necessary. Legacy split-pane topology remains stored for the web/Linux interface.
+Hosts, named workspaces and preferences live in `app.sqlite3` in the per-user configuration directory. Existing host JSON and `app-store.json` are imported once, preserving identities, jump hosts, favorites, tags and monitoring checks. The original files remain untouched; deleting an imported host does not bring it back on the next launch. SQLite edits take precedence over imported records. Terminal layout data remains in its separate SQLite workspace database.
 
-The Backup button copies hosts and preferences and takes a SQLite `VACUUM INTO` snapshot of the workspace database, including committed WAL data. Credential files are excluded from backups. Closing the Windows app ends its remote sessions. Switching native terminal tabs keeps those sessions alive.
+The Windows app does not start the credential vault or read passwords from the keychain. Passwords and passphrases are entered for each session and remain in memory. SQLite stores identity file paths, not private-key contents or login secrets. Terminal tabs restore from their saved host IDs after an explicit restore action.
+
+The Back up data button takes SQLite `VACUUM INTO` snapshots of both databases, including committed WAL data. Credential files are excluded from backups. Closing the Windows app ends its remote sessions. Switching native terminal tabs keeps those sessions alive.
 
 The launcher owns its backend through a Windows Job Object. Closing or crashing the app terminates only that backend process tree. `ssh-client.exe --shutdown` signals the running app for the current user; installer updates and uninstall use this signal and Windows Restart Manager instead of killing all Erlang processes. Logs live under `%LOCALAPPDATA%\ssh-client\logs`.
 

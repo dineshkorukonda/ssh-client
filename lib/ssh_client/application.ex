@@ -39,7 +39,7 @@ defmodule SSHClient.Application do
       manager_child,
       SSHClient.TerminalSupervisor,
       SSHClient.PassphraseCache,
-      SSHClient.Vault,
+      if(System.get_env("SSH_CLIENT_DESKTOP") != "1", do: SSHClient.Vault),
       {SSHClient.Store, store_opts()},
       SSHClient.SocketAPI,
       SSHClient.SessionSupervisor,
@@ -48,13 +48,20 @@ defmodule SSHClient.Application do
       SSHClient.SSH.Forwarding
     ]
 
+    children = Enum.reject(children, &is_nil/1)
     opts = [strategy: :one_for_one, name: SSHClient.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
   defp store_opts do
     if Code.ensure_loaded?(Mix) and Mix.env() == :test do
-      [path: Path.join(System.tmp_dir!(), "ssh-client-test-app-store.json")]
+      [
+        path:
+          Path.join(
+            System.tmp_dir!(),
+            "ssh-client-test-app-#{System.os_time(:microsecond)}-#{System.unique_integer([:positive])}.sqlite3"
+          )
+      ]
     else
       []
     end

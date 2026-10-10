@@ -6,47 +6,22 @@ defmodule SSHClient.Desktop do
   @host_fields ~w(id name host port user users default_auth_method identity_file proxy_jump tags notes favorite auth_order checks last_connected_at)
 
   def hosts do
-    case Config.load_config() do
-      {:ok, config} ->
-        {:ok,
-         Enum.map(
-           config.servers,
-           fn server ->
-             Map.from_struct(server)
-             |> Map.take(Enum.map(@host_fields, &String.to_existing_atom/1))
-             |> Map.update!(:checks, fn checks -> Enum.map(checks, &Map.from_struct/1) end)
-           end
-         )}
-
-      {:error, reason} ->
-        if File.exists?(Config.default_config_path()), do: {:error, reason}, else: {:ok, []}
+    with :ok <- Store.import_hosts(Config.default_config_path()),
+         hosts when is_list(hosts) <- Store.list(:hosts) do
+      {:ok, hosts}
     end
   end
 
   def save_host(attrs) when is_map(attrs) do
     with :ok <- validate_host(attrs),
          {:ok, server} <- Server.from_map(Map.take(attrs, @host_fields)),
-         {:ok, existing} <- hosts() do
-      servers = Enum.map(existing, &parse_saved_host/1)
-      merged = [server | Enum.reject(servers, &(&1.id == server.id))]
-      Config.save_file(merged, Config.default_config_path())
+         {:ok, _} <- hosts() do
+      Store.put(:hosts, server.id, Store.host_document(server))
     end
   end
 
   def delete_host(id) do
-    with {:ok, existing} <- hosts() do
-      existing
-      |> Enum.reject(&(&1.id == id))
-      |> Enum.map(&parse_saved_host/1)
-      |> Config.save_file(Config.default_config_path())
-    end
-  end
-
-  defp parse_saved_host(attrs) do
-    {:ok, server} =
-      Server.from_map(Jason.decode!(Jason.encode!(attrs)))
-
-    server
+    with {:ok, _} <- hosts(), do: Store.delete(:hosts, id)
   end
 
   def open_session(attrs) do
@@ -182,24 +157,16 @@ defmodule SSHClient.Desktop do
     do: Store.put(:workspaces, "native-desktop", Map.take(attrs, ~w(host_ids)))
 
   def backup(destination \\ nil) do
-    paths = [Config.default_config_path(), Store.default_path()]
-
     destination =
       destination || Path.join(Config.os_config_dir(), "backups/#{System.os_time(:millisecond)}")
 
-    with :ok <- File.mkdir_p(destination) do
-      results =
-        for path <- paths,
-            File.exists?(path),
-            do: File.cp(path, Path.join(destination, Path.basename(path)))
-
+    with :ok <- File.mkdir_p(destination),
+         :ok <- Store.backup(Path.join(destination, "app.sqlite3")) do
       database_backup = Path.join(destination, "terminal_workspaces.db")
 
       case Ecto.Adapters.SQL.query(SSHClient.Repo, "VACUUM INTO ?", [database_backup]) do
         {:ok, _} ->
-          if Enum.all?(results, &(&1 == :ok)),
-            do: {:ok, %{path: destination}},
-            else: {:error, :backup_failed}
+          {:ok, %{path: destination}}
 
         _ ->
           {:error, :database_backup_failed}
