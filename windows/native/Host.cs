@@ -7,6 +7,7 @@ public sealed class Host
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
+    [JsonPropertyName("host")]
     public string Address { get; set; } = "";
     public int Port { get; set; } = 22;
     public string User { get; set; } = "";
