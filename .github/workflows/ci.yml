@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [ "main", "fix/phase-1-ssh-reliability" ]
+    branches: [ "**" ]
   push:
     tags: [ "v*" ]
   workflow_dispatch:
