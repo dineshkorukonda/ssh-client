@@ -1583,7 +1583,7 @@ defmodule SSHClientWeb.HostLive do
 
                   if pane_count > 1 do
                     dir =
-                      if layout_type in [:split_v, "split_v"], do: :vertical, else: :horizontal
+                      if layout_type == :split_v, do: :vertical, else: :horizontal
 
                     Enum.reduce(2..pane_count, base_layout, fn _idx, lay ->
                       case SessionManager.create_session(server, auto_connect: auto_connect) do
