@@ -156,6 +156,7 @@ public partial class MainWindow
         if (SettingsFontSize.Text != "16" || ReducedMotion.IsChecked != true) throw new IOException("Preferences did not survive reload.");
         await SetThemeAsync(AppTheme.Light); await LoadPreferencesAsync();
         if (ThemeManager.CurrentTheme != AppTheme.Light) throw new IOException("Theme was not persisted.");
+        VerifyAccessibilityForSmoke();
         await SetThemeAsync(AppTheme.Dark);
         OmniBar.Text = fixture.Name; OpenCommandPalette();
         if (!PaletteList.Items.Cast<PaletteEntry>().Any(entry => entry.Host?.Id == fixture.Id)) throw new IOException("Palette did not find a saved host.");

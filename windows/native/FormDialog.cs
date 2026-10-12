@@ -51,12 +51,14 @@ public sealed class FormDialog : Window
             if (field.Options != null)
             {
                 var combo = new ComboBox { ItemsSource = field.Options, SelectedItem = field.Value != "" ? field.Value : field.Options.FirstOrDefault(), Margin = new Thickness(0, 0, 0, 14) };
+                System.Windows.Automation.AutomationProperties.SetName(combo, field.Label);
                 contents.Children.Add(combo);
                 readers[field.Key] = () => combo.SelectedItem?.ToString() ?? "";
             }
             else if (field.Secret)
             {
                 var pass = new PasswordBox { Password = field.Value, Margin = new Thickness(0, 0, 0, 14) };
+                System.Windows.Automation.AutomationProperties.SetName(pass, field.Label);
                 contents.Children.Add(pass);
                 readers[field.Key] = () => pass.Password;
             }
@@ -72,6 +74,7 @@ public sealed class FormDialog : Window
                 };
                 DockPanel.SetDock(browse, Dock.Right);
                 row.Children.Add(browse);
+                System.Windows.Automation.AutomationProperties.SetName(text, field.Label);
                 row.Children.Add(text);
                 contents.Children.Add(row);
                 readers[field.Key] = () => text.Text;
@@ -79,12 +82,14 @@ public sealed class FormDialog : Window
             else if (field.Multiline)
             {
                 var text = new TextBox { Text = field.Value, Height = 90, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) };
+                System.Windows.Automation.AutomationProperties.SetName(text, field.Label);
                 contents.Children.Add(text);
                 readers[field.Key] = () => text.Text;
             }
             else
             {
                 var text = new TextBox { Text = field.Value, Margin = new Thickness(0, 0, 0, 14) };
+                System.Windows.Automation.AutomationProperties.SetName(text, field.Label);
                 contents.Children.Add(text);
                 readers[field.Key] = () => text.Text;
             }
@@ -92,5 +97,18 @@ public sealed class FormDialog : Window
 
         root.Children.Add(new ScrollViewer { Content = contents, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         Content = new Border { Background = (Brush)Application.Current.Resources["Surface"], BorderBrush = (Brush)Application.Current.Resources["Border"], BorderThickness = new Thickness(1), Child = root };
+        ((Border)Content).SetResourceReference(Border.BackgroundProperty, "Surface");
+        ((Border)Content).SetResourceReference(Border.BorderBrushProperty, "Border");
+        System.Windows.Input.KeyboardNavigation.SetTabNavigation(root, System.Windows.Input.KeyboardNavigationMode.Cycle);
+        Loaded += (_, _) => FirstInput(contents)?.Focus();
+    }
+
+    private static Control? FirstInput(DependencyObject node)
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(node).OfType<DependencyObject>()) {
+            if (child is TextBox or PasswordBox or ComboBox) return (Control)child;
+            var nested = FirstInput(child); if (nested != null) return nested;
+        }
+        return null;
     }
 }

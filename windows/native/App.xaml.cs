@@ -19,6 +19,7 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ThemeManager.ApplyTheme(AppTheme.Dark);
         DispatcherUnhandledException += (_, args) => { ShowError(args.Exception); args.Handled = true; };
         if (e.Args.FirstOrDefault() == "--design-smoke")
         {
@@ -217,6 +218,7 @@ public partial class App : Application
 
     private static void Capture(Window window, int width, int height, string path)
     {
+        (window as MainWindow)?.SetPreviewWidth(width);
         var surface = (FrameworkElement)window.Content;
         surface.Measure(new Size(width, height)); surface.Arrange(new Rect(0, 0, width, height)); surface.UpdateLayout();
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(surface);

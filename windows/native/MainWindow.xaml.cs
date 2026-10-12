@@ -131,7 +131,7 @@ public partial class MainWindow : Window
     {
         ThemeManager.ApplyTheme(theme);
         if (ThemeToggleBtn != null)
-            ThemeToggleBtn.Content = theme == AppTheme.Dark ? "☀ Theme" : "🌙 Theme";
+            ThemeToggleBtn.Content = "Theme";
         HighlightNavButton(currentPage);
     }
 
@@ -278,13 +278,8 @@ public partial class MainWindow : Window
         if (MetricActiveSessions != null) MetricActiveSessions.Text = openSessions.Count(s => s.State == "Connected").ToString();
         if (ActiveTerminalsSection != null) ActiveTerminalsSection.Visibility = openSessions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        // OS Breakdown
-        int ubnt = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("ubuntu", StringComparison.OrdinalIgnoreCase) || h.Name.Contains("k8s", StringComparison.OrdinalIgnoreCase));
-        int deb = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("debian", StringComparison.OrdinalIgnoreCase));
-        int alp = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("alpine", StringComparison.OrdinalIgnoreCase));
-        int rhel = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("redhat", StringComparison.OrdinalIgnoreCase));
-        if (MetricHostsBreakdown != null)
-            MetricHostsBreakdown.Text = $"UBNT {ubnt} • DEB {deb} • ALP {alp} • RHEL {rhel}";
+        if (MetricHostsBreakdown != null) MetricHostsBreakdown.Text = "Host labels and tags";
+        if (isPreview) { AppVersionLabel.Text = "preview"; BackendReadyText.Text = "Preview"; }
 
         if (DashboardHostsList != null)
             DashboardHostsList.ItemsSource = hosts.OrderByDescending(h => h.LastConnectedAt).ThenByDescending(h => h.Favorite).Take(6).ToArray();
@@ -349,16 +344,19 @@ public partial class MainWindow : Window
              h.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
              h.Address.Contains(query, StringComparison.OrdinalIgnoreCase) ||
              string.Join(" ", h.Tags).Contains(query, StringComparison.OrdinalIgnoreCase))
-        ).OrderBy(h => h.Name).ToArray();
+        );
+        var sort = (HostSort?.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var ordered = sort == "recent" ? filtered.OrderByDescending(h => h.LastConnectedAt).ThenBy(h => h.Name) : sort == "favorite" ? filtered.OrderByDescending(h => h.Favorite).ThenBy(h => h.Name) : filtered.OrderBy(h => h.Name);
+        var displayed = ordered.ToArray();
 
-        Hosts.ItemsSource = filtered;
-        Hosts.SelectedItem = filtered.FirstOrDefault(h => h.Id == selectedId) ?? filtered.FirstOrDefault();
+        Hosts.ItemsSource = displayed;
+        Hosts.SelectedItem = displayed.FirstOrDefault(h => h.Id == selectedId) ?? displayed.FirstOrDefault();
 
         if (HostsEmpty != null) {
-            HostsEmpty.Visibility = filtered.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            HostsEmpty.Visibility = displayed.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             HostsEmpty.Text = hosts.Count == 0 ? "No saved hosts yet. Add a host or import your SSH config to get started." : "No hosts match these filters. Clear search or choose All.";
         }
-        if (HostCount != null) HostCount.Text = $"{filtered.Length} configured hosts";
+        if (HostCount != null) HostCount.Text = $"{displayed.Length} configured hosts";
         if (SearchHint != null) SearchHint.Visibility = string.IsNullOrEmpty(query) ? Visibility.Visible : Visibility.Collapsed;
 
         UpdateInspectorDetails();
@@ -384,12 +382,12 @@ public partial class MainWindow : Window
         }
 
         DetailTitle.Text = host.Name;
-        DetailSubtitle.Text = string.IsNullOrWhiteSpace(host.Notes) ? "Zero telemetry proxy" : host.Notes;
+        DetailSubtitle.Text = string.IsNullOrWhiteSpace(host.Notes) ? "Saved host configuration" : host.Notes;
         DetailAddress.Text = host.Address;
         DetailPort.Text = host.Port.ToString();
         DetailUser.Text = string.IsNullOrWhiteSpace(host.User) ? "root" : host.User;
         DetailAuth.Text = host.DefaultAuthMethod == "password" ? "Password" : "SSH Keypair";
-        DetailFavBtn.Content = host.Favorite ? "★ Favorited" : "☆ Add Favorite";
+        DetailFavBtn.Content = host.Favorite ? "Remove favorite" : "Add favorite";
         DetailConnectBtn.IsEnabled = DetailEditBtn.IsEnabled = DetailFavBtn.IsEnabled = DetailRemoveBtn.IsEnabled = true;
     }
 
@@ -604,6 +602,7 @@ public partial class MainWindow : Window
         var loaded = (await api.GetAsync("keys")).Deserialize<List<KeyEntry>>(DesktopClient.Json) ?? [];
         keys.Clear();
         foreach (var key in loaded) keys.Add(key);
+        EditorIdentity.ItemsSource = keys.Where(key => key.PrivateKeyPath != null).ToArray();
         UpdateDashboardMetrics();
     }
 
@@ -740,6 +739,7 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center
         });
         toolDock.Children.Add(rightInfo);
+        ((TextBlock)rightInfo.Children[0]).SetResourceReference(TextBlock.ForegroundProperty, "Muted");
 
         var leftButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var disconnBtn = new Button { Content = "Disconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
@@ -756,6 +756,8 @@ public partial class MainWindow : Window
         leftButtons.Children.Add(splitBtn);
         toolDock.Children.Add(leftButtons);
         toolBar.Child = toolDock;
+        toolBar.SetResourceReference(Border.BackgroundProperty, "Card");
+        toolBar.SetResourceReference(Border.BorderBrushProperty, "Border");
         Grid.SetRow(toolBar, 0);
         rootGrid.Children.Add(toolBar);
 
@@ -785,14 +787,19 @@ public partial class MainWindow : Window
             grid.Children.Add(new TextBlock { Text = "Terminal preview. Connect a host to start a real session.", Margin = new Thickness(20) });
             return;
         }
+        var pane = new Grid(); pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); pane.RowDefinitions.Add(new RowDefinition());
+        var paneStatus = new TextBlock { Text = item.Host?.Description + " / Connecting", Margin = new Thickness(10, 5, 10, 5), TextTrimming = TextTrimming.CharacterEllipsis };
+        paneStatus.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); pane.Children.Add(paneStatus);
         var view = new TerminalView(api, id, this, message => {
             if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem selected } && selected == item) StatusText.Text = message;
         }, state => {
+            paneStatus.Text = item.Host?.Description + " / " + state;
             if (id == item.SessionId) { item.State = state; if (state == "Connected") _ = GuardAsync(() => RecordConnectionAsync(item)); }
             UpdateDashboardMetrics();
         });
-        Grid.SetColumn(view, column);
-        grid.Children.Add(view);
+        Grid.SetRow(view, 1); pane.Children.Add(view);
+        Grid.SetColumn(pane, column);
+        grid.Children.Add(pane);
         item.Views.Add(view);
         terminals.Add(view);
     }
@@ -912,7 +919,7 @@ public partial class MainWindow : Window
     {
         if (e.Source != SessionTabs) return;
         if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem item })
-        { SidebarSessionsList.SelectedItem = item; StatusText.Text = item.Summary; }
+        { SidebarSessionsList.SelectedItem = item; StatusText.Text = item.Summary.Replace("\n", " / "); }
     }
 
     // -------------------------------------------------------------
@@ -920,6 +927,7 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private async Task InitializeAsync()
     {
+        await RefreshDiagnosticsAsync();
         await RefreshAsync();
         await RefreshKeysAsync();
         await LoadPreferencesAsync();
