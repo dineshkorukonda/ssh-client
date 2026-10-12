@@ -33,6 +33,12 @@ public sealed class SftpPane : UserControl, IDisposable
         this.api = api;
         this.session = session;
         this.owner = owner;
+        status.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+        System.Windows.Automation.AutomationProperties.SetName(path, "Remote directory");
+        System.Windows.Automation.AutomationProperties.SetName(localPath, "Local directory");
+        System.Windows.Automation.AutomationProperties.SetName(entries, "Remote files");
+        System.Windows.Automation.AutomationProperties.SetName(localEntries, "Local files");
+        System.Windows.Automation.AutomationProperties.SetName(transferEntries, "Transfer queue");
 
         var root = new DockPanel { Margin = new Thickness(12) };
 
@@ -49,7 +55,7 @@ public sealed class SftpPane : UserControl, IDisposable
         DockPanel.SetDock(upBtn, Dock.Left);
         pathBar.Children.Add(upBtn);
 
-        var refreshBtn = new Button { Content = "↻ Refresh", Padding = new Thickness(8, 4, 8, 4), ToolTip = "Refresh folder contents" };
+        var refreshBtn = new Button { Content = "Refresh", Padding = new Thickness(8, 4, 8, 4), ToolTip = "Refresh folder contents" };
         refreshBtn.Click += async (_, _) => await GuardAsync(LoadAsync);
         DockPanel.SetDock(refreshBtn, Dock.Right);
         pathBar.Children.Add(refreshBtn);
@@ -215,6 +221,8 @@ public sealed class SftpPane : UserControl, IDisposable
         var name = dialog.Values["name"];
         if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(['/', '\\']) >= 0 || name is "." or "..")
             throw new ArgumentException("Enter a filename without directory separators.");
+        if (files.Any(file => file.Name == name && file.Path != entry.Path))
+            throw new IOException("An item with this name already exists. Choose another name.");
         await api.PostAsync($"files/{session}/rename", new { path = entry.Path, new_path = RemotePath(name) });
         await LoadAsync();
     }

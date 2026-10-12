@@ -46,6 +46,9 @@ jobs:
       - name: Run Release Workflow Regression Tests
         run: python scripts/test_release_workflows.py -v
 
+      - name: Run Windows UI Resource Regression Tests
+        run: python scripts/test_windows_ui_contract.py -v
+
   test:
     name: Backend Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -131,8 +134,20 @@ jobs:
         run: ./scripts/build_windows.ps1
 
       - name: Validate native terminal, SFTP and backend cleanup
+        id: native_smoke
         shell: pwsh
         run: ./scripts/test_native_windows.ps1
+
+      - name: Upload native journey reports and visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-journey-evidence
+          if-no-files-found: warn
+          path: |
+            ${{ steps.native_smoke.outputs.artifact_dir }}/report.json*
+            ${{ steps.native_smoke.outputs.artifact_dir }}/design/*.png
+            ${{ steps.native_smoke.outputs.artifact_dir }}/native-window.png
 
       - name: Archive Windows Release (zip)
         shell: pwsh

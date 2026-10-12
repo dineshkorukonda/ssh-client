@@ -11,6 +11,13 @@ public enum AppTheme
 
 public static class ThemeManager
 {
+    static ThemeManager()
+    {
+        SystemParameters.StaticPropertyChanged += (_, args) => {
+            if (args.PropertyName == nameof(SystemParameters.HighContrast) && Application.Current != null)
+                Application.Current.Dispatcher.Invoke(() => ApplyTheme(CurrentTheme));
+        };
+    }
     public static AppTheme CurrentTheme { get; private set; } = AppTheme.Dark;
 
     public static void ApplyTheme(AppTheme theme)
@@ -30,7 +37,7 @@ public static class ThemeManager
             SetBrush(res, "BorderHover", Color.FromRgb(63, 63, 70));      // #3f3f46
             SetBrush(res, "Text", Color.FromRgb(250, 250, 250));          // #fafafa (Pure White Text)
             SetBrush(res, "Muted", Color.FromRgb(161, 161, 170));         // #a1a1aa
-            SetBrush(res, "MutedSubtle", Color.FromRgb(113, 113, 122));   // #71717a
+            SetBrush(res, "MutedSubtle", Color.FromRgb(140, 140, 150));   // Accessible muted labels
             SetBrush(res, "Accent", Color.FromRgb(255, 255, 255));        // #ffffff (White Button)
             SetBrush(res, "AccentFg", Color.FromRgb(0, 0, 0));            // #000000 (Black Button Text)
             SetBrush(res, "AccentCyan", Color.FromRgb(56, 189, 248));     // #38bdf8
@@ -54,17 +61,23 @@ public static class ThemeManager
             SetBrush(res, "BorderHover", Color.FromRgb(212, 212, 216));   // #d4d4d8
             SetBrush(res, "Text", Color.FromRgb(9, 9, 11));               // #09090b (Dark Text)
             SetBrush(res, "Muted", Color.FromRgb(113, 113, 122));         // #71717a
-            SetBrush(res, "MutedSubtle", Color.FromRgb(161, 161, 170));   // #a1a1aa
+            SetBrush(res, "MutedSubtle", Color.FromRgb(105, 105, 115));   // #a1a1aa
             SetBrush(res, "Accent", Color.FromRgb(9, 9, 11));             // #09090b (Black Button)
             SetBrush(res, "AccentFg", Color.FromRgb(255, 255, 255));      // #ffffff (White Button Text)
-            SetBrush(res, "AccentCyan", Color.FromRgb(2, 132, 199));      // #0284c7
-            SetBrush(res, "AccentYellow", Color.FromRgb(217, 119, 6));    // #d97706
+            SetBrush(res, "AccentCyan", Color.FromRgb(3, 105, 161));      // #0284c7
+            SetBrush(res, "AccentYellow", Color.FromRgb(146, 64, 14));    // #d97706
             SetBrush(res, "TagBg", Color.FromRgb(244, 244, 245));         // #f4f4f5
             SetBrush(res, "Selection", Color.FromRgb(9, 9, 11));
 
             SetBrush(res, "NavActiveBg", Color.FromRgb(244, 244, 245));   // #f4f4f5
             SetBrush(res, "NavActiveBorder", Color.FromRgb(24, 24, 27));  // #18181b
             SetBrush(res, "NavActiveFg", Color.FromRgb(9, 9, 11));        // #09090b
+        }
+        if (SystemParameters.HighContrast) {
+            foreach (var key in new[] { "Surface", "Sidebar", "Card", "CardHover", "CardLow", "TagBg" }) SetBrush(res, key, SystemColors.WindowColor);
+            foreach (var key in new[] { "Text", "Muted", "MutedSubtle", "Border", "BorderHover" }) SetBrush(res, key, SystemColors.WindowTextColor);
+            foreach (var key in new[] { "Accent", "AccentCyan", "AccentYellow", "NavActiveBg", "Selection" }) SetBrush(res, key, SystemColors.HighlightColor);
+            foreach (var key in new[] { "AccentFg", "NavActiveFg" }) SetBrush(res, key, SystemColors.HighlightTextColor);
         }
     }
 

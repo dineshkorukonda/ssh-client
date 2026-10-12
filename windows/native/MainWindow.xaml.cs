@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private string diagnostics = "";
     private bool reducedMotion;
     private readonly bool isPreview;
+    internal Action<FormDialog>? PrepareDialogForSmoke { get; set; }
 
 
     public MainWindow(DesktopClient? api, bool preview = false)
@@ -131,7 +132,7 @@ public partial class MainWindow : Window
     {
         ThemeManager.ApplyTheme(theme);
         if (ThemeToggleBtn != null)
-            ThemeToggleBtn.Content = theme == AppTheme.Dark ? "☀ Theme" : "🌙 Theme";
+            ThemeToggleBtn.Content = "Theme";
         HighlightNavButton(currentPage);
     }
 
@@ -278,13 +279,8 @@ public partial class MainWindow : Window
         if (MetricActiveSessions != null) MetricActiveSessions.Text = openSessions.Count(s => s.State == "Connected").ToString();
         if (ActiveTerminalsSection != null) ActiveTerminalsSection.Visibility = openSessions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        // OS Breakdown
-        int ubnt = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("ubuntu", StringComparison.OrdinalIgnoreCase) || h.Name.Contains("k8s", StringComparison.OrdinalIgnoreCase));
-        int deb = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("debian", StringComparison.OrdinalIgnoreCase));
-        int alp = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("alpine", StringComparison.OrdinalIgnoreCase));
-        int rhel = hosts.Count(h => (h.Name + string.Join(" ", h.Tags)).Contains("redhat", StringComparison.OrdinalIgnoreCase));
-        if (MetricHostsBreakdown != null)
-            MetricHostsBreakdown.Text = $"UBNT {ubnt} • DEB {deb} • ALP {alp} • RHEL {rhel}";
+        if (MetricHostsBreakdown != null) MetricHostsBreakdown.Text = "Host labels and tags";
+        if (isPreview) { AppVersionLabel.Text = "preview"; BackendReadyText.Text = "Preview"; }
 
         if (DashboardHostsList != null)
             DashboardHostsList.ItemsSource = hosts.OrderByDescending(h => h.LastConnectedAt).ThenByDescending(h => h.Favorite).Take(6).ToArray();
@@ -349,16 +345,19 @@ public partial class MainWindow : Window
              h.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
              h.Address.Contains(query, StringComparison.OrdinalIgnoreCase) ||
              string.Join(" ", h.Tags).Contains(query, StringComparison.OrdinalIgnoreCase))
-        ).OrderBy(h => h.Name).ToArray();
+        );
+        var sort = (HostSort?.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var ordered = sort == "recent" ? filtered.OrderByDescending(h => h.LastConnectedAt).ThenBy(h => h.Name) : sort == "favorite" ? filtered.OrderByDescending(h => h.Favorite).ThenBy(h => h.Name) : filtered.OrderBy(h => h.Name);
+        var displayed = ordered.ToArray();
 
-        Hosts.ItemsSource = filtered;
-        Hosts.SelectedItem = filtered.FirstOrDefault(h => h.Id == selectedId) ?? filtered.FirstOrDefault();
+        Hosts.ItemsSource = displayed;
+        Hosts.SelectedItem = displayed.FirstOrDefault(h => h.Id == selectedId) ?? displayed.FirstOrDefault();
 
         if (HostsEmpty != null) {
-            HostsEmpty.Visibility = filtered.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            HostsEmpty.Visibility = displayed.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             HostsEmpty.Text = hosts.Count == 0 ? "No saved hosts yet. Add a host or import your SSH config to get started." : "No hosts match these filters. Clear search or choose All.";
         }
-        if (HostCount != null) HostCount.Text = $"{filtered.Length} configured hosts";
+        if (HostCount != null) HostCount.Text = $"{displayed.Length} configured hosts";
         if (SearchHint != null) SearchHint.Visibility = string.IsNullOrEmpty(query) ? Visibility.Visible : Visibility.Collapsed;
 
         UpdateInspectorDetails();
@@ -384,12 +383,12 @@ public partial class MainWindow : Window
         }
 
         DetailTitle.Text = host.Name;
-        DetailSubtitle.Text = string.IsNullOrWhiteSpace(host.Notes) ? "Zero telemetry proxy" : host.Notes;
+        DetailSubtitle.Text = string.IsNullOrWhiteSpace(host.Notes) ? "Saved host configuration" : host.Notes;
         DetailAddress.Text = host.Address;
         DetailPort.Text = host.Port.ToString();
         DetailUser.Text = string.IsNullOrWhiteSpace(host.User) ? "root" : host.User;
         DetailAuth.Text = host.DefaultAuthMethod == "password" ? "Password" : "SSH Keypair";
-        DetailFavBtn.Content = host.Favorite ? "★ Favorited" : "☆ Add Favorite";
+        DetailFavBtn.Content = host.Favorite ? "Remove favorite" : "Add favorite";
         DetailConnectBtn.IsEnabled = DetailEditBtn.IsEnabled = DetailFavBtn.IsEnabled = DetailRemoveBtn.IsEnabled = true;
     }
 
@@ -604,6 +603,7 @@ public partial class MainWindow : Window
         var loaded = (await api.GetAsync("keys")).Deserialize<List<KeyEntry>>(DesktopClient.Json) ?? [];
         keys.Clear();
         foreach (var key in loaded) keys.Add(key);
+        EditorIdentity.ItemsSource = keys.Where(key => key.PrivateKeyPath != null).ToArray();
         UpdateDashboardMetrics();
     }
 
@@ -615,7 +615,8 @@ public partial class MainWindow : Window
         if (e.Key == Key.Down || e.Key == Key.Up) { PaletteList.SelectedIndex = Math.Clamp(PaletteList.SelectedIndex + (e.Key == Key.Down ? 1 : -1), 0, Math.Max(0, PaletteList.Items.Count - 1)); e.Handled = true; return; }
         if (e.Key == Key.Escape) { PalettePopup.IsOpen = false; e.Handled = true; return; }
         if (e.Key != Key.Enter) return;
-        if (PalettePopup.IsOpen && PaletteList.SelectedItem is PaletteEntry) { await RunPaletteAsync(); e.Handled = true; return; }
+        e.Handled = true;
+        if (PalettePopup.IsOpen && PaletteList.SelectedItem is PaletteEntry) { await GuardAsync(RunPaletteAsync); return; }
         var query = OmniBar.Text.Trim();
         if (string.IsNullOrEmpty(query)) return;
         await GuardAsync(() => HandleConnectQueryAsync(query));
@@ -642,6 +643,7 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private async Task ConnectHostAsync(Host host, TerminalTabItem? parent = null, Grid? splitGrid = null)
     {
+        if (EditorDirty() && !ConfirmDiscard()) return;
         var fields = new List<Field> { new("user", "Username", host.User) };
         if (host.DefaultAuthMethod == "password") fields.Add(new("password", "Password", Secret: true));
         else if (host.DefaultAuthMethod == "key" && !string.IsNullOrWhiteSpace(host.IdentityFile))
@@ -663,17 +665,20 @@ public partial class MainWindow : Window
         }
 
         var dialog = new FormDialog(this, "Authenticate Connection: " + host.Name, fields, "Connect", "Zero-persistence security: credentials stored in volatile memory only.");
+        PrepareDialogForSmoke?.Invoke(dialog);
         if (dialog.ShowDialog() != true) return;
 
         var values = dialog.Values;
         var attrs = ConnectionRequest.Build(host, values);
+        var connectionHost = host.Copy();
+        connectionHost.User = values["user"];
 
         if (api != null)
         {
             var result = await api.PostAsync("sessions", attrs);
             var sessionId = result.GetProperty("session_id").GetString()!;
-            if (parent != null && splitGrid != null) AddSplitPane(parent, splitGrid, sessionId);
-            else AddTerminalTab(host.Name, sessionId, host);
+            if (parent != null && splitGrid != null) AddSplitPane(parent, splitGrid, sessionId, connectionHost);
+            else AddTerminalTab(host.Name, sessionId, connectionHost);
             hostBySession[sessionId] = host.Id;
         }
         else
@@ -701,6 +706,12 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center
         };
         headerPanel.Children.Add(liveDot);
+        liveDot.SetResourceReference(Border.BackgroundProperty, "MutedSubtle");
+        sessionItem.PropertyChanged += (_, args) => {
+            if (args.PropertyName != nameof(TerminalTabItem.State)) return;
+            liveDot.SetResourceReference(Border.BackgroundProperty, sessionItem.State == "Connected" ? "AccentCyan" : "MutedSubtle");
+            liveDot.ToolTip = sessionItem.State;
+        };
         headerPanel.Children.Add(new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center });
 
         var closeBtn = new Button
@@ -740,6 +751,7 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center
         });
         toolDock.Children.Add(rightInfo);
+        ((TextBlock)rightInfo.Children[0]).SetResourceReference(TextBlock.ForegroundProperty, "Muted");
 
         var leftButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var disconnBtn = new Button { Content = "Disconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
@@ -756,6 +768,8 @@ public partial class MainWindow : Window
         leftButtons.Children.Add(splitBtn);
         toolDock.Children.Add(leftButtons);
         toolBar.Child = toolDock;
+        toolBar.SetResourceReference(Border.BackgroundProperty, "Card");
+        toolBar.SetResourceReference(Border.BorderBrushProperty, "Border");
         Grid.SetRow(toolBar, 0);
         rootGrid.Children.Add(toolBar);
 
@@ -778,26 +792,38 @@ public partial class MainWindow : Window
         UpdateDashboardMetrics();
     }
 
-    private void AddSessionView(TerminalTabItem item, Grid grid, string id, int column)
+    private void AddSessionView(TerminalTabItem item, Grid grid, string id, int column, Host? paneHost = null)
     {
         if (api == null)
         {
             grid.Children.Add(new TextBlock { Text = "Terminal preview. Connect a host to start a real session.", Margin = new Thickness(20) });
             return;
         }
+        var pane = new Grid(); pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); pane.RowDefinitions.Add(new RowDefinition());
+        var endpoint = (paneHost ?? item.Host)?.Description;
+        var paneStatus = new TextBlock { Text = endpoint + " / Connecting", Margin = new Thickness(10, 5, 10, 5), TextTrimming = TextTrimming.CharacterEllipsis };
+        paneStatus.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); pane.Children.Add(paneStatus);
         var view = new TerminalView(api, id, this, message => {
             if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem selected } && selected == item) StatusText.Text = message;
         }, state => {
-            if (id == item.SessionId) { item.State = state; if (state == "Connected") _ = GuardAsync(() => RecordConnectionAsync(item)); }
+            paneStatus.Text = endpoint + " / " + state;
+            if (id == item.SessionId) {
+                item.State = state;
+                if (state == "Connected") {
+                    _ = GuardAsync(() => RecordConnectionAsync(item));
+                    if (SftpSessionCombo.SelectedItem == item && filePane == null) SftpSessionCombo_SelectionChanged(this, new SelectionChangedEventArgs(System.Windows.Controls.Primitives.Selector.SelectionChangedEvent, Array.Empty<object>(), Array.Empty<object>()));
+                }
+            }
             UpdateDashboardMetrics();
         });
-        Grid.SetColumn(view, column);
-        grid.Children.Add(view);
+        Grid.SetRow(view, 1); pane.Children.Add(view);
+        Grid.SetColumn(pane, column);
+        grid.Children.Add(pane);
         item.Views.Add(view);
         terminals.Add(view);
     }
 
-    private void AddSplitPane(TerminalTabItem item, Grid grid, string id)
+    private void AddSplitPane(TerminalTabItem item, Grid grid, string id, Host? host = null)
     {
         var column = grid.ColumnDefinitions.Count;
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
@@ -806,7 +832,7 @@ public partial class MainWindow : Window
         grid.Children.Add(splitter);
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         item.PaneIds.Add(id);
-        AddSessionView(item, grid, id, column + 1);
+        AddSessionView(item, grid, id, column + 1, host);
         ShowPage("session");
     }
 
@@ -912,7 +938,7 @@ public partial class MainWindow : Window
     {
         if (e.Source != SessionTabs) return;
         if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem item })
-        { SidebarSessionsList.SelectedItem = item; StatusText.Text = item.Summary; }
+        { SidebarSessionsList.SelectedItem = item; StatusText.Text = item.Summary.Replace("\n", " / "); }
     }
 
     // -------------------------------------------------------------
@@ -920,6 +946,7 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private async Task InitializeAsync()
     {
+        await RefreshDiagnosticsAsync();
         await RefreshAsync();
         await RefreshKeysAsync();
         await LoadPreferencesAsync();

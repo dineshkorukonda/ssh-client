@@ -12,5 +12,5 @@ public class KeyEntry
     public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-dd");
     public bool IsPassphraseProtected { get; set; }
 
-    public string AlgorithmBadge => Algorithm.ToUpperInvariant();
+    public string AlgorithmBadge => Algorithm.Replace("ssh-", "", StringComparison.OrdinalIgnoreCase).ToUpperInvariant();
 }
