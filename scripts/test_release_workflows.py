@@ -89,16 +89,30 @@ class TestCIWorkflow(unittest.TestCase):
 
     def test_backend_runs_real_connections_on_windows(self):
         block = job_block(self.workflow, "test")
-        self.assertIn("os: [windows-latest]", block)
+        self.assertIn("os: [windows-latest, ubuntu-latest]", block)
         self.assertIn("run: mix test", block)
         self.assertIn("local_ssh_integration_test.exs --include integration", block)
         self.assertNotIn("if: github.event_name", block)
 
     def test_release_packages_require_successful_backend_tests(self):
         self.assertIn("needs: [metadata-check, test]", job_block(self.workflow, "native-windows"))
-        self.assertIn("needs: [native-windows]", job_block(self.workflow, "release"))
-        self.assertNotIn("  package-linux:", self.workflow)
-        self.assertNotIn("  publish-container:", self.workflow)
+        self.assertIn("needs: [native-windows, package-linux, publish-container]", job_block(self.workflow, "release"))
+        self.assertIn("  package-linux:", self.workflow)
+        self.assertIn("  publish-container:", self.workflow)
+
+    def test_linux_and_container_are_validated_before_publication(self):
+        linux = job_block(self.workflow, "package-linux")
+        container = job_block(self.workflow, "publish-container")
+        self.assertIn("ssh-client-linux-x64.tar.gz", linux)
+        self.assertIn("Validate packaged startup", linux)
+        self.assertIn("platforms: linux/amd64,linux/arm64", container)
+        self.assertIn("packages: write", container)
+        self.assertIn("Validate container startup", container)
+        self.assertIn("ghcr.io/dineshkorukonda/ssh-client:latest", container)
+        self.assertIn("push: ${{ startsWith(github.ref, 'refs/tags/v') }}", container)
+        release = job_block(self.workflow, "release")
+        self.assertIn("name: ssh-client-linux-x64-tar", release)
+        self.assertNotIn("github.event_name == 'workflow_dispatch'", release)
 
     def test_release_keeps_windows_installer_and_portable_assets(self):
         windows = job_block(self.workflow, "native-windows")
