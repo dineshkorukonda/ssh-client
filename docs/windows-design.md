@@ -1,15 +1,20 @@
 # Windows application design
 
-The Windows redesign follows the [frontend-design skill](https://github.com/anthropics/claude-code/blob/main/plugins/frontend-design/skills/frontend-design/SKILL.md) and uses Termius as a workflow reference: a compact sidebar, a searchable host library, selected-host details and persistent terminal tabs.
+The Windows native client interface follows the [frontend-design skill](https://github.com/anthropics/claude-code/blob/main/plugins/frontend-design/skills/frontend-design/SKILL.md) and adopts a minimalist **shadcn / DaisyUI** aesthetic: a pure black theme (`#000000` / `#09090B`), crisp zinc borders (`#27272A`), high-contrast typography, a full-page Add/Edit Host flow, and integrated SFTP with terminal split panes.
 
-## Visual system
+## Visual system and desktop chrome
 
-Use charcoal surfaces (`#181A20`), a darker sidebar (`#121419`), raised cards (`#22252E`), clear text (`#F1F3F8`), secondary text (`#A3AAB9`) and restrained blue focus and selection (`#5688EB`). Segoe UI Variable supplies control typography; Cascadia Code remains the terminal typeface. Borders and spacing define hierarchy without large empty frames.
+- **Shadcn neutral dark theme**: Pure black background (`#000000`), dark zinc card surfaces (`#09090B`), subtle zinc-800 borders (`#27272A`), crisp white headers (`#FAFAFA`), and muted text (`#A1A1AA`).
+- **Clean typography**: Strict Segoe UI Variable hierarchy for UI controls; Cascadia Code for terminal output and connection hostnames. All legacy `>_` logo boxes and glyph emblems have been removed for an uncluttered, modern look.
+- **Titlebar command bar (`Ctrl+K`)**: Centered Omnibar with keyboard shortcut badge (`Ctrl K`) supporting instant ad-hoc connections (`user@host:port`) and dynamic host filtering. Caption controls use native Segoe Fluent Icons (`\uE921`, `\uE922` / `\uE923`, `\uE8BB`) with Windows red hover state on Close.
+- **Focused sidebar**: Streamlined to essentials (`Hosts`, `Favorites`, `Open sessions`, and `Settings`). Unnecessary workspace and vault cards have been eliminated.
+- **Dedicated Add / Edit Host page**: Replaced modal popup dialogs with a full-page, sectioned form (Server Details, Authentication, and Advanced Organization) with one-click navigation back to the host library.
+- **Integrated SFTP & split panes**: Embedded side-by-side SFTP file browser with Windows Explorer drag-and-drop file upload, plus multi-terminal split views (`◫ Split Right`).
 
-The library presents saved hosts as cards and keeps connection actions in a detail pane. Favorites and search filter the same library. Open sessions appear in both the sidebar and tab strip. Switching between the library, sessions and SFTP keeps connections running. An empty library offers a direct add-host action.
+## Verification and Smoke Testing
 
-## Dialogs and verification
-
-Derived WPF windows explicitly use the application window style. This prevents the white dialog background that made the previous connection form unreadable. Inputs, dropdowns, scrolling, primary actions and keyboard focus use the same theme. Credentials are requested for the current session only.
-
-`ssh-client.exe --design-smoke <directory>` renders the actual WPF host library at 1280 by 820 and 960 by 620, the connection form and host editor. It also asserts the derived connection dialog's dark background. The native verification script checks these images alongside real SSH terminal input/output, SFTP transfers and backend cleanup.
+`ssh-client.exe --design-smoke <directory>` renders and asserts the actual WPF interface:
+- `hosts.png`: 1280 × 820 main library in shadcn theme
+- `hosts-compact.png`: 960 × 620 compact responsive layout
+- `add-host-page.png`: Full-page Add/Edit host editor
+- `connection.png` & `host-editor.png`: Dark-surface dialog forms

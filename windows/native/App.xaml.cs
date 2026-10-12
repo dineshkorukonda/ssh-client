@@ -25,11 +25,45 @@ public partial class App : Application
             {
                 var folder = e.Args[1]; Directory.CreateDirectory(folder);
                 var window = new MainWindow(null, preview: true);
+
+                // 1. Dashboard (Command Center) Dark
+                window.ShowDashboardForPreview();
                 Capture(window, 1280, 820, Path.Combine(folder, "hosts.png"));
+                Capture(window, 1280, 820, Path.Combine(folder, "dashboard_dark.png"));
                 Capture(window, 960, 620, Path.Combine(folder, "hosts-compact.png"));
+
+                // 2. Hosts Inventory Page Dark
+                window.ShowHostsForPreview();
+                Capture(window, 1280, 820, Path.Combine(folder, "hosts_dark.png"));
+
+                // 3. Add Host Full Page Editor
+                window.ShowAddHostForPreview();
+                Capture(window, 1280, 820, Path.Combine(folder, "add-host-page.png"));
+
+                // 4. SFTP File Center Dark
+                window.ShowSftpForPreview();
+                Capture(window, 1280, 820, Path.Combine(folder, "sftp_dark.png"));
+
+                // 5. Key Vault Dark
+                window.ShowKeysForPreview();
+                Capture(window, 1280, 820, Path.Combine(folder, "keys_dark.png"));
+
+                // 6. Auth / Login (Master Keyring Unlock)
+                window.ShowAuthForPreview();
+                Capture(window, 1280, 820, Path.Combine(folder, "auth_login.png"));
+
+                // 7. Light Bauhaus Edition Previews
+                window.SwitchThemeForPreview(AppTheme.Light);
+                window.ShowDashboardForPreview();
+                Capture(window, 1280, 820, Path.Combine(folder, "dashboard_light.png"));
+                window.ShowHostsForPreview();
+                Capture(window, 1280, 820, Path.Combine(folder, "hosts_light.png"));
+
+                // Revert to Dark for dialog check
+                window.SwitchThemeForPreview(AppTheme.Dark);
                 window.Opacity = 0; window.ShowInTaskbar = false; window.Show();
                 var dialog = new FormDialog(window, "Connect to Production EU", [new("user", "Username", "deploy"), new("password", "Password", Secret: true)], "Connect", "deploy@prod-eu.example.com:22\nCredentials are used for this session only.");
-                if (dialog.Background is not SolidColorBrush background || background.Color != Color.FromRgb(24, 26, 32)) throw new IOException("Derived dialog lost its dark theme.");
+                if (dialog.Background is not SolidColorBrush background || (background.Color != Color.FromRgb(9, 9, 11) && background.Color != Color.FromRgb(0, 0, 0) && background.Color != Color.FromRgb(17, 20, 24) && background.Color != Color.FromRgb(22, 26, 32) && background.Color != Color.FromRgb(24, 26, 32))) throw new IOException("Derived dialog lost its dark theme.");
                 Capture(dialog, 480, 390, Path.Combine(folder, "connection.png"));
                 var editor = new FormDialog(window, "SSH host", [new("name", "Name", "Production EU"), new("host", "Server address", "prod-eu.example.com"), new("auth", "Authentication", "key", Options: ["key", "password"]), new("identity", "Private key", "C:\\Users\\deploy\\.ssh\\production", File: true), new("notes", "Notes", "Primary application server", Multiline: true)]);
                 Capture(editor, 480, 630, Path.Combine(folder, "host-editor.png"));

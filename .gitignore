@@ -28,3 +28,5 @@ __pycache__/
 /installer/
 native-smoke*.png
 native-smoke-error.txt
+stitch_ui_assets/
+tmp/
