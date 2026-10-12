@@ -14,4 +14,16 @@ defmodule SSHClient.SFTP.TransferManagerTest do
     assert :ok = TransferManager.cancel_transfer(transfer_id)
     assert TransferManager.get_transfer(transfer_id).status == :cancelled
   end
+
+  test "cancelled and retried attempts ignore late updates" do
+    {:ok, id} = TransferManager.queue_test_transfer("cancel-race.txt", 100)
+    assert {:error, :transfer_not_retryable} = TransferManager.retry_transfer(id)
+    assert :ok = TransferManager.cancel_transfer(id)
+    send(TransferManager, {:transfer_update, id, 0, %{status: :completed}})
+    assert TransferManager.get_transfer(id).status == :cancelled
+    assert :ok = TransferManager.retry_transfer(id)
+    send(TransferManager, {:transfer_update, id, 0, %{status: :completed}})
+    assert TransferManager.get_transfer(id).status == :queued
+    assert TransferManager.get_transfer(id).attempt == 1
+  end
 end

@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private List<Host> hosts = new();
     private readonly ObservableCollection<KeyEntry> keys = new();
     private readonly List<TerminalView> terminals = new();
+    private SftpPane? filePane;
     private readonly Dictionary<string, string> hostBySession = new();
     private readonly ObservableCollection<TerminalTabItem> openSessions = new();
     private bool favoritesOnly;
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
 
         if (KeysList != null) KeysList.ItemsSource = keys;
         EditorIdentity.ItemsSource = keys;
+        SftpSessionCombo.ItemsSource = openSessions;
         if (SidebarSessionsList != null) SidebarSessionsList.ItemsSource = openSessions;
 
         if (api != null)
@@ -64,6 +66,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             foreach (var view in terminals) view.Dispose();
+            filePane?.Dispose();
             api?.Dispose();
         };
     }
@@ -541,39 +544,10 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private void SftpSessionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // Load remote directory if active session selected
-    }
-
-    private void SftpUp_Click(object sender, RoutedEventArgs e)
-    {
-        var current = SftpPathInput.Text.Trim();
-        if (current.Length > 1 && current.Contains('/'))
-        {
-            var parent = Path.GetDirectoryName(current)?.Replace('\\', '/');
-            SftpPathInput.Text = string.IsNullOrEmpty(parent) ? "/" : parent;
-        }
-    }
-
-    private void SftpRefresh_Click(object sender, RoutedEventArgs e)
-    {
-        if (StatusText != null) StatusText.Text = $"Refreshed SFTP listing for {SftpPathInput.Text}";
-    }
-
-    private void SftpNewFolder_Click(object sender, RoutedEventArgs e)
-    {
-        MessageBox.Show(this, "Enter folder name to create in current remote path.", "New SFTP Folder", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private void SftpFilesGrid_Drop(object sender, DragEventArgs e)
-    {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
-        {
-            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-            if (files != null && files.Length > 0)
-            {
-                if (StatusText != null) StatusText.Text = $"Queued upload of {files.Length} files via SFTP.";
-            }
-        }
+        filePane?.Dispose(); filePane = null;
+        if (api != null && SftpSessionCombo.SelectedItem is TerminalTabItem item && item.State == "Connected")
+            SftpContent.Content = filePane = new SftpPane(api, item.SessionId, this);
+        else SftpContent.Content = new TextBlock { Text = "Connect this session before browsing remote files.", Margin = new Thickness(16) };
     }
 
     // -------------------------------------------------------------
@@ -865,7 +839,7 @@ public partial class MainWindow : Window
 
     private void OpenFiles(TerminalTabItem item)
     {
-        if (api != null && item.State == "Connected") new FilesWindow(api, item.SessionId) { Owner = this }.Show();
+        if (api != null && item.State == "Connected") { ShowPage("sftp"); SftpSessionCombo.SelectedItem = item; if (filePane == null) SftpSessionCombo_SelectionChanged(this, new SelectionChangedEventArgs(System.Windows.Controls.Primitives.Selector.SelectionChangedEvent, new object[0], new object[0])); }
         else StatusText.Text = "Connect this session before browsing remote files.";
     }
 
@@ -882,6 +856,7 @@ public partial class MainWindow : Window
                 var view = item.Views.FirstOrDefault(v => v.SessionId == id);
                 if (view != null) { view.Dispose(); terminals.Remove(view); item.Views.Remove(view); }
             }
+            if (SftpSessionCombo.SelectedItem == item) { filePane?.Dispose(); filePane = null; SftpSessionCombo.SelectedItem = null; }
             hostBySession.Remove(item.SessionId);
             SessionTabs.Items.Remove(tab);
             openSessions.Remove(item);
@@ -927,6 +902,15 @@ public partial class MainWindow : Window
             await Task.Delay(100);
         }
         throw new IOException("Session did not reach " + expected);
+    }
+
+    internal async Task VerifyFilesForSmokeAsync(string id, string localFile)
+    {
+        var item = openSessions.Single(item => item.SessionId == id);
+        item.State = "Connected";
+        OpenFiles(item);
+        if (filePane == null) throw new IOException("Files toolbar did not open the integrated browser.");
+        await filePane.VerifyFilesJourneyForSmokeAsync(localFile);
     }
 
     private void SidebarSessions_SelectionChanged(object sender, SelectionChangedEventArgs e)

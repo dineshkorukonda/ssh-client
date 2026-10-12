@@ -108,13 +108,15 @@ public partial class App : Application
                     await Task.Delay(100);
                 }
                 if (!screen.Contains("echo:native-smoke")) throw new IOException("Native terminal failed to render remote output: " + screen);
-                var local = Path.Combine(Path.GetDirectoryName(report)!, "native-upload.txt");
+                var local = Path.Combine(Path.GetDirectoryName(report)!, "client-files", "native-upload.txt");
+                Directory.CreateDirectory(Path.GetDirectoryName(local)!);
                 var downloaded = Path.Combine(Path.GetDirectoryName(report)!, "native-download.txt");
                 File.WriteAllText(local, "native-transfer-content");
                 await api.PostAsync($"files/{id}/upload", new { path = "native-roundtrip.txt", local_path = local });
                 await api.PostAsync($"files/{id}/download", new { path = "native-roundtrip.txt", local_path = downloaded });
                 if (File.ReadAllText(downloaded) != "native-transfer-content") throw new IOException("Native SFTP content mismatch");
                 await api.PostAsync($"files/{id}/delete", new { path = "native-roundtrip.txt" });
+                await window.VerifyFilesForSmokeAsync(id, local);
                 await window.VerifySessionLifecycleForSmokeAsync(connectionHost, id);
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
                 File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, screen }));
@@ -238,3 +240,4 @@ public partial class App : Application
         base.OnExit(e);
     }
 }
+

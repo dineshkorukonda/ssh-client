@@ -118,6 +118,63 @@ defmodule SSHClientWeb.DesktopAPI do
     end
   end
 
+  get "/transfers" do
+    transfers = SSHClient.SFTP.TransferManager.list_transfers()
+
+    result(
+      conn,
+      {:ok,
+       Enum.map(
+         transfers,
+         &Map.take(&1, [
+           :id,
+           :session_id,
+           :filename,
+           :direction,
+           :status,
+           :progress,
+           :bytes_transferred,
+           :total_bytes,
+           :speed_bps,
+           :eta_seconds,
+           :error
+         ])
+       )}
+    )
+  end
+
+  post "/transfers/:id/:action" do
+    manager = SSHClient.SFTP.TransferManager
+    attrs = conn.body_params
+
+    response =
+      case action do
+        "cancel" ->
+          manager.cancel_transfer(id)
+
+        "retry" ->
+          manager.retry_transfer(id)
+
+        direction when direction in ["upload", "download"] ->
+          if is_binary(attrs["path"]) and is_binary(attrs["local_path"]) and
+               byte_size(attrs["path"]) in 1..4096 and byte_size(attrs["local_path"]) in 1..4096 do
+            with {:ok, worker} <- SSHClient.SessionManager.get_session(id),
+                 {:ok, _} <- SSHClient.SessionWorker.connection(worker) do
+              if direction == "upload",
+                do: manager.queue_session_upload(id, attrs["local_path"], attrs["path"]),
+                else: manager.queue_session_download(id, attrs["path"], attrs["local_path"])
+            end
+          else
+            {:error, :invalid_path}
+          end
+
+        _ ->
+          {:error, :invalid_action}
+      end
+
+    result(conn, response)
+  end
+
   get "/settings" do
     result(conn, {:ok, Desktop.settings()})
   end

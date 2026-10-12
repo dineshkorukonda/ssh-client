@@ -548,35 +548,13 @@
                 <!-- Active Session Selector -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                   <TextBlock Text="Target Session: " Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                  <ComboBox x:Name="SftpSessionCombo" Width="200" SelectionChanged="SftpSessionCombo_SelectionChanged"/>
+                  <ComboBox x:Name="SftpSessionCombo" Width="240" DisplayMemberPath="Title" SelectionChanged="SftpSessionCombo_SelectionChanged"/>
                 </StackPanel>
               </DockPanel>
 
-              <!-- SFTP Browser Container -->
-              <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="16">
-                <DockPanel>
-                  <!-- Navigation & Path Breadcrumb Bar -->
-                  <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                      <Button Content="▲ Up" Click="SftpUp_Click" Style="{StaticResource OutlineButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
-                      <Button Content="↻ Refresh" Click="SftpRefresh_Click" Style="{StaticResource OutlineButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
-                      <Button Content="+ New Folder" Click="SftpNewFolder_Click" Style="{StaticResource OutlineButton}" Height="30" Padding="10,0"/>
-                    </StackPanel>
-                    
-                    <TextBox x:Name="SftpPathInput" Height="30" Margin="0,0,10,0" FontFamily="{StaticResource MonoFont}" Text="/home/operator" VerticalContentAlignment="Center"/>
-                  </DockPanel>
-
-                  <!-- SFTP File Table -->
-                  <DataGrid x:Name="SftpFilesGrid" AutoGenerateColumns="False" IsReadOnly="True" Background="Transparent" BorderThickness="0" GridLinesVisibility="None" RowBackground="Transparent" AlternatingRowBackground="{DynamicResource CardLow}" Foreground="{DynamicResource Text}" AllowDrop="True" Drop="SftpFilesGrid_Drop">
-                    <DataGrid.Columns>
-                      <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*"/>
-                      <DataGridTextColumn Header="Size" Binding="{Binding DisplaySize}" Width="100"/>
-                      <DataGridTextColumn Header="Permissions" Binding="{Binding Permissions}" Width="120"/>
-                      <DataGridTextColumn Header="Modified" Binding="{Binding DisplayModified}" Width="160"/>
-                    </DataGrid.Columns>
-                  </DataGrid>
-                </DockPanel>
-              </Border>
+              <ContentControl x:Name="SftpContent">
+                <TextBlock Text="Connect a host, then choose its session to browse files." TextWrapping="Wrap" Margin="16"/>
+              </ContentControl>
             </DockPanel>
           </Grid>
 
