@@ -55,7 +55,7 @@ public sealed class SftpPane : UserControl, IDisposable
         DockPanel.SetDock(upBtn, Dock.Left);
         pathBar.Children.Add(upBtn);
 
-        var refreshBtn = new Button { Content = "Refresh Refresh", Padding = new Thickness(8, 4, 8, 4), ToolTip = "Refresh folder contents" };
+        var refreshBtn = new Button { Content = "Refresh", Padding = new Thickness(8, 4, 8, 4), ToolTip = "Refresh folder contents" };
         refreshBtn.Click += async (_, _) => await GuardAsync(LoadAsync);
         DockPanel.SetDock(refreshBtn, Dock.Right);
         pathBar.Children.Add(refreshBtn);

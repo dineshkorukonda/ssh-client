@@ -706,6 +706,12 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center
         };
         headerPanel.Children.Add(liveDot);
+        liveDot.SetResourceReference(Border.BackgroundProperty, "MutedSubtle");
+        sessionItem.PropertyChanged += (_, args) => {
+            if (args.PropertyName != nameof(TerminalTabItem.State)) return;
+            liveDot.SetResourceReference(Border.BackgroundProperty, sessionItem.State == "Connected" ? "AccentCyan" : "MutedSubtle");
+            liveDot.ToolTip = sessionItem.State;
+        };
         headerPanel.Children.Add(new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center });
 
         var closeBtn = new Button
@@ -801,7 +807,13 @@ public partial class MainWindow : Window
             if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem selected } && selected == item) StatusText.Text = message;
         }, state => {
             paneStatus.Text = endpoint + " / " + state;
-            if (id == item.SessionId) { item.State = state; if (state == "Connected") _ = GuardAsync(() => RecordConnectionAsync(item)); }
+            if (id == item.SessionId) {
+                item.State = state;
+                if (state == "Connected") {
+                    _ = GuardAsync(() => RecordConnectionAsync(item));
+                    if (SftpSessionCombo.SelectedItem == item && filePane == null) SftpSessionCombo_SelectionChanged(this, new SelectionChangedEventArgs(System.Windows.Controls.Primitives.Selector.SelectionChangedEvent, Array.Empty<object>(), Array.Empty<object>()));
+                }
+            }
             UpdateDashboardMetrics();
         });
         Grid.SetRow(view, 1); pane.Children.Add(view);
