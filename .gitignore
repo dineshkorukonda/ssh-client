@@ -23,6 +23,8 @@ __pycache__/
 .worktrees/
 /windows/native/bin/
 /windows/native/obj/
+/windows/tests/**/bin/
+/windows/tests/**/obj/
 /windows/native/publish/
 /windows/runtime/
 /installer/

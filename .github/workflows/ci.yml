@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [ "main", "fix/phase-1-ssh-reliability" ]
+    branches: [ "**" ]
   push:
     tags: [ "v*" ]
   workflow_dispatch:
@@ -120,6 +120,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - name: Verify native host serialization contract
+        # Exercise the Windows model and serializer before testing packaged transport.
+        shell: pwsh
+        run: dotnet run --project windows/tests/HostContract/HostContract.csproj -c Release
 
       - name: Build native application and production backend
         shell: pwsh

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Security.Principal;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -81,7 +82,18 @@ public partial class App : Application
             {
                 using var owned = new OwnedBackend(AppContext.BaseDirectory);
                 using var api = await owned.StartAsync();
-                var session = await api.PostAsync("sessions", new { id = "native-smoke", host = "127.0.0.1", port = int.Parse(e.Args[2]), user = "fixture", identity_file = e.Args[3] });
+                var host = new Host { Id = "native-smoke", Name = "Native host contract regression", Address = "localhost", Port = int.Parse(e.Args[2]), User = "fixture", IdentityFile = e.Args[3] };
+                await api.PostAsync("hosts", host);
+                var savedHosts = (await api.GetAsync("hosts")).Deserialize<List<Host>>(DesktopClient.Json)!;
+                var savedHost = savedHosts.Single(h => h.Id == host.Id);
+                if (savedHost.Address != "localhost") throw new IOException("Saved host address was not loaded into the Windows host model.");
+                var editedHost = savedHost.Copy();
+                editedHost.Address = "127.0.0.1";
+                await api.PostAsync("hosts", editedHost);
+                var reloadedHosts = (await api.GetAsync("hosts")).Deserialize<List<Host>>(DesktopClient.Json)!;
+                var connectionHost = reloadedHosts.Single(h => h.Id == host.Id);
+                if (connectionHost.Address != "127.0.0.1") throw new IOException("Edited host address was not persisted.");
+                var session = await api.PostAsync("sessions", connectionHost);
                 var id = session.GetProperty("session_id").GetString()!;
                 var window = new Window { Width = 800, Height = 500, ShowInTaskbar = false, Opacity = 0, WindowStyle = WindowStyle.None };
                 using var terminal = new TerminalView(api, id, window, _ => { });
@@ -103,6 +115,7 @@ public partial class App : Application
                 await api.PostAsync($"files/{id}/download", new { path = "native-roundtrip.txt", local_path = downloaded });
                 if (File.ReadAllText(downloaded) != "native-transfer-content") throw new IOException("Native SFTP content mismatch");
                 await api.PostAsync($"files/{id}/delete", new { path = "native-roundtrip.txt" });
+                await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
                 File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, screen }));
                 window.Close(); Shutdown(0);
             }
