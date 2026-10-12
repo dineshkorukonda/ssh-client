@@ -1,66 +1,24 @@
 # syntax=docker/dockerfile:1
-
-# Builder Stage
-FROM elixir:1.18.2-slim as builder
-
-# install build dependencies
-RUN apt-get update -y && apt-get install -y build-essential git \
-    && apt-get clean && rm -f /var/lib/apt/lists/*_*
-
-# prepare build dir
+FROM elixir:1.18.2-slim AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-
-# install hex + rebar
-RUN mix local.hex --force && \
-    mix local.rebar --force
-
-# set build ENV
-ENV MIX_ENV="prod"
-
-# install mix dependencies
+ENV MIX_ENV=prod
+RUN mix local.hex --force && mix local.rebar --force
 COPY mix.exs mix.lock ./
-RUN mix deps.get --only $MIX_ENV
-RUN mix deps.compile
-
-# copy compile configuration
 COPY config config
-
-# copy source code
+RUN mix deps.get --only prod && mix deps.compile
 COPY lib lib
 COPY priv priv
+RUN mix compile --warnings-as-errors && mix release ssh_client
 
-# compile assets and release
-RUN mix compile
-RUN mix release ssh_client
-
-# ==============================================================================
-# Runner Stage
-# ==============================================================================
-FROM debian:bookworm-slim
-
-RUN apt-get update -y && \
-  apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates curl openssh-client \
-  && apt-get clean && rm -f /var/lib/apt/lists/*_*
-
-# Set the locale
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
-
-WORKDIR "/app"
-RUN chown nobody /app
-
-# set runner ENV
-ENV MIX_ENV="prod"
-ENV PORT="4000"
-
-# Only copy the final release from the build stage
-COPY --from=builder --chown=nobody:root /app/_build/prod/rel/ssh_client ./
-
+# Keep the build/runtime ABI identical on both supported architectures.
+FROM elixir:1.18.2-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 curl ca-certificates && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app /data && chown nobody:nogroup /app /data
+WORKDIR /app
+COPY --from=builder --chown=nobody:nogroup /app/_build/prod/rel/ssh_client ./
+ENV HOME=/data XDG_CONFIG_HOME=/data SSH_CLIENT_PORT=4000 SSH_CLIENT_BIND_IP=0.0.0.0 RELEASE_DISTRIBUTION=none
 USER nobody
-
 EXPOSE 4000
-
+HEALTHCHECK --interval=15s --start-period=30s --timeout=3s CMD curl -fsS http://127.0.0.1:4000/health || exit 1
 CMD ["/app/bin/ssh_client", "start"]

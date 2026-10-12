@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [windows-latest, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -172,18 +172,107 @@ jobs:
           name: ssh-client-windows-x64-installer
           path: installer\ssh-client-setup-v*-windows-x64.exe
 
+  package-linux:
+    name: Linux x64 standalone package
+    runs-on: ubuntu-latest
+    needs: [metadata-check, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.2'
+          otp-version: '27.2'
+      - name: Build standalone release
+        run: |
+          mix deps.get
+          MIX_ENV=prod mix release ssh_client
+          VERSION=$(python scripts/sync_release.py --get-current)
+          tar -czf "ssh-client-linux-x64.tar.gz" -C _build/prod/rel/ssh_client .
+      - name: Validate packaged startup
+        run: |
+          FIXTURE=$(mktemp -d)
+          export XDG_CONFIG_HOME="$FIXTURE" SSH_CLIENT_PORT=4100 RELEASE_DISTRIBUTION=none
+          _build/prod/rel/ssh_client/bin/ssh_client start > "$FIXTURE/backend.log" 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4100/health; then exit 0; fi
+            sleep 1
+          done
+          cat "$FIXTURE/backend.log"
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ssh-client-linux-x64-tar
+          path: ssh-client-linux-x64.tar.gz
+
+  publish-container:
+    name: Validate and publish multi-platform container
+    runs-on: ubuntu-latest
+    needs: [metadata-check, test]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Release version
+        id: version
+        run: echo "value=$(python scripts/sync_release.py --get-current)" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build local runtime test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: ssh-client-runtime-test:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Validate container startup and writable data directory
+        run: |
+          docker run -d --name ssh-client-runtime-test -p 127.0.0.1:4101:4000 ssh-client-runtime-test:local
+          trap 'docker logs ssh-client-runtime-test; docker rm -f ssh-client-runtime-test' EXIT
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4101/health; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Build both architectures and publish tagged releases
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: |
+            ghcr.io/dineshkorukonda/ssh-client:${{ steps.version.outputs.value }}
+            ghcr.io/dineshkorukonda/ssh-client:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   release:
     name: Create GitHub Release & Publish Assets
     runs-on: ubuntu-latest
-    needs: [native-windows]
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: [native-windows, package-linux, publish-container]
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Download release artifacts
+      - name: Download Windows release artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: ssh-client-windows-*
           path: dist
           merge-multiple: true
+      - name: Download Linux release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ssh-client-linux-x64-tar
+          path: dist
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
