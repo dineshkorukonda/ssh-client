@@ -1,5 +1,8 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+
 namespace SSHClient.Windows;
+
 public sealed class Host
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
@@ -14,6 +17,9 @@ public sealed class Host
     public string Notes { get; set; } = "";
     public bool Favorite { get; set; }
     public string Description => $"{User}@{Address}:{Port}";
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; set; }
 
     [JsonIgnore]
     public string OsBadge
@@ -62,6 +68,7 @@ public sealed class Host
         ProxyJump = ProxyJump,
         Tags = (string[])Tags.Clone(),
         Notes = Notes,
-        Favorite = Favorite
+        Favorite = Favorite,
+        Extra = Extra != null ? new Dictionary<string, JsonElement>(Extra) : null
     };
 }
