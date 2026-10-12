@@ -27,6 +27,10 @@ public partial class MainWindow
         if (e.Key == Key.K && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { OpenCommandPalette(); e.Handled = true; }
         if (e.Key == Key.Escape && PalettePopup.IsOpen) { PalettePopup.IsOpen = false; e.Handled = true; }
     }
+    private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (PalettePopup.IsOpen && !OmniBar.IsMouseOver && !PaletteList.IsMouseOver) PalettePopup.IsOpen = false;
+    }
     private void UpdatePalette()
     {
         var query = OmniBar.Text.Trim();
@@ -83,8 +87,9 @@ public partial class MainWindow
     private async Task RecordConnectionAsync(TerminalTabItem item)
     {
         if (api == null || item.Host == null || !hosts.Any(host => host.Id == item.Host.Id) || !recordedSessions.Add(item.SessionId)) return;
-        item.Host.LastConnectedAt = DateTimeOffset.UtcNow.ToString("O");
-        await api.PostAsync("hosts", item.Host);
+        var saved = hosts.Single(host => host.Id == item.Host.Id).Copy();
+        saved.LastConnectedAt = DateTimeOffset.UtcNow.ToString("O");
+        await api.PostAsync("hosts", saved);
         await RefreshAsync();
     }
 
@@ -161,6 +166,27 @@ public partial class MainWindow
         OmniBar.Text = fixture.Name; OpenCommandPalette();
         if (!PaletteList.Items.Cast<PaletteEntry>().Any(entry => entry.Host?.Id == fixture.Id)) throw new IOException("Palette did not find a saved host.");
         PalettePopup.IsOpen = false;
+    }
+
+    internal async Task VerifyConnectionFormForSmokeAsync(Host fixture)
+    {
+        var passwordHost = fixture.Copy(); passwordHost.DefaultAuthMethod = "password"; passwordHost.IdentityFile = null;
+        passwordHost.Extra ??= []; passwordHost.Extra["auth_order"] = JsonSerializer.SerializeToElement(new[] { "password" });
+        var before = openSessions.Count;
+        PrepareDialogForSmoke = dialog => {
+            dialog.Opacity = 0; dialog.ShowInTaskbar = false;
+            dialog.Loaded += (_, _) => dialog.Dispatcher.BeginInvoke(() => dialog.CompleteForSmoke(new Dictionary<string, string> { ["user"] = "fixture", ["password"] = "fixture-password" }, true));
+        };
+        try {
+            await ConnectHostAsync(passwordHost);
+            var tab = (TabItem)SessionTabs.SelectedItem; var item = (TerminalTabItem)tab.Tag;
+            await WaitSessionStateForSmokeAsync(item.SessionId, "connected");
+            await CloseSessionTabAsync(tab);
+            PrepareDialogForSmoke = dialog => { dialog.Opacity = 0; dialog.ShowInTaskbar = false; dialog.Loaded += (_, _) => dialog.Dispatcher.BeginInvoke(() => dialog.CompleteForSmoke(new Dictionary<string, string>(), false)); };
+            await ConnectHostAsync(passwordHost);
+            if (openSessions.Count != before) throw new IOException("Cancelled connection dialog created a terminal.");
+        }
+        finally { PrepareDialogForSmoke = null; }
     }
 }
 

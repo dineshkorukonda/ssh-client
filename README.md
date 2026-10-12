@@ -12,7 +12,7 @@ Built on Elixir/OTP, Erlang `:ssh`, and Phoenix LiveView with xterm.js.
 - **Embedded Multi-Tab Terminal**: xterm.js with 24-bit TrueColor, bracketed paste, split panes, and auto-reconnect. Sessions survive LiveView reconnect.
 - **SFTP Transfer Queue**: Background uploads/downloads with progress, cancel, retry, rename, and hidden-file toggle. Transfers can use an independent SSH connection.
 - **Workspaces and Port Forwards**: Named host groups plus local/remote TCP forwarding.
-- **Vault-backed credentials**: Ephemeral in-memory password caching with one-click key deployment. No plaintext secrets on disk.
+- **Local credentials and identities**: Windows connection passwords/passphrases stay in memory. Private keys remain in user-selected files; generated private keys are unencrypted. The browser interface retains its local vault workflow.
 - **Agentless Host Telemetry**: Periodic CPU, RAM, disk, load metrics, and service checks over SSH.
 - **Pure OTP Transport**: Native Erlang `:ssh` engine without external OpenSSH binary dependencies.
 

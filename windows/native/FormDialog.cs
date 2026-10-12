@@ -10,6 +10,7 @@ public sealed record Field(string Key, string Label, string Value = "", bool Sec
 public sealed class FormDialog : Window
 {
     private readonly Dictionary<string, Func<string>> readers = new();
+    private readonly Dictionary<string, Action<string>> writers = new();
     public Dictionary<string, string> Values => readers.ToDictionary(pair => pair.Key, pair => pair.Value());
 
     public FormDialog(Window? owner, string title, IEnumerable<Field> fields, string action = "Save", string? explanation = null)
@@ -54,6 +55,7 @@ public sealed class FormDialog : Window
                 System.Windows.Automation.AutomationProperties.SetName(combo, field.Label);
                 contents.Children.Add(combo);
                 readers[field.Key] = () => combo.SelectedItem?.ToString() ?? "";
+                writers[field.Key] = value => combo.SelectedItem = value;
             }
             else if (field.Secret)
             {
@@ -61,6 +63,7 @@ public sealed class FormDialog : Window
                 System.Windows.Automation.AutomationProperties.SetName(pass, field.Label);
                 contents.Children.Add(pass);
                 readers[field.Key] = () => pass.Password;
+                writers[field.Key] = value => pass.Password = value;
             }
             else if (field.File)
             {
@@ -78,6 +81,7 @@ public sealed class FormDialog : Window
                 row.Children.Add(text);
                 contents.Children.Add(row);
                 readers[field.Key] = () => text.Text;
+                writers[field.Key] = value => text.Text = value;
             }
             else if (field.Multiline)
             {
@@ -85,6 +89,7 @@ public sealed class FormDialog : Window
                 System.Windows.Automation.AutomationProperties.SetName(text, field.Label);
                 contents.Children.Add(text);
                 readers[field.Key] = () => text.Text;
+                writers[field.Key] = value => text.Text = value;
             }
             else
             {
@@ -92,6 +97,7 @@ public sealed class FormDialog : Window
                 System.Windows.Automation.AutomationProperties.SetName(text, field.Label);
                 contents.Children.Add(text);
                 readers[field.Key] = () => text.Text;
+                writers[field.Key] = value => text.Text = value;
             }
         }
 
@@ -110,5 +116,11 @@ public sealed class FormDialog : Window
             var nested = FirstInput(child); if (nested != null) return nested;
         }
         return null;
+    }
+
+    internal void CompleteForSmoke(IReadOnlyDictionary<string, string> values, bool accept)
+    {
+        foreach (var (key, value) in values) if (writers.TryGetValue(key, out var write)) write(value);
+        DialogResult = accept;
     }
 }

@@ -44,7 +44,7 @@ public partial class MainWindow
         ApplyCompactLayout(720);
         if (HostInspector.Visibility != Visibility.Collapsed || InspectorColumn.Width.Value != 0) throw new InvalidOperationException("Compact host layout did not release inspector space.");
         if (System.Windows.Automation.AutomationProperties.GetName(EditorHost) != "Server address") throw new InvalidOperationException("Host input lacks its accessible name.");
-        if (ThemeManager.CurrentTheme == AppTheme.Light) {
+        if (ThemeManager.CurrentTheme == AppTheme.Light && !SystemParameters.HighContrast) {
             var muted = (System.Windows.Media.SolidColorBrush)Application.Current.Resources["MutedSubtle"];
             if (muted.Color.R > 120) throw new InvalidOperationException("Light theme muted labels lost contrast.");
         }

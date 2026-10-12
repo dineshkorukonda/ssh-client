@@ -16,6 +16,8 @@ public sealed class TerminalTabItem : INotifyPropertyChanged
         get => state;
         set { if (state == value) return; state = value; PropertyChanged?.Invoke(this, new(nameof(State))); PropertyChanged?.Invoke(this, new(nameof(Summary))); }
     }
-    public string Summary => $"{Title}\n{Host?.Description}\n{State}";
+    public string SelectionLabel => $"{Title} / {Host?.Description} / {ShortId}";
+    private string ShortId => SessionId.Length > 8 ? SessionId[^8..] : SessionId;
+    public string Summary => $"{Title}\n{Host?.Description}\n{State} / {ShortId}";
     public event PropertyChangedEventHandler? PropertyChanged;
 }
