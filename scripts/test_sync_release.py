@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 import importlib.util
+import subprocess
 
 # Dynamically import scripts/sync_release.py
 spec = importlib.util.spec_from_file_location(
@@ -20,6 +21,39 @@ def _write(path, content):
 
 
 class TestSyncRelease(unittest.TestCase):
+    def test_native_sources_are_scanned_and_ignored_references_are_excluded(self):
+        if not shutil.which("git"):
+            self.skipTest("Git is required for tracked-source audit")
+        with tempfile.TemporaryDirectory() as root:
+            subprocess.run(["git", "init", root], check=True, capture_output=True)
+            _write(os.path.join(root, ".gitignore"), "reference.html\n")
+            _write(os.path.join(root, "reference.html"), chr(0x1F511))
+            _write(os.path.join(root, "Host.cs"), "public class Host {}")
+            original = sync_release.ROOT_DIR
+            try:
+                sync_release.ROOT_DIR = root
+                self.assertEqual(sync_release.check_emoji_violations(), [])
+                _write(os.path.join(root, "Host.cs"), chr(0x1F511))
+                self.assertTrue(any("Host.cs" in item for item in sync_release.check_emoji_violations()))
+            finally:
+                sync_release.ROOT_DIR = original
+
+    def test_install_and_changelog_badges_are_version_sources(self):
+        with tempfile.TemporaryDirectory() as root:
+            old_root, old_files = sync_release.ROOT_DIR, sync_release.FILES
+            try:
+                sync_release.ROOT_DIR = root
+                sync_release.FILES = {key: os.path.join(root, key + ".txt") for key in old_files}
+                _write(sync_release.FILES["mix"], 'version: "0.0.9"')
+                for key in ["web_install_idx", "web_changelog_idx"]:
+                    _write(sync_release.FILES[key], '<span class="app-version-badge">v0.0.8</span>')
+                versions = sync_release.extract_versions()
+                self.assertEqual(versions["web_install_idx.txt"], "0.0.8")
+                self.assertEqual(versions["web_changelog_idx.txt"], "0.0.8")
+                self.assertFalse(sync_release.check_sync())
+            finally:
+                sync_release.ROOT_DIR, sync_release.FILES = old_root, old_files
+
     def test_get_current_version(self):
         ver = sync_release.get_current_version()
         self.assertRegex(ver, r"^[0-9]+\.[0-9]+\.[0-9]+.*$")

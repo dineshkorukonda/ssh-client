@@ -4,7 +4,7 @@
         Title="ssh-client" Height="820" Width="1280" MinHeight="540" MinWidth="720"
         Style="{StaticResource AppWindow}"
         WindowStyle="None" AllowsTransparency="False"
-        Loaded="Window_Loaded" PreviewKeyDown="Window_KeyDown" SizeChanged="Window_SizeChanged">
+        Loaded="Window_Loaded" PreviewKeyDown="Window_KeyDown" PreviewMouseDown="Window_MouseDown" SizeChanged="Window_SizeChanged">
   <WindowChrome.WindowChrome>
     <WindowChrome CaptionHeight="38" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
   </WindowChrome.WindowChrome>
@@ -546,7 +546,7 @@
                 <!-- Active Session Selector -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                   <TextBlock Text="Target Session: " Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                  <ComboBox x:Name="SftpSessionCombo" AutomationProperties.Name="File browser SSH session" Width="240" DisplayMemberPath="Title" SelectionChanged="SftpSessionCombo_SelectionChanged"/>
+                  <ComboBox x:Name="SftpSessionCombo" AutomationProperties.Name="File browser SSH session" Width="240" DisplayMemberPath="SelectionLabel" SelectionChanged="SftpSessionCombo_SelectionChanged"/>
                 </StackPanel>
               </DockPanel>
 

@@ -279,7 +279,7 @@ MIX_ENV=prod mix release ssh_client</pre>
               <code class="text-white">ssh-client</code> includes a zero-flash theme engine supporting Editorial Stark Dark and Crisp Light / Obsidian high-contrast modes.
             </p>
             <p>
-              You can toggle themes via the top navigation bar or settings menu. Your theme selection is synchronized across open windows and persisted in local storage.
+              You can toggle themes via the top navigation bar or settings menu. Your theme selection is synchronized across open windows and saved locally. Windows preferences are stored in its SQLite database.
             </p>
           </div>
         </div>
@@ -337,14 +337,14 @@ MIX_ENV=prod mix release ssh_client</pre>
         <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
           <input type="checkbox" /> 
           <div class="collapse-title font-semibold text-white text-sm">
-            How does the Master Vault encryption protect sensitive credentials?
+            How are Windows connection credentials protected?
           </div>
           <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
             <p>
-              The Master Vault (<code class="text-white">SSHClient.Vault</code>) employs PBKDF2 with 100,000 SHA-256 iterations to derive a 256-bit key from your master password. Credential payloads and private keys are encrypted locally using AES-256-GCM authenticated encryption.
+              The native Windows app has no account or master-vault login. Connection passwords and key passphrases remain in memory. SQLite stores public keys and identity file paths, not private-key contents.
             </p>
             <p>
-              The vault automatically re-locks after inactivity or upon user command, securing your secrets both at rest and in memory.
+              Lock Windows protects access to the desktop while SSH sessions continue. Generated private-key files are unencrypted; protect their destination with Windows file permissions. The separate browser interface retains its local vault workflow.
             </p>
           </div>
         </div>
@@ -357,7 +357,7 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
           <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
             <p>
-              Yes. The desktop shell is powered by Phoenix LiveView inside an <code class="text-white">elixir-desktop</code> container. If launched headless with <code class="text-neutral-300">mix phx.server</code> or within a server environment, you can point any modern web browser to <code class="text-red-400">http://localhost:4000</code> to access the full UI and xterm.js terminal bridge.
+              Windows uses a native WPF shell with locally bundled xterm.js in WebView2. Linux and container distributions use the Phoenix LiveView browser interface at <code class="text-red-400">http://localhost:4000</code>. The native desktop API is local and rejects browser-origin requests.
             </p>
           </div>
         </div>

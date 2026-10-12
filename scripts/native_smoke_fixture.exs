@@ -14,7 +14,8 @@ echo = fn echo ->
 end
 {:ok, daemon} = :ssh.daemon({127, 0, 0, 1}, 0,
   system_dir: String.to_charlist(root), user_dir: String.to_charlist(root),
-  auth_methods: ~c"publickey", shell: fn _user, _peer -> spawn(fn -> IO.puts("fixture-ready"); echo.(echo) end) end,
+  auth_methods: ~c"publickey,password", pwdfun: fn user, password -> user == ~c"fixture" and password == ~c"fixture-password" end,
+  shell: fn _user, _peer -> spawn(fn -> IO.puts("fixture-ready"); echo.(echo) end) end,
   subsystems: [:ssh_sftpd.subsystem_spec(cwd: String.to_charlist(root), root: String.to_charlist(root))])
 {:ok, info} = :ssh.daemon_info(daemon)
 port = Keyword.fetch!(info, :port)

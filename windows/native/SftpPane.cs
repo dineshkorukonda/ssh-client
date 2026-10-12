@@ -221,6 +221,8 @@ public sealed class SftpPane : UserControl, IDisposable
         var name = dialog.Values["name"];
         if (string.IsNullOrWhiteSpace(name) || name.IndexOfAny(['/', '\\']) >= 0 || name is "." or "..")
             throw new ArgumentException("Enter a filename without directory separators.");
+        if (files.Any(file => file.Name == name && file.Path != entry.Path))
+            throw new IOException("An item with this name already exists. Choose another name.");
         await api.PostAsync($"files/{session}/rename", new { path = entry.Path, new_path = RemotePath(name) });
         await LoadAsync();
     }

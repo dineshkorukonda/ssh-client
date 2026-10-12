@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private string diagnostics = "";
     private bool reducedMotion;
     private readonly bool isPreview;
+    internal Action<FormDialog>? PrepareDialogForSmoke { get; set; }
 
 
     public MainWindow(DesktopClient? api, bool preview = false)
@@ -662,17 +663,20 @@ public partial class MainWindow : Window
         }
 
         var dialog = new FormDialog(this, "Authenticate Connection: " + host.Name, fields, "Connect", "Zero-persistence security: credentials stored in volatile memory only.");
+        PrepareDialogForSmoke?.Invoke(dialog);
         if (dialog.ShowDialog() != true) return;
 
         var values = dialog.Values;
         var attrs = ConnectionRequest.Build(host, values);
+        var connectionHost = host.Copy();
+        connectionHost.User = values["user"];
 
         if (api != null)
         {
             var result = await api.PostAsync("sessions", attrs);
             var sessionId = result.GetProperty("session_id").GetString()!;
-            if (parent != null && splitGrid != null) AddSplitPane(parent, splitGrid, sessionId);
-            else AddTerminalTab(host.Name, sessionId, host);
+            if (parent != null && splitGrid != null) AddSplitPane(parent, splitGrid, sessionId, connectionHost);
+            else AddTerminalTab(host.Name, sessionId, connectionHost);
             hostBySession[sessionId] = host.Id;
         }
         else
@@ -780,7 +784,7 @@ public partial class MainWindow : Window
         UpdateDashboardMetrics();
     }
 
-    private void AddSessionView(TerminalTabItem item, Grid grid, string id, int column)
+    private void AddSessionView(TerminalTabItem item, Grid grid, string id, int column, Host? paneHost = null)
     {
         if (api == null)
         {
@@ -788,12 +792,13 @@ public partial class MainWindow : Window
             return;
         }
         var pane = new Grid(); pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); pane.RowDefinitions.Add(new RowDefinition());
-        var paneStatus = new TextBlock { Text = item.Host?.Description + " / Connecting", Margin = new Thickness(10, 5, 10, 5), TextTrimming = TextTrimming.CharacterEllipsis };
+        var endpoint = (paneHost ?? item.Host)?.Description;
+        var paneStatus = new TextBlock { Text = endpoint + " / Connecting", Margin = new Thickness(10, 5, 10, 5), TextTrimming = TextTrimming.CharacterEllipsis };
         paneStatus.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); pane.Children.Add(paneStatus);
         var view = new TerminalView(api, id, this, message => {
             if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem selected } && selected == item) StatusText.Text = message;
         }, state => {
-            paneStatus.Text = item.Host?.Description + " / " + state;
+            paneStatus.Text = endpoint + " / " + state;
             if (id == item.SessionId) { item.State = state; if (state == "Connected") _ = GuardAsync(() => RecordConnectionAsync(item)); }
             UpdateDashboardMetrics();
         });
@@ -804,7 +809,7 @@ public partial class MainWindow : Window
         terminals.Add(view);
     }
 
-    private void AddSplitPane(TerminalTabItem item, Grid grid, string id)
+    private void AddSplitPane(TerminalTabItem item, Grid grid, string id, Host? host = null)
     {
         var column = grid.ColumnDefinitions.Count;
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
@@ -813,7 +818,7 @@ public partial class MainWindow : Window
         grid.Children.Add(splitter);
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         item.PaneIds.Add(id);
-        AddSessionView(item, grid, id, column + 1);
+        AddSessionView(item, grid, id, column + 1, host);
         ShowPage("session");
     }
 
