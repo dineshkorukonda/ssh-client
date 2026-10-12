@@ -615,7 +615,8 @@ public partial class MainWindow : Window
         if (e.Key == Key.Down || e.Key == Key.Up) { PaletteList.SelectedIndex = Math.Clamp(PaletteList.SelectedIndex + (e.Key == Key.Down ? 1 : -1), 0, Math.Max(0, PaletteList.Items.Count - 1)); e.Handled = true; return; }
         if (e.Key == Key.Escape) { PalettePopup.IsOpen = false; e.Handled = true; return; }
         if (e.Key != Key.Enter) return;
-        if (PalettePopup.IsOpen && PaletteList.SelectedItem is PaletteEntry) { await RunPaletteAsync(); e.Handled = true; return; }
+        e.Handled = true;
+        if (PalettePopup.IsOpen && PaletteList.SelectedItem is PaletteEntry) { await GuardAsync(RunPaletteAsync); return; }
         var query = OmniBar.Text.Trim();
         if (string.IsNullOrEmpty(query)) return;
         await GuardAsync(() => HandleConnectQueryAsync(query));
@@ -642,6 +643,7 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private async Task ConnectHostAsync(Host host, TerminalTabItem? parent = null, Grid? splitGrid = null)
     {
+        if (EditorDirty() && !ConfirmDiscard()) return;
         var fields = new List<Field> { new("user", "Username", host.User) };
         if (host.DefaultAuthMethod == "password") fields.Add(new("password", "Password", Secret: true));
         else if (host.DefaultAuthMethod == "key" && !string.IsNullOrWhiteSpace(host.IdentityFile))
