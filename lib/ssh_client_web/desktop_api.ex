@@ -37,6 +37,22 @@ defmodule SSHClientWeb.DesktopAPI do
     result(conn, Desktop.hosts())
   end
 
+  get "/keys" do
+    result(conn, {:ok, SSHClient.DesktopKeys.list()})
+  end
+
+  post "/keys" do
+    result(conn, SSHClient.DesktopKeys.register(conn.body_params))
+  end
+
+  post "/keys/generate" do
+    result(conn, SSHClient.DesktopKeys.generate(conn.body_params))
+  end
+
+  delete "/keys/:id" do
+    result(conn, SSHClient.DesktopKeys.remove(id))
+  end
+
   post "/hosts" do
     result(conn, Desktop.save_host(conn.body_params))
   end
