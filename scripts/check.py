@@ -45,6 +45,7 @@ def main():
     print("Starting pre-flight verification...")
     
     env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
     if sys.platform == "win32":
         scoop_paths = [
             os.path.expanduser(r"~\scoop\apps\elixir\current\bin"),
@@ -83,6 +84,12 @@ def main():
     )
 
     # Step 5: Mix test suite
+    run_step(
+        "Windows UI Resource Regression Tests",
+        [sys.executable, os.path.join(REPO_ROOT, "scripts", "test_windows_ui_contract.py")],
+        env=env
+    )
+
     mix_cmd = resolve_mix_command(env=env)
     run_step(
         "Elixir Unit Tests (mix test)",

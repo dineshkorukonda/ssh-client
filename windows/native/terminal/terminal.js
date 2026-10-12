@@ -2,6 +2,10 @@ const terminal = new Terminal({fontFamily:'Consolas, monospace',fontSize:13,scro
 const fit = new FitAddon.FitAddon();
 terminal.loadAddon(fit); terminal.open(document.getElementById('terminal'));
 const send = message => window.chrome.webview.postMessage(message);
+terminal.attachCustomKeyEventHandler(event => {
+  if(event.ctrlKey && event.key.toLowerCase() === 'k') { if(event.type === 'keydown') send({type:'palette'}); return false; }
+  return true;
+});
 terminal.onData(data => send({type:'input',data}));
 terminal.onResize(({cols,rows}) => send({type:'resize',cols,rows}));
 new ResizeObserver(() => fit.fit()).observe(document.getElementById('terminal'));
@@ -9,6 +13,7 @@ window.chrome.webview.addEventListener('message',({data}) => {
   if(data.type === 'settings') {
     terminal.options.fontSize = data.settings.font_size || 13;
     terminal.options.scrollback = data.settings.scrollback || 1000;
+    terminal.options.theme = data.settings.theme === 'light' ? {background:'#ffffff',foreground:'#09090b'} : {background:'#000000',foreground:'#fafafa'};
     fit.fit();
   }
   if(data.type === 'output') {

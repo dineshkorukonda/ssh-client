@@ -242,6 +242,8 @@ defmodule SSHClient.Config.Server do
     case val do
       :password -> :password
       "password" -> :password
+      :keyboard_interactive -> :keyboard_interactive
+      "keyboard_interactive" -> :keyboard_interactive
       _ -> :key
     end
   end

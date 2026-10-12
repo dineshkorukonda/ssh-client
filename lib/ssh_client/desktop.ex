@@ -131,6 +131,9 @@ defmodule SSHClient.Desktop do
           "delete" ->
             SFTP.delete_file(channel, attrs["path"])
 
+          "mkdir" ->
+            SFTP.make_dir(channel, attrs["path"])
+
           _ ->
             {:error, :unknown_action}
         end
@@ -143,7 +146,12 @@ defmodule SSHClient.Desktop do
   def settings, do: Store.get(:preferences, "native-desktop") || %{}
 
   def save_settings(attrs),
-    do: Store.put(:preferences, "native-desktop", Map.take(attrs, ~w(font_size scrollback)))
+    do:
+      Store.put(
+        :preferences,
+        "native-desktop",
+        Map.take(attrs, ~w(font_size scrollback theme reduced_motion))
+      )
 
   def workspace, do: Store.get(:workspaces, "native-desktop") || %{"host_ids" => []}
 
@@ -153,8 +161,101 @@ defmodule SSHClient.Desktop do
     end)
   end
 
-  def save_workspace(attrs),
-    do: Store.put(:workspaces, "native-desktop", Map.take(attrs, ~w(host_ids)))
+  def save_workspace(attrs) do
+    layouts = attrs["layouts"] || []
+
+    if is_list(layouts) and length(layouts) <= 100 and
+         Enum.all?(layouts, fn entry ->
+           is_map(entry) and is_binary(entry["host_id"]) and
+             entry["host_id"] in (attrs["host_ids"] || []) and is_integer(entry["panes"]) and
+             entry["panes"] in 1..8
+         end) do
+      Store.put(
+        :workspaces,
+        attrs["id"] || "native-desktop",
+        Map.take(attrs, ~w(id name host_ids layouts))
+      )
+    else
+      {:error, :invalid_workspace}
+    end
+  end
+
+  def import_file(attrs) do
+    path = attrs["path"]
+
+    if is_binary(path) and byte_size(path) in 1..4096 do
+      with {:ok, stat} <- File.stat(path),
+           true <- stat.size <= 2_000_000,
+           {:ok, data} <- File.read(path),
+           {:ok, records} <- import_records(data, attrs["type"]),
+           {:ok, servers} <- validate_import(records),
+           {:ok, existing} <- hosts() do
+        endpoints = MapSet.new(Enum.map(existing, &{&1["host"], &1["user"], &1["port"]}))
+        ids = MapSet.new(Enum.map(existing, & &1["id"]))
+
+        fresh =
+          Enum.reject(
+            servers,
+            &(MapSet.member?(endpoints, {&1.host, &1.user, &1.port}) or MapSet.member?(ids, &1.id))
+          )
+          |> Enum.uniq_by(& &1.id)
+
+        Enum.reduce_while(fresh, {:ok, %{imported: 0}}, fn server, {:ok, result} ->
+          case Store.put(:hosts, server.id, Store.host_document(server)) do
+            :ok -> {:cont, {:ok, %{imported: result.imported + 1}}}
+            error -> {:halt, error}
+          end
+        end)
+      else
+        false -> {:error, "Host import files must be smaller than 2 MB."}
+        error -> error
+      end
+    else
+      {:error, :invalid_path}
+    end
+  end
+
+  defp import_records(data, "ssh_config") do
+    records =
+      SSHClient.SSH.ConfigImporter.parse_string(data)
+      |> Enum.map(fn host ->
+        %{
+          "id" => host.id,
+          "name" => host.name,
+          "host" => host.address,
+          "user" => host.user,
+          "port" => host.port,
+          "identity_file" => host.identity_file,
+          "proxy_jump" => host.jump_host
+        }
+      end)
+
+    {:ok, records}
+  end
+
+  defp import_records(data, "json") do
+    case Jason.decode(data) do
+      {:ok, records} when is_list(records) and length(records) <= 1000 -> {:ok, records}
+      _ -> {:error, :invalid_import_file}
+    end
+  end
+
+  defp import_records(_, _), do: {:error, :invalid_import_type}
+
+  defp validate_import(records) do
+    Enum.reduce_while(records, {:ok, []}, fn attrs, {:ok, acc} ->
+      if is_map(attrs) do
+        case with :ok <- validate_host(attrs), do: Server.from_map(Map.take(attrs, @host_fields)) do
+          {:ok, server} -> {:cont, {:ok, acc ++ [server]}}
+          error -> {:halt, error}
+        end
+      else
+        {:halt, {:error, :invalid_host}}
+      end
+    end)
+  rescue
+    _ -> {:error, :invalid_host}
+  end
 
   def backup(destination \\ nil) do
     destination =
