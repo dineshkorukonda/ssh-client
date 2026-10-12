@@ -17,6 +17,7 @@ public sealed class Host
     public string[] Tags { get; set; } = [];
     public string Notes { get; set; } = "";
     public bool Favorite { get; set; }
+    public string? LastConnectedAt { get; set; }
     public string Description => $"{User}@{Address}:{Port}";
 
     [JsonExtensionData]
@@ -70,6 +71,7 @@ public sealed class Host
         Tags = (string[])Tags.Clone(),
         Notes = Notes,
         Favorite = Favorite,
+        LastConnectedAt = LastConnectedAt,
         Extra = Extra != null ? new Dictionary<string, JsonElement>(Extra) : null
     };
 }

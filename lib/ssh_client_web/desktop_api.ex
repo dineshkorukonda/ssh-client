@@ -183,7 +183,9 @@ defmodule SSHClientWeb.DesktopAPI do
     attrs = conn.body_params
 
     if is_integer(attrs["font_size"]) and attrs["font_size"] in 8..32 and
-         is_integer(attrs["scrollback"]) and attrs["scrollback"] in 100..100_000 do
+         is_integer(attrs["scrollback"]) and attrs["scrollback"] in 100..100_000 and
+         (is_nil(attrs["theme"]) or attrs["theme"] in ["dark", "light"]) and
+         (is_nil(attrs["reduced_motion"]) or is_boolean(attrs["reduced_motion"])) do
       result(conn, Desktop.save_settings(attrs))
     else
       result(conn, {:error, :invalid_settings})
@@ -192,6 +194,14 @@ defmodule SSHClientWeb.DesktopAPI do
 
   post "/backup" do
     result(conn, Desktop.backup())
+  end
+
+  get "/export" do
+    result(conn, Desktop.hosts())
+  end
+
+  post "/import" do
+    result(conn, Desktop.import_file(conn.body_params))
   end
 
   get "/workspace" do
@@ -206,7 +216,11 @@ defmodule SSHClientWeb.DesktopAPI do
     ids = conn.body_params["host_ids"]
 
     if is_list(ids) and length(ids) <= 100 and
-         Enum.all?(ids, &(is_binary(&1) and byte_size(&1) <= 4096)),
+         Enum.all?(ids, &(is_binary(&1) and byte_size(&1) <= 4096)) and
+         (is_nil(conn.body_params["id"]) or
+            (is_binary(conn.body_params["id"]) and byte_size(conn.body_params["id"]) in 1..100)) and
+         (is_nil(conn.body_params["name"]) or
+            (is_binary(conn.body_params["name"]) and byte_size(conn.body_params["name"]) in 1..200)),
        do: result(conn, Desktop.save_workspace(conn.body_params)),
        else: result(conn, {:error, :invalid_workspace})
   end

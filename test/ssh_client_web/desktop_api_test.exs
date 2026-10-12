@@ -74,6 +74,82 @@ defmodule SSHClientWeb.DesktopAPITest do
     assert request(:get, "/hosts").resp_body == "[]"
   end
 
+  test "preferences retain theme and motion while rejecting invalid values" do
+    assert request(:post, "/settings", %{
+             font_size: 16,
+             scrollback: 5000,
+             theme: "light",
+             reduced_motion: true
+           }).status == 200
+
+    settings = Jason.decode!(request(:get, "/settings").resp_body)
+    assert settings["theme"] == "light"
+    assert settings["reduced_motion"] == true
+
+    assert request(:post, "/settings", %{font_size: 16, scrollback: 5000, theme: "invalid"}).status ==
+             422
+
+    assert Jason.decode!(request(:get, "/settings").resp_body) == settings
+  end
+
+  test "named workspaces preserve layout without secrets and reject malformed panes" do
+    id = "layout-#{System.unique_integer([:positive])}"
+    on_exit(fn -> SSHClient.Store.delete(:workspaces, id) end)
+
+    attrs = %{
+      id: id,
+      name: "Production",
+      host_ids: ["server"],
+      layouts: [%{host_id: "server", panes: 2}],
+      password: "excluded"
+    }
+
+    assert request(:post, "/workspace", attrs).status == 200
+
+    workspace =
+      request(:get, "/workspaces").resp_body |> Jason.decode!() |> Enum.find(&(&1["id"] == id))
+
+    assert workspace["layouts"] == [%{"host_id" => "server", "panes" => 2}]
+    refute Map.has_key?(workspace, "password")
+
+    assert request(
+             :post,
+             "/workspace",
+             Map.put(attrs, :layouts, [%{host_id: "server", panes: 99}])
+           ).status == 422
+  end
+
+  test "host imports preserve existing hosts, strip credentials and validate before writing" do
+    path =
+      Path.join(System.tmp_dir!(), "native-import-#{System.unique_integer([:positive])}.json")
+
+    on_exit(fn -> File.rm(path) end)
+
+    File.write!(
+      path,
+      Jason.encode!([
+        %{id: "imported", host: "imported.example", user: "deploy", password: "not-persisted"}
+      ])
+    )
+
+    assert request(:post, "/import", %{path: path, type: "json"}).status == 200
+    assert request(:get, "/export").resp_body =~ "imported.example"
+    refute request(:get, "/export").resp_body =~ "not-persisted"
+    File.write!(path, Jason.encode!([%{id: "imported", host: "replacement.example"}]))
+    assert request(:post, "/import", %{path: path, type: "json"}).status == 200
+    refute request(:get, "/hosts").resp_body =~ "replacement.example"
+
+    File.write!(
+      path,
+      Jason.encode!([%{id: "partial", host: "valid.example"}, %{id: "invalid", host: ""}])
+    )
+
+    assert request(:post, "/import", %{path: path, type: "json"}).status == 422
+    refute request(:get, "/hosts").resp_body =~ "valid.example"
+    File.write!(path, "123")
+    assert request(:post, "/import", %{path: path, type: "json"}).status == 422
+  end
+
   test "invalid session dimensions, cursor, settings and file paths fail before dispatch" do
     assert request(:post, "/sessions/missing/resize", %{cols: -1, rows: 24}).status == 422
     assert request(:get, "/sessions/missing?since=invalid").status == 422
