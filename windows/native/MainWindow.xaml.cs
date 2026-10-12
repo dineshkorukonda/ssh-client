@@ -22,7 +22,7 @@ public partial class MainWindow : Window
     private Host? editingHost;
     private string currentPage = "dashboard";
     private readonly bool isPreview;
-    public bool IsUnlocked { get; private set; } = true;
+
 
     public MainWindow(DesktopClient? api, bool preview = false)
     {
@@ -34,52 +34,11 @@ public partial class MainWindow : Window
         {
             var icon = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
             if (MaximizeBtn != null) MaximizeBtn.Content = icon;
-            if (AuthMaximizeBtn != null) AuthMaximizeBtn.Content = icon;
+
         };
 
-        // Initialize default sample keys
-        keys.Add(new KeyEntry
-        {
-            Name = "id_ed25519_production",
-            Algorithm = "ED25519",
-            Fingerprint = "SHA256:4Kz8+y9xL0pQm2vR7wX1a9Zb5tC6eF8gH2jK4n",
-            PublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleProdKeyProduction2026 operator@internal",
-            AssociatedHostsCount = 18,
-            CreatedAt = "2026-01-14",
-            IsPassphraseProtected = true
-        });
-        keys.Add(new KeyEntry
-        {
-            Name = "aws_bastion_rsa4096",
-            Algorithm = "RSA-4096",
-            Fingerprint = "SHA256:8Rm1+p4vQ9xT2yL5wX8a0Zb3tC5eF7gH1jK3m",
-            PublicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDC7ExampleRsaKey2026 operator@aws",
-            AssociatedHostsCount = 12,
-            CreatedAt = "2026-02-02",
-            IsPassphraseProtected = true
-        });
-        keys.Add(new KeyEntry
-        {
-            Name = "staging_cluster_ed25519",
-            Algorithm = "ED25519",
-            Fingerprint = "SHA256:1Pn2+s5wR8uY3zM6vA9b1Xb4uD6eG8hJ2kL5o",
-            PublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIStagingClusterKeyExample2026 deploy@staging",
-            AssociatedHostsCount = 6,
-            CreatedAt = "2026-03-10",
-            IsPassphraseProtected = false
-        });
-        keys.Add(new KeyEntry
-        {
-            Name = "backup_dr_ed25519",
-            Algorithm = "ED25519",
-            Fingerprint = "SHA256:9Tx3+u6xS9vZ4aN7wB0c2Yc5vE7fH9iK3lM6p",
-            PublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBackupDrKeyExample2026 root@backup",
-            AssociatedHostsCount = 2,
-            CreatedAt = "2026-04-01",
-            IsPassphraseProtected = true
-        });
-
         if (KeysList != null) KeysList.ItemsSource = keys;
+        EditorIdentity.ItemsSource = keys;
         if (SidebarSessionsList != null) SidebarSessionsList.ItemsSource = openSessions;
 
         if (api != null)
@@ -122,20 +81,17 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     internal void ShowAuthForPreview()
     {
-        AuthGrid.Visibility = Visibility.Visible;
-        MainAppGrid.Visibility = Visibility.Collapsed;
+        ShowPage("settings");
     }
 
     internal void ShowDashboardForPreview()
     {
-        AuthGrid.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
         ShowPage("dashboard");
     }
 
     internal void ShowHostsForPreview()
     {
-        AuthGrid.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
         ShowPage("hosts");
         HostListGrid.Visibility = Visibility.Visible;
@@ -144,7 +100,6 @@ public partial class MainWindow : Window
 
     internal void ShowAddHostForPreview()
     {
-        AuthGrid.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
         ShowPage("hosts");
         OpenHostEditor(new Host { Port = 22, User = "root", DefaultAuthMethod = "key" });
@@ -152,14 +107,12 @@ public partial class MainWindow : Window
 
     internal void ShowSftpForPreview()
     {
-        AuthGrid.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
         ShowPage("sftp");
     }
 
     internal void ShowKeysForPreview()
     {
-        AuthGrid.Visibility = Visibility.Collapsed;
         MainAppGrid.Visibility = Visibility.Visible;
         ShowPage("keys");
     }
@@ -272,40 +225,26 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     // Authentication / Master Keyring Unlock
     // -------------------------------------------------------------
-    private void AuthUnlock_Click(object sender, RoutedEventArgs e)
-    {
-        var email = AuthEmailInput.Text.Trim();
-        var pass = AuthPasswordInput.Password;
-
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(pass))
-        {
-            MessageBox.Show(this, "Please provide your Account Email and Master Password.", "Authentication Required", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        IsUnlocked = true;
-        if (SettingsUserEmail != null) SettingsUserEmail.Text = email;
-        AuthGrid.Visibility = Visibility.Collapsed;
-        MainAppGrid.Visibility = Visibility.Visible;
-        ShowPage("dashboard");
-        if (StatusText != null) StatusText.Text = $"Master Vault Unlocked. Session: {email}";
-    }
-
-    private void AuthOffline_Click(object sender, RoutedEventArgs e)
-    {
-        IsUnlocked = true;
-        AuthGrid.Visibility = Visibility.Collapsed;
-        MainAppGrid.Visibility = Visibility.Visible;
-        ShowPage("dashboard");
-        if (StatusText != null) StatusText.Text = "Running in Local Offline Mode.";
-    }
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool LockWorkStation();
 
     private void LockVault_Click(object sender, RoutedEventArgs e)
     {
-        IsUnlocked = false;
-        MainAppGrid.Visibility = Visibility.Collapsed;
-        AuthGrid.Visibility = Visibility.Visible;
-        if (StatusText != null) StatusText.Text = "Master Vault Locked.";
+        if (!LockWorkStation()) StatusText.Text = "Windows could not lock this desktop. Use Windows+L.";
+    }
+
+    private void EditorAuth_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (EditorKeyPath == null) return;
+        var key = (EditorAuth.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "key";
+        EditorKeyPath.IsEnabled = key;
+        if (EditorIdentity != null) EditorIdentity.IsEnabled = key;
+    }
+
+    private void EditorIdentity_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (EditorIdentity.SelectedItem is KeyEntry key && key.PrivateKeyPath != null)
+            EditorKeyPath.Text = key.PrivateKeyPath;
     }
 
     // -------------------------------------------------------------
@@ -520,6 +459,8 @@ public partial class MainWindow : Window
         EditorPort.Text = host.Port.ToString();
         EditorUser.Text = string.IsNullOrWhiteSpace(host.User) ? "root" : host.User;
         EditorKeyPath.Text = host.IdentityFile ?? "";
+        EditorAuth.SelectedItem = EditorAuth.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Tag.ToString() == host.DefaultAuthMethod) ?? EditorAuth.Items[0];
+        EditorIdentity.SelectedItem = keys.FirstOrDefault(key => key.PrivateKeyPath == host.IdentityFile);
         EditorJump.Text = host.ProxyJump ?? "";
         EditorTags.Text = string.Join(", ", host.Tags);
         EditorNotes.Text = host.Notes;
@@ -568,6 +509,7 @@ public partial class MainWindow : Window
         editingHost.Address = address;
         editingHost.Port = port;
         editingHost.User = user;
+        editingHost.DefaultAuthMethod = ((ComboBoxItem)EditorAuth.SelectedItem).Tag.ToString()!;
         editingHost.IdentityFile = string.IsNullOrWhiteSpace(EditorKeyPath.Text) ? null : EditorKeyPath.Text.Trim();
         editingHost.ProxyJump = string.IsNullOrWhiteSpace(EditorJump.Text) ? null : EditorJump.Text.Trim();
         editingHost.Tags = EditorTags.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -637,62 +579,54 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     // Key Vault Page Logic
     // -------------------------------------------------------------
-    private void RegisterKey_Click(object sender, RoutedEventArgs e)
+    private async void RegisterKey_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = "Import SSH Key",
-            Filter = "Key Files (*.pub;*.pem;id_*;*.key)|*.pub;*.pem;id_*;*.key|All Files (*.*)|*.*"
-        };
-        if (picker.ShowDialog(this) == true)
-        {
-            var newKey = new KeyEntry
-            {
-                Name = Path.GetFileNameWithoutExtension(picker.FileName),
-                Algorithm = picker.FileName.Contains("ed25519", StringComparison.OrdinalIgnoreCase) ? "ED25519" : "RSA-4096",
-                Fingerprint = "SHA256:" + Guid.NewGuid().ToString("n")[..20],
-                PrivateKeyPath = picker.FileName,
-                AssociatedHostsCount = 1
-            };
-            keys.Add(newKey);
-            UpdateDashboardMetrics();
-            if (StatusText != null) StatusText.Text = $"Registered new key: {newKey.Name}";
-        }
+        if (api == null) return;
+        var picker = new Microsoft.Win32.OpenFileDialog { Title = "Import SSH identity", Filter = "All SSH key files|*.*" };
+        if (picker.ShowDialog(this) != true) return;
+        var dialog = new FormDialog(this, "Import SSH identity", [new("name", "Name", Path.GetFileName(picker.FileName)), new("passphrase", "Passphrase (only for an encrypted private key)", Secret: true)], "Import", "The file is inspected locally. Private key contents and passphrases are never saved in the app database.");
+        if (dialog.ShowDialog() != true) return;
+        await GuardAsync(async () => {
+            await api.PostAsync("keys", new { path = picker.FileName, name = dialog.Values["name"], passphrase = dialog.Values["passphrase"] });
+            await RefreshKeysAsync();
+            StatusText.Text = "SSH identity imported.";
+        });
     }
 
-    private void GenerateKeypair_Click(object sender, RoutedEventArgs e)
+    private async void GenerateKeypair_Click(object sender, RoutedEventArgs e)
     {
-        var generated = new KeyEntry
-        {
-            Name = "generated_ed25519_" + DateTime.UtcNow.ToString("yyyyMMdd"),
-            Algorithm = "ED25519",
-            Fingerprint = "SHA256:" + Guid.NewGuid().ToString("n")[..20],
-            PublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI" + Guid.NewGuid().ToString("n") + " operator@generated",
-            AssociatedHostsCount = 0
-        };
-        keys.Add(generated);
-        UpdateDashboardMetrics();
-        Clipboard.SetText(generated.PublicKey);
-        MessageBox.Show(this, $"Generated ED25519 keypair.\n\nPublic key copied to clipboard:\n{generated.PublicKey}", "Keypair Generated", MessageBoxButton.OK, MessageBoxImage.Information);
+        if (api == null) return;
+        var dialog = new FormDialog(this, "Generate SSH keypair", [new("algorithm", "Algorithm", "ED25519", Options: ["ED25519", "RSA-4096"]), new("name", "Name", "Personal identity")], "Choose destination", "Creates an unencrypted private-key file and its .pub companion. Protect these files with Windows file permissions. Existing keys are never overwritten.");
+        if (dialog.ShowDialog() != true) return;
+        var picker = new Microsoft.Win32.SaveFileDialog { Title = "New private-key destination", FileName = "id_ed25519", OverwritePrompt = true };
+        if (picker.ShowDialog(this) != true) return;
+        await GuardAsync(async () => {
+            await api.PostAsync("keys/generate", new { path = picker.FileName, algorithm = dialog.Values["algorithm"], name = dialog.Values["name"] });
+            await RefreshKeysAsync();
+            StatusText.Text = "Keypair generated. Private key stays in the selected file.";
+        });
     }
 
     private void CopyPubKey_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: KeyEntry key } && !string.IsNullOrEmpty(key.PublicKey))
-        {
-            Clipboard.SetText(key.PublicKey);
-            if (StatusText != null) StatusText.Text = $"Copied public key for {key.Name} to clipboard.";
-        }
+        { Clipboard.SetText(key.PublicKey); StatusText.Text = "Public key copied."; }
     }
 
-    private void RemoveKey_Click(object sender, RoutedEventArgs e)
+    private async void RemoveKey_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: KeyEntry key })
-        {
-            keys.Remove(key);
-            UpdateDashboardMetrics();
-            if (StatusText != null) StatusText.Text = $"Removed key {key.Name}";
-        }
+        if (api == null || sender is not Button { Tag: KeyEntry key }) return;
+        if (MessageBox.Show(this, "Remove this identity from the app? The key files remain on disk.", "Remove identity", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        await GuardAsync(async () => { await api.RequestAsync(HttpMethod.Delete, "keys/" + key.Id); await RefreshKeysAsync(); });
+    }
+
+    private async Task RefreshKeysAsync()
+    {
+        if (api == null) return;
+        var loaded = (await api.GetAsync("keys")).Deserialize<List<KeyEntry>>(DesktopClient.Json) ?? [];
+        keys.Clear();
+        foreach (var key in loaded) keys.Add(key);
+        UpdateDashboardMetrics();
     }
 
     // -------------------------------------------------------------
@@ -756,16 +690,22 @@ public partial class MainWindow : Window
     private async Task ConnectHostAsync(Host host)
     {
         var fields = new List<Field> { new("user", "Username", host.User) };
-        fields.Add(host.DefaultAuthMethod == "password"
-            ? new("password", "Password", Secret: true)
-            : new("passphrase", "Key Passphrase (if encrypted)", Secret: true));
+        if (host.DefaultAuthMethod == "password") fields.Add(new("password", "Password", Secret: true));
+        else if (host.DefaultAuthMethod == "key" && !string.IsNullOrWhiteSpace(host.IdentityFile))
+        {
+            if (File.Exists(host.IdentityFile) && File.ReadAllText(host.IdentityFile).Contains("ENCRYPTED", StringComparison.OrdinalIgnoreCase))
+                fields.Add(new("passphrase", "Private-key passphrase", Secret: true));
+            else if (File.Exists(host.IdentityFile) && File.ReadAllText(host.IdentityFile).Contains("OPENSSH PRIVATE KEY", StringComparison.Ordinal))
+                fields.Add(new("passphrase", "Key passphrase (leave empty for an unencrypted key)", Secret: true));
+        }
 
         if (!string.IsNullOrWhiteSpace(host.ProxyJump))
         {
             fields.AddRange([
                 new("jump_user", "Jump-host Username (optional)"),
                 new("jump_password", "Jump-host Password (optional)", Secret: true),
-                new("jump_identity", "Jump-host Private Key (optional)", File: true)
+                new("jump_identity_file", "Jump-host Private Key (optional)", File: true),
+                new("jump_passphrase", "Jump-host Key Passphrase (optional)", Secret: true)
             ]);
         }
 
@@ -773,10 +713,7 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() != true) return;
 
         var values = dialog.Values;
-        var attrs = JsonSerializer.SerializeToElement(host, DesktopClient.Json).Deserialize<Dictionary<string, object?>>()!;
-        attrs["user"] = values["user"];
-        if (values.TryGetValue("password", out var pass) && !string.IsNullOrEmpty(pass)) attrs["password"] = pass;
-        if (values.TryGetValue("passphrase", out var phr) && !string.IsNullOrEmpty(phr)) attrs["passphrase"] = phr;
+        var attrs = ConnectionRequest.Build(host, values);
 
         if (api != null)
         {
@@ -944,6 +881,7 @@ public partial class MainWindow : Window
     private async Task InitializeAsync()
     {
         await RefreshAsync();
+        await RefreshKeysAsync();
         UpdateDashboardMetrics();
     }
 

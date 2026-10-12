@@ -14,87 +14,6 @@
     <!-- ===================================================================== -->
     <!-- 1. AUTHENTICATION / MASTER VAULT UNLOCK (Email + Password)           -->
     <!-- ===================================================================== -->
-    <Grid x:Name="AuthGrid" Visibility="Collapsed" Background="{DynamicResource CardLow}">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="38"/>
-        <RowDefinition Height="32"/>
-        <RowDefinition Height="*"/>
-      </Grid.RowDefinitions>
-
-      <!-- Auth Window Titlebar -->
-      <Grid Grid.Row="0" Background="{DynamicResource Surface}">
-        <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"/>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
-          <Border Background="{DynamicResource CardLow}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,8,0">
-            <TextBlock Text="SSH" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
-          </Border>
-          <TextBlock Text="ssh-client" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-          <TextBlock Text=" / " Foreground="{DynamicResource MutedSubtle}" Margin="4,0" VerticalAlignment="Center"/>
-          <TextBlock Text="v2.4 (x64) • Master Vault Lock" Foreground="{DynamicResource Muted}" FontSize="11" VerticalAlignment="Center"/>
-        </StackPanel>
-        
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" WindowChrome.IsHitTestVisibleInChrome="True">
-          <Button Content="&#xE921;" Click="Minimize_Click" Style="{StaticResource CaptionButton}"/>
-          <Button x:Name="AuthMaximizeBtn" Content="&#xE922;" Click="Maximize_Click" Style="{StaticResource CaptionButton}"/>
-          <Button Content="&#xE8BB;" Click="Close_Click" Style="{StaticResource CloseCaptionButton}"/>
-        </StackPanel>
-      </Grid>
-
-      <!-- Subheader Breadcrumb Strip -->
-      <Grid Grid.Row="1" Background="{DynamicResource Sidebar}">
-        <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"/>
-        <DockPanel Margin="16,0" VerticalAlignment="Center">
-          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="LOCAL://AUTH" FontFamily="{StaticResource MonoFont}" FontWeight="Bold" Foreground="{DynamicResource AccentCyan}" FontSize="11"/>
-            <TextBlock Text=" › " Foreground="{DynamicResource MutedSubtle}" FontSize="11"/>
-            <TextBlock Text="Master Keyring Unlock &amp; Local Vault" Foreground="{DynamicResource Text}" FontSize="11"/>
-          </StackPanel>
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-            <TextBlock Text="CIPHER: AES-256-GCM" FontFamily="{StaticResource MonoFont}" Foreground="{DynamicResource MutedSubtle}" FontSize="11" Margin="0,0,12,0"/>
-            <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="6,2">
-              <TextBlock Text="🔒 VAULT LOCKED" FontFamily="{StaticResource MonoFont}" FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" FontSize="10"/>
-            </Border>
-          </StackPanel>
-        </DockPanel>
-      </Grid>
-
-      <!-- Main Login Form Canvas -->
-      <Grid Grid.Row="2">
-        <Border Width="460" VerticalAlignment="Center" HorizontalAlignment="Center" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="10" Padding="32,28">
-          <StackPanel>
-            <!-- Header -->
-            <StackPanel HorizontalAlignment="Center" Margin="0,0,0,24">
-              <Border Background="{DynamicResource CardHover}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Width="44" Height="44" CornerRadius="4" HorizontalAlignment="Center" Margin="0,0,0,12">
-                <TextBlock Text="SSH" FontFamily="{StaticResource MonoFont}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource AccentCyan}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-              </Border>
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock Text="ssh-client" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource Text}"/>
-                <Border Background="{DynamicResource CardHover}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                  <TextBlock Text="PRO" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
-                </Border>
-              </StackPanel>
-              <TextBlock Text="Authenticate to access saved hosts, cryptographic keys &amp; vault" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,6,0,0" TextAlignment="Center" TextWrapping="Wrap"/>
-            </StackPanel>
-
-            <!-- Email / Account Identifier -->
-            <TextBlock Text="ACCOUNT IDENTIFIER / EMAIL" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" Margin="0,0,0,6"/>
-            <TextBox x:Name="AuthEmailInput" Text="operator@infrastructure.internal" Height="36" Margin="0,0,0,16"/>
-
-            <!-- Password -->
-            <TextBlock Text="MASTER PASSWORD / KEYRING PASSPHRASE" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" Margin="0,0,0,6"/>
-            <PasswordBox x:Name="AuthPasswordInput" Password="password123" Height="36" Margin="0,0,0,16"/>
-
-            <!-- Remember Option -->
-            <CheckBox x:Name="AuthRememberCheck" IsChecked="True" Content="Keep vault unlocked for this Windows session" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,20"/>
-
-            <!-- Unlock Button -->
-            <Button Content="Unlock Master Vault" Click="AuthUnlock_Click" Style="{StaticResource PrimaryButton}" Height="38" Margin="0,0,0,10"/>
-            <Button Content="Continue in Offline / Local Only Mode" Click="AuthOffline_Click" Style="{StaticResource GhostButton}" Height="34"/>
-          </StackPanel>
-        </Border>
-      </Grid>
-    </Grid>
-
     <!-- ===================================================================== -->
     <!-- 2. MAIN APPLICATION WORKSPACE                                         -->
     <!-- ===================================================================== -->
@@ -569,6 +488,14 @@
                         <TextBlock Text="Remote Username" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                         <TextBox x:Name="EditorUser" Text="root" Height="34" Margin="0,0,0,12"/>
 
+                        <TextBlock Text="Authentication method" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="EditorAuth" SelectedIndex="0" Margin="0,0,0,12" SelectionChanged="EditorAuth_Changed">
+                          <ComboBoxItem Content="Private key" Tag="key"/>
+                          <ComboBoxItem Content="Password" Tag="password"/>
+                          <ComboBoxItem Content="Keyboard interactive" Tag="keyboard_interactive"/>
+                        </ComboBox>
+                        <TextBlock Text="Registered identity (optional)" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="EditorIdentity" DisplayMemberPath="Name" SelectionChanged="EditorIdentity_Changed" Margin="0,0,0,12"/>
                         <TextBlock Text="Private Key File (OpenSSH / PEM)" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                         <DockPanel>
                           <Button Content="Browse..." Click="EditorBrowseKey_Click" Style="{StaticResource OutlineButton}" DockPanel.Dock="Right" Height="34" Width="80" Margin="8,0,0,0"/>
@@ -660,12 +587,12 @@
               <DockPanel DockPanel.Dock="Top" Margin="0,0,0,20">
                 <StackPanel VerticalAlignment="Center">
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Key Vault &amp; Cryptographic Manager" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                    <TextBlock Text="SSH keys" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
                     <Border Background="{DynamicResource CardHover}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
                       <TextBlock Text="ED25519 &amp; RSA-4096" FontFamily="{StaticResource MonoFont}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
                     </Border>
                   </StackPanel>
-                  <TextBlock Text="Manage, inspect, and deploy hardware &amp; software SSH keys across infrastructure" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,3,0,0"/>
+                  <TextBlock Text="Private keys stay in their selected files. Only public keys and file paths are saved here." Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,3,0,0"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -755,12 +682,9 @@
                 <!-- Identity & Lock Vault Card -->
                 <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                   <StackPanel>
-                    <TextBlock Text="SECURITY &amp; MASTER VAULT" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Muted}" Margin="0,0,0,14"/>
-                    <DockPanel Margin="0,0,0,12">
-                      <TextBlock Text="Logged in as: " Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
-                      <TextBlock x:Name="SettingsUserEmail" Text="operator@infrastructure.internal" FontFamily="{StaticResource MonoFont}" FontWeight="Bold" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
-                      <Button Content="🔒 Lock Master Vault" Click="LockVault_Click" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Foreground="{DynamicResource AccentYellow}"/>
-                    </DockPanel>
+                    <TextBlock Text="LOCAL SESSION SECURITY" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <TextBlock Text="Passwords and key passphrases are entered for each connection and kept in memory. This app has no cloud account or master vault. Locking Windows protects access to the desktop; SSH sessions continue until disconnected or the app closes." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <Button Content="Lock Windows" Click="LockVault_Click" Style="{StaticResource OutlineButton}" HorizontalAlignment="Left"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
