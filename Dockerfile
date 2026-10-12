@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM elixir:1.18.2-slim AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV MIX_ENV=prod
 RUN mix local.hex --force && mix local.rebar --force
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 curl
     && mkdir -p /app /data && chown nobody:nogroup /app /data
 WORKDIR /app
 COPY --from=builder --chown=nobody:nogroup /app/_build/prod/rel/ssh_client ./
-ENV HOME=/data XDG_CONFIG_HOME=/data SSH_CLIENT_PORT=4000 SSH_CLIENT_BIND_IP=0.0.0.0
+ENV HOME=/data XDG_CONFIG_HOME=/data SSH_CLIENT_PORT=4000 SSH_CLIENT_BIND_IP=0.0.0.0 RELEASE_DISTRIBUTION=none
 USER nobody
 EXPOSE 4000
 HEALTHCHECK --interval=15s --start-period=30s --timeout=3s CMD curl -fsS http://127.0.0.1:4000/health || exit 1
