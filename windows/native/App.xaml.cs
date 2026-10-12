@@ -108,7 +108,8 @@ public partial class App : Application
                     await Task.Delay(100);
                 }
                 if (!screen.Contains("echo:native-smoke")) throw new IOException("Native terminal failed to render remote output: " + screen);
-                var local = Path.Combine(Path.GetDirectoryName(report)!, "native-upload.txt");
+                var local = Path.Combine(Path.GetDirectoryName(report)!, "client-files", "native-upload.txt");
+                Directory.CreateDirectory(Path.GetDirectoryName(local)!);
                 var downloaded = Path.Combine(Path.GetDirectoryName(report)!, "native-download.txt");
                 File.WriteAllText(local, "native-transfer-content");
                 await api.PostAsync($"files/{id}/upload", new { path = "native-roundtrip.txt", local_path = local });
@@ -239,3 +240,4 @@ public partial class App : Application
         base.OnExit(e);
     }
 }
+
