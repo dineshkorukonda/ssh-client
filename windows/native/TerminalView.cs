@@ -12,6 +12,8 @@ public sealed class TerminalView : Grid, IDisposable
     private readonly DesktopClient api;
     private readonly Window owner;
     private readonly Action<string> status;
+    private readonly Action<string>? stateChanged;
+    public bool IsDisposed { get; private set; }
     private readonly WebView2 web = new();
     private readonly CancellationTokenSource stop = new();
     private long cursor;
@@ -22,9 +24,9 @@ public sealed class TerminalView : Grid, IDisposable
     private readonly TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Ready => completion.Task;
     public string SessionId { get; }
-    public TerminalView(DesktopClient api, string id, Window owner, Action<string> status)
+    public TerminalView(DesktopClient api, string id, Window owner, Action<string> status, Action<string>? stateChanged = null)
     {
-        this.api = api; SessionId = id; this.owner = owner; this.status = status;
+        this.api = api; SessionId = id; this.owner = owner; this.status = status; this.stateChanged = stateChanged;
         Children.Add(web);
         Loaded += async (_, _) =>
         {
@@ -122,9 +124,11 @@ public sealed class TerminalView : Grid, IDisposable
                 web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "output", snapshot }));
                 cursor = snapshot.GetProperty("cursor").GetInt64();
                 var state = snapshot.GetProperty("status").GetString();
+                stateChanged?.Invoke(state switch { "connected" => "Connected", "connecting" => "Connecting", "error" => "Failed", "disconnected" => "Disconnected", _ => state ?? "Unknown" });
                 status(state == "error" ? snapshot.GetProperty("error").GetString() ?? "Connection failed" : state ?? "");
                 if (snapshot.TryGetProperty("host_key_prompt", out var prompt) && prompt.ValueKind == JsonValueKind.Object)
                 {
+                    stateChanged?.Invoke("Awaiting host approval");
                     var details = prompt.GetProperty("details");
                     var changed = prompt.GetProperty("type").GetString() == "host_key_changed";
                     var fingerprint = details.GetProperty(changed ? "new_fingerprint" : "fingerprint").GetString();
@@ -136,6 +140,7 @@ public sealed class TerminalView : Grid, IDisposable
                 }
                 if (snapshot.TryGetProperty("auth_prompt", out var auth) && auth.ValueKind == JsonValueKind.Object)
                 {
+                    stateChanged?.Invoke("Awaiting authentication");
                     var prompts = auth.GetProperty("prompts").EnumerateArray().ToArray();
                     var fields = prompts.Select((p, i) => new Field(i.ToString(), p.GetProperty("text").GetString()!, Secret: !p.GetProperty("echo").GetBoolean()));
                     var dialog = new FormDialog(owner, "SSH authentication", fields, "Continue", auth.GetProperty("instruction").GetString());
@@ -145,12 +150,12 @@ public sealed class TerminalView : Grid, IDisposable
                 }
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception error) { status(error.Message); }
+            catch (Exception error) { stateChanged?.Invoke("Backend unavailable"); status(error.Message); }
             try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { break; }
         }
     }
 
-    public void Dispose() { stop.Cancel(); web.Dispose(); }
+    public void Dispose() { if (IsDisposed) return; IsDisposed = true; stop.Cancel(); completion.TrySetCanceled(); web.Dispose(); }
 
     internal Task<string> SendSmokeInputAsync(string input) => web.CoreWebView2.ExecuteScriptAsync("window.chrome.webview.postMessage(" + JsonSerializer.Serialize(new { type = "input", data = input }) + ");");
     internal async Task<string> ReadScreenAsync()

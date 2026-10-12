@@ -284,7 +284,7 @@ public partial class MainWindow : Window
         if (SidebarHostBadge != null) SidebarHostBadge.Text = hosts.Count.ToString();
         if (MetricKeysCount != null) MetricKeysCount.Text = keys.Count.ToString();
         if (SidebarKeysBadge != null) SidebarKeysBadge.Text = keys.Count.ToString();
-        if (MetricActiveSessions != null) MetricActiveSessions.Text = openSessions.Count.ToString();
+        if (MetricActiveSessions != null) MetricActiveSessions.Text = openSessions.Count(s => s.State == "Connected").ToString();
         if (ActiveTerminalsSection != null) ActiveTerminalsSection.Visibility = openSessions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         // OS Breakdown
@@ -687,7 +687,7 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     // SSH Session Connections & Tab Management
     // -------------------------------------------------------------
-    private async Task ConnectHostAsync(Host host)
+    private async Task ConnectHostAsync(Host host, TerminalTabItem? parent = null, Grid? splitGrid = null)
     {
         var fields = new List<Field> { new("user", "Username", host.User) };
         if (host.DefaultAuthMethod == "password") fields.Add(new("password", "Password", Secret: true));
@@ -719,7 +719,8 @@ public partial class MainWindow : Window
         {
             var result = await api.PostAsync("sessions", attrs);
             var sessionId = result.GetProperty("session_id").GetString()!;
-            AddTerminalTab(host.Name, sessionId, host);
+            if (parent != null && splitGrid != null) AddSplitPane(parent, splitGrid, sessionId);
+            else AddTerminalTab(host.Name, sessionId, host);
             hostBySession[sessionId] = host.Id;
         }
         else
@@ -731,10 +732,11 @@ public partial class MainWindow : Window
 
     private void AddTerminalTab(string title, string id, Host? host = null)
     {
-        var sessionItem = new TerminalTabItem { Title = title, SessionId = id };
+        var sessionItem = new TerminalTabItem { Title = title, SessionId = id, Host = host, State = api == null ? "Preview" : "Connecting" };
+        sessionItem.PaneIds.Add(id);
         openSessions.Add(sessionItem);
 
-        var tab = new TabItem();
+        var tab = new TabItem { Tag = sessionItem };
         var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
         var liveDot = new Border
         {
@@ -750,7 +752,8 @@ public partial class MainWindow : Window
 
         var closeBtn = new Button
         {
-            Content = "\u2715",
+            Content = "Close",
+            ToolTip = "Close this terminal and disconnect its SSH sessions",
             Style = (Style)Application.Current.Resources["GhostButton"],
             Padding = new Thickness(6, 0, 6, 0),
             Margin = new Thickness(10, 0, 0, 0),
@@ -777,7 +780,7 @@ public partial class MainWindow : Window
         DockPanel.SetDock(rightInfo, Dock.Right);
         rightInfo.Children.Add(new TextBlock
         {
-            Text = $"pty#{openSessions.Count - 1} • {id[..Math.Min(8, id.Length)]}",
+            Text = host?.Description ?? title,
             FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
             Foreground = (Brush)Application.Current.Resources["MutedSubtle"],
             FontSize = 11,
@@ -789,8 +792,11 @@ public partial class MainWindow : Window
         var disconnBtn = new Button { Content = "Disconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
         var reconnBtn = new Button { Content = "Reconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
         var sftpBtn = new Button { Content = "Files (SFTP)", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
-        var splitBtn = new Button { Content = "◫ Split Right", Style = (Style)Application.Current.Resources["GhostButton"] };
+        var splitBtn = new Button { Content = "Split right", Style = (Style)Application.Current.Resources["GhostButton"] };
 
+        disconnBtn.Click += async (_, _) => await GuardAsync(() => SessionActionAsync(sessionItem, "disconnect"));
+        reconnBtn.Click += async (_, _) => await GuardAsync(() => SessionActionAsync(sessionItem, "reconnect"));
+        sftpBtn.Click += (_, _) => OpenFiles(sessionItem);
         leftButtons.Children.Add(disconnBtn);
         leftButtons.Children.Add(reconnBtn);
         leftButtons.Children.Add(sftpBtn);
@@ -800,58 +806,127 @@ public partial class MainWindow : Window
         Grid.SetRow(toolBar, 0);
         rootGrid.Children.Add(toolBar);
 
-        // Terminal Grid
         var terminalGrid = new Grid();
-        terminalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        terminalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
-        terminalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
-
-        if (api != null)
-        {
-            var view = new TerminalView(api, id, this, text =>
-            {
-                if (SessionTabs.SelectedItem == tab && StatusText != null)
-                    StatusText.Text = $"{title}: {text}";
-            });
-            Grid.SetColumn(view, 0);
-            terminalGrid.Children.Add(view);
-            terminals.Add(view);
-        }
-        else
-        {
-            var mockTerm = new Border
-            {
-                Background = (Brush)Application.Current.Resources["CardLow"],
-                Padding = new Thickness(20),
-                Child = new TextBlock
-                {
-                    Text = $"Connected to {title} via SSHv2\nLinux 6.8.0-40-generic x86_64\n\noperator@{host?.Address ?? "server"}:~$ ",
-                    FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
-                    Foreground = (Brush)Application.Current.Resources["Text"],
-                    FontSize = 13
-                }
-            };
-            Grid.SetColumn(mockTerm, 0);
-            terminalGrid.Children.Add(mockTerm);
-        }
-
+        terminalGrid.ColumnDefinitions.Add(new ColumnDefinition());
+        AddSessionView(sessionItem, terminalGrid, id, 0);
+        splitBtn.Click += async (_, _) => {
+            if (sessionItem.Host != null && api != null)
+                await GuardAsync(() => ConnectHostAsync(sessionItem.Host, sessionItem, terminalGrid));
+        };
         Grid.SetRow(terminalGrid, 1);
         rootGrid.Children.Add(terminalGrid);
         tab.Content = rootGrid;
 
-        closeBtn.Click += (_, _) =>
-        {
-            SessionTabs.Items.Remove(tab);
-            openSessions.Remove(sessionItem);
-            UpdateDashboardMetrics();
-            if (SessionTabs.Items.Count == 0)
-                ShowPage("dashboard");
-        };
+        closeBtn.Click += async (_, _) => await GuardAsync(() => CloseSessionTabAsync(tab));
 
         SessionTabs.Items.Add(tab);
         SessionTabs.SelectedItem = tab;
         ShowPage("session");
         UpdateDashboardMetrics();
+    }
+
+    private void AddSessionView(TerminalTabItem item, Grid grid, string id, int column)
+    {
+        if (api == null)
+        {
+            grid.Children.Add(new TextBlock { Text = "Terminal preview. Connect a host to start a real session.", Margin = new Thickness(20) });
+            return;
+        }
+        var view = new TerminalView(api, id, this, message => {
+            if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem selected } && selected == item) StatusText.Text = message;
+        }, state => {
+            if (id == item.SessionId) item.State = state;
+            UpdateDashboardMetrics();
+        });
+        Grid.SetColumn(view, column);
+        grid.Children.Add(view);
+        item.Views.Add(view);
+        terminals.Add(view);
+    }
+
+    private void AddSplitPane(TerminalTabItem item, Grid grid, string id)
+    {
+        var column = grid.ColumnDefinitions.Count;
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+        var splitter = new GridSplitter { Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, ResizeDirection = GridResizeDirection.Columns, ResizeBehavior = GridResizeBehavior.PreviousAndNext };
+        Grid.SetColumn(splitter, column);
+        grid.Children.Add(splitter);
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        item.PaneIds.Add(id);
+        AddSessionView(item, grid, id, column + 1);
+        ShowPage("session");
+    }
+
+    private async Task SessionActionAsync(TerminalTabItem item, string action)
+    {
+        if (api == null) return;
+        foreach (var id in item.PaneIds.ToArray()) await api.PostAsync($"sessions/{id}/{action}", new { });
+    }
+
+    private void OpenFiles(TerminalTabItem item)
+    {
+        if (api != null && item.State == "Connected") new FilesWindow(api, item.SessionId) { Owner = this }.Show();
+        else StatusText.Text = "Connect this session before browsing remote files.";
+    }
+
+    private async Task CloseSessionTabAsync(TabItem tab)
+    {
+        if (tab.Tag is not TerminalTabItem item || item.Closing) return;
+        item.Closing = true;
+        try
+        {
+            foreach (var id in item.PaneIds.ToArray())
+            {
+                if (api != null) await api.RequestAsync(HttpMethod.Delete, "sessions/" + id);
+                item.PaneIds.Remove(id);
+                var view = item.Views.FirstOrDefault(v => v.SessionId == id);
+                if (view != null) { view.Dispose(); terminals.Remove(view); item.Views.Remove(view); }
+            }
+            hostBySession.Remove(item.SessionId);
+            SessionTabs.Items.Remove(tab);
+            openSessions.Remove(item);
+            UpdateDashboardMetrics();
+            if (SessionTabs.Items.Count == 0) ShowPage("hosts");
+        }
+        finally { item.Closing = false; }
+    }
+
+    internal TerminalView OpenSessionForSmoke(Host host, string id)
+    {
+        AddTerminalTab(host.Name, id, host);
+        return ((TerminalTabItem)((TabItem)SessionTabs.SelectedItem).Tag).Views.Single();
+    }
+
+    internal async Task VerifySessionLifecycleForSmokeAsync(Host host, string id)
+    {
+        if (api == null) throw new InvalidOperationException("Smoke requires a backend.");
+        var first = SessionTabs.Items.Cast<TabItem>().Single(tab => ((TerminalTabItem)tab.Tag).SessionId == id);
+        var firstItem = (TerminalTabItem)first.Tag;
+        var duplicateId = (await api.PostAsync("sessions", host)).GetProperty("session_id").GetString()!;
+        var duplicateView = OpenSessionForSmoke(host, duplicateId);
+        await duplicateView.Ready.WaitAsync(TimeSpan.FromSeconds(30));
+        SidebarSessionsList.SelectedItem = firstItem;
+        if (SessionTabs.SelectedItem != first) throw new IOException("Same-name sessions selected the wrong tab.");
+        var duplicate = SessionTabs.Items.Cast<TabItem>().Single(tab => ((TerminalTabItem)tab.Tag).SessionId == duplicateId);
+        await CloseSessionTabAsync(duplicate);
+        if (!duplicateView.IsDisposed || firstItem.Views.Single().IsDisposed) throw new IOException("Tab close disposed the wrong terminal.");
+        try { await api.GetAsync("sessions/" + duplicateId); throw new InvalidOperationException("Closed tab left its backend session alive."); }
+        catch (IOException) { }
+        await SessionActionAsync(firstItem, "disconnect");
+        await WaitSessionStateForSmokeAsync(id, "disconnected");
+        await SessionActionAsync(firstItem, "reconnect");
+        await WaitSessionStateForSmokeAsync(id, "connected");
+    }
+
+    private async Task WaitSessionStateForSmokeAsync(string id, string expected)
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            var snapshot = await api!.GetAsync("sessions/" + id);
+            if (snapshot.GetProperty("status").GetString() == expected) return;
+            await Task.Delay(100);
+        }
+        throw new IOException("Session did not reach " + expected);
     }
 
     private void SidebarSessions_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -860,7 +935,7 @@ public partial class MainWindow : Window
         {
             foreach (TabItem tab in SessionTabs.Items)
             {
-                if (tab.Header is StackPanel sp && sp.Children.OfType<TextBlock>().Any(tb => tb.Text == item.Title))
+                if (tab.Tag is TerminalTabItem session && session.SessionId == item.SessionId)
                 {
                     SessionTabs.SelectedItem = tab;
                     ShowPage("session");
@@ -872,7 +947,9 @@ public partial class MainWindow : Window
 
     private void SessionTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // Session switch handler
+        if (e.Source != SessionTabs) return;
+        if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem item })
+        { SidebarSessionsList.SelectedItem = item; StatusText.Text = item.Summary; }
     }
 
     // -------------------------------------------------------------
@@ -910,10 +987,4 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Maximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
-}
-
-public class TerminalTabItem
-{
-    public string Title { get; set; } = "";
-    public string SessionId { get; set; } = "";
 }

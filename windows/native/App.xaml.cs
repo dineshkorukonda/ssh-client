@@ -95,9 +95,9 @@ public partial class App : Application
                 if (connectionHost.Address != "127.0.0.1") throw new IOException("Edited host address was not persisted.");
                 var session = await api.PostAsync("sessions", connectionHost);
                 var id = session.GetProperty("session_id").GetString()!;
-                var window = new Window { Width = 800, Height = 500, ShowInTaskbar = false, Opacity = 0, WindowStyle = WindowStyle.None };
-                using var terminal = new TerminalView(api, id, window, _ => { });
-                window.Content = terminal; window.Show();
+                var window = new MainWindow(api) { ShowInTaskbar = false, Opacity = 0 };
+                window.Show();
+                var terminal = window.OpenSessionForSmoke(connectionHost, id);
                 await terminal.Ready.WaitAsync(TimeSpan.FromSeconds(30));
                 await terminal.SendSmokeInputAsync("native-smoke\r");
                 string screen = "";
@@ -115,6 +115,7 @@ public partial class App : Application
                 await api.PostAsync($"files/{id}/download", new { path = "native-roundtrip.txt", local_path = downloaded });
                 if (File.ReadAllText(downloaded) != "native-transfer-content") throw new IOException("Native SFTP content mismatch");
                 await api.PostAsync($"files/{id}/delete", new { path = "native-roundtrip.txt" });
+                await window.VerifySessionLifecycleForSmokeAsync(connectionHost, id);
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
                 File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, screen }));
                 window.Close(); Shutdown(0);
