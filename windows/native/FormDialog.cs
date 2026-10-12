@@ -9,12 +9,17 @@ public sealed class FormDialog : Window
 {
     private readonly Dictionary<string, Func<string>> readers = new();
     public Dictionary<string, string> Values => readers.ToDictionary(pair => pair.Key, pair => pair.Value());
-    public FormDialog(Window owner, string title, IEnumerable<Field> fields, string action = "Save", string? explanation = null)
+    public FormDialog(Window? owner, string title, IEnumerable<Field> fields, string action = "Save", string? explanation = null)
     {
-        Owner = owner; Title = title; Width = 480; SizeToContent = SizeToContent.Height;
+        if (owner != null && new System.Windows.Interop.WindowInteropHelper(owner).Handle != IntPtr.Zero)
+        {
+            try { Owner = owner; }
+            catch (InvalidOperationException) { }
+        }
+        Title = title; Width = 480; SizeToContent = SizeToContent.Height;
         Style = (Style)Application.Current.Resources["AppWindow"];
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
-        MaxHeight = Math.Min(850, SystemParameters.WorkArea.Height - 70); WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        MaxHeight = Math.Min(850, SystemParameters.WorkArea.Height - 70); WindowStartupLocation = WindowStartupLocation.CenterScreen;
         var root = new DockPanel { Margin = new Thickness(28) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 18, 0, 0) };
         var cancel = new Button { Content = "Cancel", IsCancel = true, Margin = new Thickness(0, 0, 10, 0) };
@@ -29,33 +34,48 @@ public sealed class FormDialog : Window
         if (explanation != null) contents.Children.Add(new TextBlock { Text = explanation, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 18) });
         foreach (var field in fields)
         {
-            contents.Children.Add(new TextBlock { Text = field.Label });
+            var label = new TextBlock { Text = field.Label, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) };
+            contents.Children.Add(label);
             if (field.Options != null)
             {
-                var input = new ComboBox { ItemsSource = field.Options, SelectedItem = field.Value, Margin = new Thickness(0, 6, 0, 16), Padding = new Thickness(11, 9, 11, 9) };
-                contents.Children.Add(input); readers[field.Key] = () => input.SelectedItem?.ToString() ?? field.Options[0];
+                var combo = new ComboBox { ItemsSource = field.Options, SelectedItem = field.Value != "" ? field.Value : field.Options.FirstOrDefault(), Margin = new Thickness(0, 0, 0, 14) };
+                contents.Children.Add(combo);
+                readers[field.Key] = () => combo.SelectedItem?.ToString() ?? "";
             }
             else if (field.Secret)
             {
-                var input = new PasswordBox { Password = field.Value };
-                contents.Children.Add(input); readers[field.Key] = () => input.Password;
+                var pass = new PasswordBox { Password = field.Value, Margin = new Thickness(0, 0, 0, 14) };
+                contents.Children.Add(pass);
+                readers[field.Key] = () => pass.Password;
+            }
+            else if (field.File)
+            {
+                var row = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
+                var browse = new Button { Content = "Browse", Margin = new Thickness(8, 0, 0, 0), Style = (Style)Application.Current.Resources["PrimaryButton"] };
+                var text = new TextBox { Text = field.Value };
+                browse.Click += (_, _) =>
+                {
+                    var picker = new OpenFileDialog { Title = "Select " + field.Label };
+                    if (picker.ShowDialog(this) == true) text.Text = picker.FileName;
+                };
+                DockPanel.SetDock(browse, Dock.Right);
+                row.Children.Add(browse); row.Children.Add(text);
+                contents.Children.Add(row);
+                readers[field.Key] = () => text.Text;
+            }
+            else if (field.Multiline)
+            {
+                var text = new TextBox { Text = field.Value, Height = 90, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) };
+                contents.Children.Add(text);
+                readers[field.Key] = () => text.Text;
             }
             else
             {
-                var input = new TextBox { Text = field.Value };
-                if (field.Multiline) { input.AcceptsReturn = true; input.TextWrapping = TextWrapping.Wrap; input.MinHeight = 72; }
-                if (field.File)
-                {
-                    var row = new DockPanel();
-                    var browse = new Button { Content = "Browse", Margin = new Thickness(8, 4, 0, 12) };
-                    browse.Click += (_, _) => { var picker = new OpenFileDialog(); if (picker.ShowDialog(this) == true) input.Text = picker.FileName; };
-                    DockPanel.SetDock(browse, Dock.Right); row.Children.Add(browse); row.Children.Add(input); contents.Children.Add(row);
-                }
-                else contents.Children.Add(input);
-                readers[field.Key] = () => input.Text;
+                var text = new TextBox { Text = field.Value, Margin = new Thickness(0, 0, 0, 14) };
+                contents.Children.Add(text);
+                readers[field.Key] = () => text.Text;
             }
         }
-        root.Children.Add(new ScrollViewer { Content = contents, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        Content = new Border { Background = (Brush)Application.Current.Resources["Surface"], BorderBrush = (Brush)Application.Current.Resources["Border"], BorderThickness = new Thickness(1), Child = root };
+        root.Children.Add(contents); Content = root;
     }
 }
