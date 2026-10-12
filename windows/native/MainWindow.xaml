@@ -4,7 +4,7 @@
         Title="ssh-client" Height="820" Width="1280" MinHeight="620" MinWidth="960"
         Style="{StaticResource AppWindow}"
         WindowStyle="None" AllowsTransparency="False"
-        Loaded="Window_Loaded">
+        Loaded="Window_Loaded" PreviewKeyDown="Window_KeyDown">
   <WindowChrome.WindowChrome>
     <WindowChrome CaptionHeight="38" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
   </WindowChrome.WindowChrome>
@@ -76,6 +76,15 @@
         </Grid>
       </Grid>
 
+      <Popup x:Name="PalettePopup" PlacementTarget="{Binding ElementName=OmniBar}" Placement="Bottom" StaysOpen="True" AllowsTransparency="True">
+        <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="12" CornerRadius="6" Width="480">
+          <StackPanel>
+            <TextBlock Text="Hosts and commands" FontWeight="Bold" Margin="0,0,0,8"/>
+            <ListBox x:Name="PaletteList" MaxHeight="320" DisplayMemberPath="Label" MouseDoubleClick="PaletteRun_Click" KeyDown="Palette_KeyDown"/>
+            <TextBlock Text="Arrow keys to select. Enter to run. Escape to close." Foreground="{DynamicResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+      </Popup>
       <!-- Main Body: Sidebar + Multi-Page Content Area -->
       <Grid Grid.Row="1">
         <Grid.ColumnDefinitions>
@@ -354,6 +363,7 @@
                     <TextBlock Text="Hosts Inventory" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Text}"/>
                     <TextBlock x:Name="HostCount" Text="0 configured hosts" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,2,0,0"/>
                   </StackPanel>
+                  <Button Content="Import SSH config" Click="ImportSshConfig_Click" HorizontalAlignment="Right" Margin="8,0"/>
                   <Button Content="+ New host" Click="NewHost_Click" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Height="32" Padding="14,0"/>
                 </DockPanel>
 
@@ -372,6 +382,7 @@
                   </Grid>
                 </DockPanel>
 
+                <TextBlock x:Name="HostsEmpty" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,12" Visibility="Collapsed"/>
                 <!-- Hosts List -->
                 <ListBox x:Name="Hosts" SelectionChanged="Hosts_SelectionChanged">
                   <ListBox.ItemTemplate>
@@ -450,6 +461,15 @@
 
             <!-- Full-Page Host Editor Mode -->
             <Grid x:Name="HostEditorGrid" Visibility="Collapsed" Background="{DynamicResource Surface}">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Margin="24,12">
+                  <TextBlock x:Name="EditorError" Foreground="{DynamicResource AccentYellow}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                  <WrapPanel>
+                    <Button Content="Save host" Click="EditorSave_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
+                    <Button Content="Save and connect" Click="EditorSaveAndConnect_Click" Margin="0,0,12,0"/>
+                    <Button Content="Cancel" Click="EditorCancel_Click"/>
+                  </WrapPanel>
+                </StackPanel>
               <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Border MaxWidth="720" Margin="32,24" HorizontalAlignment="Left" Width="680">
                   <StackPanel>
@@ -505,6 +525,7 @@
                     </Border>
 
                     <!-- Section 3: Advanced Details -->
+                    <Expander Header="Advanced options" Margin="0,0,0,16">
                     <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,24">
                       <StackPanel>
                         <TextBlock Text="ADVANCED &amp; PROXY" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/>
@@ -518,15 +539,13 @@
                         <TextBox x:Name="EditorNotes" Height="60" AcceptsReturn="True" TextWrapping="Wrap"/>
                       </StackPanel>
                     </Border>
+                    </Expander>
 
-                    <!-- Bottom Actions -->
-                    <StackPanel Orientation="Horizontal">
-                      <Button Content="Save Host" Click="EditorSave_Click" Style="{StaticResource PrimaryButton}" Height="36" Width="120" Margin="0,0,12,0"/>
-                      <Button Content="Cancel" Click="EditorCancel_Click" Style="{StaticResource OutlineButton}" Height="36" Width="100"/>
-                    </StackPanel>
+
                   </StackPanel>
                 </Border>
               </ScrollViewer>
+              </DockPanel>
             </Grid>
           </Grid>
 
@@ -631,7 +650,10 @@
                       <!-- Light Bauhaus Edition -->
                       <Button Content="○ Light Bauhaus Edition" Click="SetLightTheme_Click" Style="{StaticResource OutlineButton}" Height="38" Padding="16,0"/>
                     </StackPanel>
-                    <TextBlock Text="Switch between Terminal Core Obsidian (Dark) and Bauhaus Neo-brutalist (Light) design systems." Foreground="{DynamicResource MutedSubtle}" FontSize="11"/>
+                    <CheckBox x:Name="ReducedMotion" Content="Reduce animations" Margin="0,8"/>
+                    <TextBlock x:Name="SettingsError" TextWrapping="Wrap" Foreground="{DynamicResource AccentYellow}"/>
+                    <Button Content="Save preferences" Click="SaveSettings_Click" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+
                   </StackPanel>
                 </Border>
 
@@ -657,6 +679,20 @@
                   </StackPanel>
                 </Border>
 
+                <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="20" Margin="0,0,0,16" CornerRadius="8">
+                  <StackPanel>
+                    <TextBlock Text="WORKSPACES AND DATA" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <ComboBox x:Name="WorkspaceList" DisplayMemberPath="Name" Margin="0,0,0,12"/>
+                    <WrapPanel>
+                      <Button Content="Save workspace" Click="SaveWorkspace_Click" Margin="0,0,8,8"/>
+                      <Button Content="Restore workspace" Click="RestoreWorkspace_Click" Margin="0,0,8,8"/>
+                      <Button Content="Back up databases" Click="Backup_Click" Margin="0,0,8,8"/>
+                      <Button Content="Export hosts" Click="ExportHosts_Click" Margin="0,0,8,8"/>
+                      <Button Content="Import hosts" Click="ImportHosts_Click" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                    <TextBlock Text="Restore reconnects saved hosts after confirmation and prompts for credentials. Backups contain host, workspace, public-key metadata and preferences; private-key files and connection passwords are excluded." TextWrapping="Wrap" Foreground="{DynamicResource Muted}"/>
+                  </StackPanel>
+                </Border>
                 <!-- Identity & Lock Vault Card -->
                 <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                   <StackPanel>
@@ -676,6 +712,14 @@
         </Grid>
       </Grid>
 
+      <Border x:Name="RecoveryPanel" Grid.Row="1" VerticalAlignment="Top" Panel.ZIndex="10" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="16" Margin="220,12,20,0" Visibility="Collapsed">
+        <StackPanel><TextBlock x:Name="RecoveryMessage" TextWrapping="Wrap" Margin="0,0,0,10"/><WrapPanel>
+          <Button Content="Retry" Click="RetryOperation_Click" Margin="0,0,8,0"/>
+          <Button Content="Edit host" Click="RecoveryEdit_Click" Margin="0,0,8,0"/>
+          <Button Content="Copy diagnostics" Click="CopyDiagnostics_Click" Margin="0,0,8,0"/>
+          <Button Content="Dismiss" Click="DismissRecovery_Click"/>
+        </WrapPanel></StackPanel>
+      </Border>
       <!-- Bottom Status Bar -->
       <Grid Grid.Row="2" Background="{DynamicResource CardLow}">
         <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"/>

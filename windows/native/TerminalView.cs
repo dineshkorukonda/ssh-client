@@ -84,6 +84,9 @@ public sealed class TerminalView : Grid, IDisposable
             var message = JsonSerializer.Deserialize<JsonElement>(args.WebMessageAsJson);
             switch (message.GetProperty("type").GetString())
             {
+                case "palette":
+                    (owner as MainWindow)?.OpenCommandPalette();
+                    break;
                 case "ready":
                     if (!ready) { ready = true; await ApplySettingsAsync(); _ = PollAsync(); completion.TrySetResult(); }
                     break;

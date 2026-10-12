@@ -116,8 +116,13 @@ public partial class App : Application
                 await api.PostAsync($"files/{id}/download", new { path = "native-roundtrip.txt", local_path = downloaded });
                 if (File.ReadAllText(downloaded) != "native-transfer-content") throw new IOException("Native SFTP content mismatch");
                 await api.PostAsync($"files/{id}/delete", new { path = "native-roundtrip.txt" });
+                File.WriteAllText(report + ".progress", "files journey");
                 await window.VerifyFilesForSmokeAsync(id, local);
+                File.WriteAllText(report + ".progress", "session journey");
                 await window.VerifySessionLifecycleForSmokeAsync(connectionHost, id);
+                File.WriteAllText(report + ".progress", "productivity journey");
+                await window.VerifyProductivityForSmokeAsync(connectionHost);
+                File.WriteAllText(report + ".progress", "completed");
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
                 File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, screen }));
                 window.Close(); Shutdown(0);
@@ -177,7 +182,7 @@ public partial class App : Application
         activate = new EventWaitHandle(false, EventResetMode.AutoReset, name + "-activate");
         shutdownSignal = new EventWaitHandle(false, EventResetMode.AutoReset, name + "-shutdown");
         shutdownWait = ThreadPool.RegisterWaitForSingleObject(shutdownSignal, (_, _) => Dispatcher.BeginInvoke(() => Shutdown()), null, Timeout.Infinite, false);
-        var starting = new MainWindow(null);
+        var starting = new StartupWindow();
         MainWindow = starting;
         starting.Show();
         activationWait = ThreadPool.RegisterWaitForSingleObject(activate, (_, _) => Dispatcher.BeginInvoke(() =>
@@ -187,16 +192,27 @@ public partial class App : Application
             MainWindow.Show(); MainWindow.Activate();
         }), null, Timeout.Infinite, false);
 
+        starting.Retry = () => LaunchBackendAsync(starting);
+        await LaunchBackendAsync(starting);
+    }
+
+    private async Task LaunchBackendAsync(StartupWindow starting)
+    {
         try
         {
+            backend?.Dispose();
             backend = new OwnedBackend(AppContext.BaseDirectory);
             var api = await backend.StartAsync();
             if (MainWindow == null || !MainWindow.IsVisible) { api.Dispose(); backend.Dispose(); return; }
             var window = new MainWindow(api);
+            window.RestartBackend = async () => {
+                var retry = new StartupWindow(); MainWindow = retry; retry.Show(); window.Close();
+                retry.Retry = () => LaunchBackendAsync(retry); await LaunchBackendAsync(retry);
+            };
             MainWindow = window; window.Show(); starting.Close();
             _ = MonitorBackendAsync(backend);
         }
-        catch (Exception error) { ShowError(error); Shutdown(1); }
+        catch (Exception error) { backend?.Dispose(); starting.Fail(error.Message); }
     }
 
     private static void Capture(Window window, int width, int height, string path)
@@ -215,8 +231,8 @@ public partial class App : Application
             await Task.Delay(1000);
             if (!owned.IsRunning)
             {
-                ShowError(new IOException("The SSH backend stopped unexpectedly. Restart ssh-client. Existing remote sessions were disconnected."));
-                Shutdown(1); return;
+                if (MainWindow is MainWindow window) window.SetBackendUnavailable();
+                return;
             }
         }
     }

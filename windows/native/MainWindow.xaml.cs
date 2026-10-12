@@ -21,7 +21,11 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<TerminalTabItem> openSessions = new();
     private bool favoritesOnly;
     private Host? editingHost;
-    private string currentPage = "dashboard";
+    private string currentPage = "hosts";
+    private string editorBaseline = "";
+    private Func<Task>? retryOperation;
+    private string diagnostics = "";
+    private bool reducedMotion;
     private readonly bool isPreview;
 
 
@@ -63,6 +67,8 @@ public partial class MainWindow : Window
             if (StatusText != null) StatusText.Text = "Ready. Select a host to connect.";
         }
 
+        ShowPage("hosts");
+        Closing += (_, e) => { if (EditorDirty() && MessageBox.Show(this, "Discard unsaved host changes and close?", "Unsaved changes", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true; };
         Closed += (_, _) =>
         {
             foreach (var view in terminals) view.Dispose();
@@ -76,6 +82,7 @@ public partial class MainWindow : Window
         OmniBar.TextChanged += (_, _) =>
         {
             OmniHint.Visibility = string.IsNullOrWhiteSpace(OmniBar.Text) ? Visibility.Visible : Visibility.Collapsed;
+            if (OmniBar.IsKeyboardFocusWithin) UpdatePalette();
         };
     }
 
@@ -133,7 +140,7 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private void AnimatePageIn(UIElement page)
     {
-        if (isPreview)
+        if (isPreview || reducedMotion || !SystemParameters.ClientAreaAnimation)
         {
             page.Opacity = 1;
             page.RenderTransform = null;
@@ -166,6 +173,8 @@ public partial class MainWindow : Window
 
     private void ShowPage(string page)
     {
+        if (page != "hosts" && EditorDirty() && !ConfirmDiscard()) return;
+        PalettePopup.IsOpen = false;
         currentPage = page;
         DashboardPage.Visibility = page == "dashboard" ? Visibility.Visible : Visibility.Collapsed;
         HostsPage.Visibility = page == "hosts" ? Visibility.Visible : Visibility.Collapsed;
@@ -253,30 +262,9 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     // Theme Management (Dark Terminal Edition / Light Bauhaus)
     // -------------------------------------------------------------
-    private void ThemeToggle_Click(object sender, RoutedEventArgs e)
-    {
-        var next = ThemeManager.CurrentTheme == AppTheme.Dark ? AppTheme.Light : AppTheme.Dark;
-        ThemeManager.ApplyTheme(next);
-        ThemeToggleBtn.Content = next == AppTheme.Dark ? "☀ Theme" : "🌙 Theme";
-        HighlightNavButton(currentPage);
-        if (StatusText != null) StatusText.Text = $"Switched to {(next == AppTheme.Dark ? "Dark Terminal Edition" : "Light Bauhaus Edition")}";
-    }
-
-    private void SetDarkTheme_Click(object sender, RoutedEventArgs e)
-    {
-        ThemeManager.ApplyTheme(AppTheme.Dark);
-        ThemeToggleBtn.Content = "☀ Theme";
-        HighlightNavButton(currentPage);
-        if (StatusText != null) StatusText.Text = "Applied Dark Terminal Edition";
-    }
-
-    private void SetLightTheme_Click(object sender, RoutedEventArgs e)
-    {
-        ThemeManager.ApplyTheme(AppTheme.Light);
-        ThemeToggleBtn.Content = "🌙 Theme";
-        HighlightNavButton(currentPage);
-        if (StatusText != null) StatusText.Text = "Applied Light Bauhaus Edition";
-    }
+    private async void ThemeToggle_Click(object sender, RoutedEventArgs e) => await GuardAsync(() => SetThemeAsync(ThemeManager.CurrentTheme == AppTheme.Dark ? AppTheme.Light : AppTheme.Dark));
+    private async void SetDarkTheme_Click(object sender, RoutedEventArgs e) => await GuardAsync(() => SetThemeAsync(AppTheme.Dark));
+    private async void SetLightTheme_Click(object sender, RoutedEventArgs e) => await GuardAsync(() => SetThemeAsync(AppTheme.Light));
 
     // -------------------------------------------------------------
     // Dashboard Logic & Metrics
@@ -299,7 +287,7 @@ public partial class MainWindow : Window
             MetricHostsBreakdown.Text = $"UBNT {ubnt} • DEB {deb} • ALP {alp} • RHEL {rhel}";
 
         if (DashboardHostsList != null)
-            DashboardHostsList.ItemsSource = hosts.Take(6).ToArray();
+            DashboardHostsList.ItemsSource = hosts.OrderByDescending(h => h.LastConnectedAt).ThenByDescending(h => h.Favorite).Take(6).ToArray();
     }
 
     private async void RefreshDashboard_Click(object sender, RoutedEventArgs e)
@@ -318,7 +306,7 @@ public partial class MainWindow : Window
     {
         var input = QuickConnectInput.Text.Trim();
         if (!string.IsNullOrEmpty(input))
-            await HandleConnectQueryAsync(input);
+            await GuardAsync(() => HandleConnectQueryAsync(input));
     }
 
     private void DashboardHosts_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -366,6 +354,10 @@ public partial class MainWindow : Window
         Hosts.ItemsSource = filtered;
         Hosts.SelectedItem = filtered.FirstOrDefault(h => h.Id == selectedId) ?? filtered.FirstOrDefault();
 
+        if (HostsEmpty != null) {
+            HostsEmpty.Visibility = filtered.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            HostsEmpty.Text = hosts.Count == 0 ? "No saved hosts yet. Add a host or import your SSH config to get started." : "No hosts match these filters. Clear search or choose All.";
+        }
         if (HostCount != null) HostCount.Text = $"{filtered.Length} configured hosts";
         if (SearchHint != null) SearchHint.Visibility = string.IsNullOrEmpty(query) ? Visibility.Visible : Visibility.Collapsed;
 
@@ -456,6 +448,7 @@ public partial class MainWindow : Window
 
     private void OpenHostEditor(Host host)
     {
+        if (EditorDirty() && !ConfirmDiscard()) return;
         editingHost = host;
         EditorName.Text = host.Name;
         EditorHost.Text = host.Address;
@@ -471,13 +464,17 @@ public partial class MainWindow : Window
 
         HostListGrid.Visibility = Visibility.Collapsed;
         HostEditorGrid.Visibility = Visibility.Visible;
+        EditorError.Text = "";
+        editorBaseline = EditorSnapshot();
         EditorHost.Focus();
     }
 
     private void EditorCancel_Click(object sender, RoutedEventArgs e)
     {
+        if (!ConfirmDiscard()) return;
         HostEditorGrid.Visibility = Visibility.Collapsed;
         HostListGrid.Visibility = Visibility.Visible;
+        editingHost = null;
     }
 
     private void EditorBrowseKey_Click(object sender, RoutedEventArgs e)
@@ -491,20 +488,24 @@ public partial class MainWindow : Window
             EditorKeyPath.Text = picker.FileName;
     }
 
-    private async void EditorSave_Click(object sender, RoutedEventArgs e)
+    private async void EditorSave_Click(object sender, RoutedEventArgs e) => await GuardAsync(() => SaveEditorAsync(false));
+    private async void EditorSaveAndConnect_Click(object sender, RoutedEventArgs e) => await GuardAsync(() => SaveEditorAsync(true));
+    private async Task SaveEditorAsync(bool connect)
     {
         if (editingHost == null) return;
         var address = EditorHost.Text.Trim();
         var user = EditorUser.Text.Trim();
         if (string.IsNullOrWhiteSpace(address) || string.IsNullOrWhiteSpace(user))
         {
-            MessageBox.Show(this, "Endpoint address and remote username are required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            EditorError.Text = "Server address and username are required.";
+            if (string.IsNullOrWhiteSpace(address)) EditorHost.Focus(); else EditorUser.Focus();
             return;
         }
 
         if (!int.TryParse(EditorPort.Text.Trim(), out var port) || port is < 1 or > 65535)
         {
-            MessageBox.Show(this, "SSH port must be between 1 and 65535.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            EditorError.Text = "SSH port must be between 1 and 65535.";
+            EditorPort.Focus();
             return;
         }
 
@@ -513,12 +514,13 @@ public partial class MainWindow : Window
         editingHost.Port = port;
         editingHost.User = user;
         editingHost.DefaultAuthMethod = ((ComboBoxItem)EditorAuth.SelectedItem).Tag.ToString()!;
+        editingHost.Extra ??= [];
+        editingHost.Extra["auth_order"] = JsonSerializer.SerializeToElement(editingHost.DefaultAuthMethod == "keyboard_interactive" ? new[] { "keyboard_interactive" } : new[] { editingHost.DefaultAuthMethod, "keyboard_interactive" });
         editingHost.IdentityFile = string.IsNullOrWhiteSpace(EditorKeyPath.Text) ? null : EditorKeyPath.Text.Trim();
         editingHost.ProxyJump = string.IsNullOrWhiteSpace(EditorJump.Text) ? null : EditorJump.Text.Trim();
         editingHost.Tags = EditorTags.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         editingHost.Notes = EditorNotes.Text;
 
-        await GuardAsync(async () =>
         {
             if (api != null)
             {
@@ -536,7 +538,9 @@ public partial class MainWindow : Window
             HostEditorGrid.Visibility = Visibility.Collapsed;
             HostListGrid.Visibility = Visibility.Visible;
             if (StatusText != null) StatusText.Text = $"Host {editingHost.Name} saved successfully.";
-        });
+            var saved = editingHost; editingHost = null; editorBaseline = "";
+            if (connect) await ConnectHostAsync(saved);
+        }
     }
 
     // -------------------------------------------------------------
@@ -608,10 +612,13 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private async void OmniBar_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Down || e.Key == Key.Up) { PaletteList.SelectedIndex = Math.Clamp(PaletteList.SelectedIndex + (e.Key == Key.Down ? 1 : -1), 0, Math.Max(0, PaletteList.Items.Count - 1)); e.Handled = true; return; }
+        if (e.Key == Key.Escape) { PalettePopup.IsOpen = false; e.Handled = true; return; }
         if (e.Key != Key.Enter) return;
+        if (PalettePopup.IsOpen && PaletteList.SelectedItem is PaletteEntry) { await RunPaletteAsync(); e.Handled = true; return; }
         var query = OmniBar.Text.Trim();
         if (string.IsNullOrEmpty(query)) return;
-        await HandleConnectQueryAsync(query);
+        await GuardAsync(() => HandleConnectQueryAsync(query));
     }
 
     private async Task HandleConnectQueryAsync(string query)
@@ -626,35 +633,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        string user = "root";
-        string address = query;
-        int port = 22;
-
-        if (address.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase))
-            address = address[6..];
-
-        if (address.Contains('@'))
-        {
-            var parts = address.Split('@', 2);
-            user = parts[0];
-            address = parts[1];
-        }
-        if (address.Contains(':'))
-        {
-            var parts = address.Split(':', 2);
-            address = parts[0];
-            if (int.TryParse(parts[1], out var parsedPort) && parsedPort is >= 1 and <= 65535)
-                port = parsedPort;
-        }
-
-        var adHoc = new Host
-        {
-            Name = query,
-            Address = address,
-            User = user,
-            Port = port,
-            DefaultAuthMethod = "key"
-        };
+        var adHoc = QuickConnect.Parse(query);
         await GuardAsync(() => ConnectHostAsync(adHoc));
     }
 
@@ -809,7 +788,7 @@ public partial class MainWindow : Window
         var view = new TerminalView(api, id, this, message => {
             if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem selected } && selected == item) StatusText.Text = message;
         }, state => {
-            if (id == item.SessionId) item.State = state;
+            if (id == item.SessionId) { item.State = state; if (state == "Connected") _ = GuardAsync(() => RecordConnectionAsync(item)); }
             UpdateDashboardMetrics();
         });
         Grid.SetColumn(view, column);
@@ -943,6 +922,8 @@ public partial class MainWindow : Window
     {
         await RefreshAsync();
         await RefreshKeysAsync();
+        await LoadPreferencesAsync();
+        await RefreshWorkspacesAsync();
         UpdateDashboardMetrics();
     }
 
@@ -960,8 +941,10 @@ public partial class MainWindow : Window
         try { await operation(); }
         catch (Exception ex)
         {
+            retryOperation = operation; diagnostics = ex.ToString();
+            RecoveryMessage.Text = "The operation could not finish. " + ex.Message; RecoveryPanel.Visibility = Visibility.Visible;
             if (StatusText != null) StatusText.Text = ex.Message;
-            MessageBox.Show(this, ex.Message, "ssh-client", MessageBoxButton.OK, MessageBoxImage.Error);
+
         }
     }
 

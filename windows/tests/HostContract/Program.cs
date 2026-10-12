@@ -63,3 +63,12 @@ Require(requestJson.GetProperty("jump_credentials").GetProperty("passphrase").Ge
 Require(requestJson.GetProperty("password").GetString() == "destination-secret",
     "Do not replace destination credentials with bastion credentials.");
 Console.WriteLine("Separate destination and bastion credentials passed.");
+
+var ipv6 = QuickConnect.Parse("ssh://deploy@[2001:db8::1]:2222");
+Require(ipv6.Address == "2001:db8::1" && ipv6.User == "deploy" && ipv6.Port == 2222, "Parse bracketed IPv6 and explicit port.");
+Require(QuickConnect.Parse("deploy@server").Port == 22, "Only absent ports use the SSH default.");
+foreach (var invalid in new[] { "user@server:0", "server:65536", "server:wrong", "user@", "@server", "user@2001:db8::1", "ssh://host/path", "server:99999999999" }) {
+    try { QuickConnect.Parse(invalid); throw new InvalidOperationException("Accepted invalid endpoint: " + invalid); }
+    catch (ArgumentException) { }
+}
+Console.WriteLine("Quick-connect regression checks passed: IPv6, defaults and invalid endpoints.");
