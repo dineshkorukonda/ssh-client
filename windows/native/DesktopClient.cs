@@ -12,7 +12,7 @@ public sealed class DesktopClient : IDisposable
     private readonly HttpClient http;
     public DesktopClient(int port, string token)
     {
-        http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}/desktop/v1/"), Timeout = TimeSpan.FromMinutes(30) };
+        http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}/desktop/v1/"), Timeout = TimeSpan.FromSeconds(60) };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
     public async Task<JsonElement> RequestAsync(HttpMethod method, string route, object? data = null, CancellationToken cancel = default)

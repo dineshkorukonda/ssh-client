@@ -9,5 +9,7 @@
   <ItemGroup>
     <Compile Include="../../native/Host.cs" Link="Host.cs" />
     <Compile Include="../../native/DesktopClient.cs" Link="DesktopClient.cs" />
+    <Compile Include="../../native/ConnectionRequest.cs" Link="ConnectionRequest.cs" />
+    <Compile Include="../../native/QuickConnect.cs" Link="QuickConnect.cs" />
   </ItemGroup>
 </Project>

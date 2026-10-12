@@ -3,7 +3,7 @@ defmodule SSHClient.Store do
   use GenServer
   alias Exqlite.Sqlite3
   alias SSHClient.Config
-  @collections [:hosts, :workspaces, :forwards, :preferences, :sessions]
+  @collections [:hosts, :workspaces, :forwards, :preferences, :sessions, :keys]
 
   def start_link(opts \\ []),
     do: GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))

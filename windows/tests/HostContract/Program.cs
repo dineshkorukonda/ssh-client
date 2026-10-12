@@ -45,3 +45,30 @@ var reloaded = JsonSerializer.Deserialize<Host>(editedJson, DesktopClient.Json)!
 Require(reloaded.Address == "after.example" && reloaded.Description == "deploy@after.example:2222",
     "Reloaded hosts and connection labels must use the edited destination.");
 Console.WriteLine("Host contract regression checks passed: create, load, copy/edit, metadata and reload.");
+
+var request = ConnectionRequest.Build(created, new Dictionary<string, string> {
+    ["user"] = "deploy", ["password"] = "destination-secret", ["jump_user"] = "bastion",
+    ["jump_password"] = "jump-secret", ["jump_identity_file"] = "C:/keys/bastion",
+    ["jump_passphrase"] = "jump-passphrase"
+});
+var requestJson = JsonSerializer.SerializeToElement(request, DesktopClient.Json);
+Require(requestJson.GetProperty("jump_credentials").GetProperty("user").GetString() == "bastion",
+    "Bastion identity must be sent separately from the target identity.");
+Require(requestJson.GetProperty("jump_credentials").GetProperty("password").GetString() == "jump-secret",
+    "Bastion password must reach the backend.");
+Require(requestJson.GetProperty("jump_credentials").GetProperty("identity_file").GetString() == "C:/keys/bastion",
+    "Bastion private key must reach the backend.");
+Require(requestJson.GetProperty("jump_credentials").GetProperty("passphrase").GetString() == "jump-passphrase",
+    "Bastion key passphrase must reach the backend.");
+Require(requestJson.GetProperty("password").GetString() == "destination-secret",
+    "Do not replace destination credentials with bastion credentials.");
+Console.WriteLine("Separate destination and bastion credentials passed.");
+
+var ipv6 = QuickConnect.Parse("ssh://deploy@[2001:db8::1]:2222");
+Require(ipv6.Address == "2001:db8::1" && ipv6.User == "deploy" && ipv6.Port == 2222, "Parse bracketed IPv6 and explicit port.");
+Require(QuickConnect.Parse("deploy@server").Port == 22, "Only absent ports use the SSH default.");
+foreach (var invalid in new[] { "user@server:0", "server:65536", "server:wrong", "user@", "@server", "user@2001:db8::1", "ssh://host/path", "server:99999999999" }) {
+    try { QuickConnect.Parse(invalid); throw new InvalidOperationException("Accepted invalid endpoint: " + invalid); }
+    catch (ArgumentException) { }
+}
+Console.WriteLine("Quick-connect regression checks passed: IPv6, defaults and invalid endpoints.");

@@ -37,6 +37,22 @@ defmodule SSHClientWeb.DesktopAPI do
     result(conn, Desktop.hosts())
   end
 
+  get "/keys" do
+    result(conn, {:ok, SSHClient.DesktopKeys.list()})
+  end
+
+  post "/keys" do
+    result(conn, SSHClient.DesktopKeys.register(conn.body_params))
+  end
+
+  post "/keys/generate" do
+    result(conn, SSHClient.DesktopKeys.generate(conn.body_params))
+  end
+
+  delete "/keys/:id" do
+    result(conn, SSHClient.DesktopKeys.remove(id))
+  end
+
   post "/hosts" do
     result(conn, Desktop.save_host(conn.body_params))
   end
@@ -102,6 +118,63 @@ defmodule SSHClientWeb.DesktopAPI do
     end
   end
 
+  get "/transfers" do
+    transfers = SSHClient.SFTP.TransferManager.list_transfers()
+
+    result(
+      conn,
+      {:ok,
+       Enum.map(
+         transfers,
+         &Map.take(&1, [
+           :id,
+           :session_id,
+           :filename,
+           :direction,
+           :status,
+           :progress,
+           :bytes_transferred,
+           :total_bytes,
+           :speed_bps,
+           :eta_seconds,
+           :error
+         ])
+       )}
+    )
+  end
+
+  post "/transfers/:id/:action" do
+    manager = SSHClient.SFTP.TransferManager
+    attrs = conn.body_params
+
+    response =
+      case action do
+        "cancel" ->
+          manager.cancel_transfer(id)
+
+        "retry" ->
+          manager.retry_transfer(id)
+
+        direction when direction in ["upload", "download"] ->
+          if is_binary(attrs["path"]) and is_binary(attrs["local_path"]) and
+               byte_size(attrs["path"]) in 1..4096 and byte_size(attrs["local_path"]) in 1..4096 do
+            with {:ok, worker} <- SSHClient.SessionManager.get_session(id),
+                 {:ok, _} <- SSHClient.SessionWorker.connection(worker) do
+              if direction == "upload",
+                do: manager.queue_session_upload(id, attrs["local_path"], attrs["path"]),
+                else: manager.queue_session_download(id, attrs["path"], attrs["local_path"])
+            end
+          else
+            {:error, :invalid_path}
+          end
+
+        _ ->
+          {:error, :invalid_action}
+      end
+
+    result(conn, response)
+  end
+
   get "/settings" do
     result(conn, {:ok, Desktop.settings()})
   end
@@ -110,7 +183,9 @@ defmodule SSHClientWeb.DesktopAPI do
     attrs = conn.body_params
 
     if is_integer(attrs["font_size"]) and attrs["font_size"] in 8..32 and
-         is_integer(attrs["scrollback"]) and attrs["scrollback"] in 100..100_000 do
+         is_integer(attrs["scrollback"]) and attrs["scrollback"] in 100..100_000 and
+         (is_nil(attrs["theme"]) or attrs["theme"] in ["dark", "light"]) and
+         (is_nil(attrs["reduced_motion"]) or is_boolean(attrs["reduced_motion"])) do
       result(conn, Desktop.save_settings(attrs))
     else
       result(conn, {:error, :invalid_settings})
@@ -119,6 +194,14 @@ defmodule SSHClientWeb.DesktopAPI do
 
   post "/backup" do
     result(conn, Desktop.backup())
+  end
+
+  get "/export" do
+    result(conn, Desktop.hosts())
+  end
+
+  post "/import" do
+    result(conn, Desktop.import_file(conn.body_params))
   end
 
   get "/workspace" do
@@ -133,7 +216,11 @@ defmodule SSHClientWeb.DesktopAPI do
     ids = conn.body_params["host_ids"]
 
     if is_list(ids) and length(ids) <= 100 and
-         Enum.all?(ids, &(is_binary(&1) and byte_size(&1) <= 4096)),
+         Enum.all?(ids, &(is_binary(&1) and byte_size(&1) <= 4096)) and
+         (is_nil(conn.body_params["id"]) or
+            (is_binary(conn.body_params["id"]) and byte_size(conn.body_params["id"]) in 1..100)) and
+         (is_nil(conn.body_params["name"]) or
+            (is_binary(conn.body_params["name"]) and byte_size(conn.body_params["name"]) in 1..200)),
        do: result(conn, Desktop.save_workspace(conn.body_params)),
        else: result(conn, {:error, :invalid_workspace})
   end

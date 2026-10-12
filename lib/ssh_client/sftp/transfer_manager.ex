@@ -25,6 +25,12 @@ defmodule SSHClient.SFTP.TransferManager do
     queue(@name, :download, channel_pid, remote_path, local_path, opts)
   end
 
+  def queue_session_upload(session_id, local_path, remote_path),
+    do: queue(@name, :upload, nil, local_path, remote_path, session_id: session_id)
+
+  def queue_session_download(session_id, remote_path, local_path),
+    do: queue(@name, :download, nil, remote_path, local_path, session_id: session_id)
+
   def queue_test_transfer(filename, total_bytes) do
     GenServer.call(@name, {:queue_test, filename, total_bytes})
   end
@@ -97,17 +103,31 @@ defmodule SSHClient.SFTP.TransferManager do
       nil ->
         {:reply, {:error, :not_found}, state}
 
+      %{status: status} when status not in [:failed, :cancelled] ->
+        {:reply, {:error, :transfer_not_retryable}, state}
+
       transfer ->
-        retried = %{transfer | status: :queued, error: nil, bytes_transferred: 0, progress: 0}
+        retried = %{
+          transfer
+          | status: :queued,
+            error: nil,
+            bytes_transferred: 0,
+            progress: 0,
+            attempt: transfer.attempt + 1
+        }
+
         start_worker(retried)
         {:reply, :ok, put_in(state.transfers[id], retried)}
     end
   end
 
   @impl true
-  def handle_info({:transfer_update, id, attrs}, state) do
+  def handle_info({:transfer_update, id, attempt, attrs}, state) do
     case Map.get(state.transfers, id) do
       nil ->
+        {:noreply, state}
+
+      %{status: status, attempt: current} when status == :cancelled or current != attempt ->
         {:noreply, state}
 
       transfer ->
@@ -125,7 +145,14 @@ defmodule SSHClient.SFTP.TransferManager do
     caller = Keyword.get(opts, :caller, self())
     host = Keyword.get(opts, :server)
     transfer = new_transfer(direction, filename, source, dest, total, channel_pid)
-    transfer = %{transfer | caller: caller, server: host}
+
+    transfer = %{
+      transfer
+      | caller: caller,
+        server: host,
+        session_id: Keyword.get(opts, :session_id)
+    }
+
     GenServer.call(name, {:queue, transfer})
   end
 
@@ -147,64 +174,83 @@ defmodule SSHClient.SFTP.TransferManager do
       server: nil,
       worker: nil,
       caller: nil,
+      session_id: nil,
+      attempt: 0,
       started_at: DateTime.utc_now()
     }
   end
 
-  defp start_worker(%{channel_pid: nil, server: nil} = _transfer), do: :ok
+  defp start_worker(%{channel_pid: nil, server: nil, session_id: nil} = _transfer), do: :ok
 
   defp start_worker(transfer) do
     manager = self()
 
     {:ok, pid} =
       Task.start(fn ->
-        send(manager, {:transfer_update, transfer.id, %{status: :transferring, worker: self()}})
-
-        {channel, owned?} = resolve_channel(transfer)
+        send(
+          manager,
+          {:transfer_update, transfer.id, transfer.attempt,
+           %{status: :transferring, worker: self()}}
+        )
 
         result =
-          case channel do
-            pid when is_pid(pid) ->
-              run_transfer(transfer, pid, manager)
+          try do
+            {channel, _owned?} = resolve_channel(transfer)
 
-            _ ->
-              {:error, :not_connected}
+            case channel do
+              pid when is_pid(pid) -> run_transfer(transfer, pid, manager)
+              _ -> {:error, :not_connected}
+            end
+          catch
+            kind, reason -> {:error, {kind, reason}}
+          after
+            close_owned(transfer)
           end
-
-        if owned?, do: close_owned(transfer)
 
         case result do
           :ok ->
             send(
               manager,
-              {:transfer_update, transfer.id, %{status: :completed, progress: 100, worker: nil}}
+              {:transfer_update, transfer.id, transfer.attempt,
+               %{status: :completed, progress: 100, worker: nil}}
             )
 
           {:error, reason} ->
             send(
               manager,
-              {:transfer_update, transfer.id,
+              {:transfer_update, transfer.id, transfer.attempt,
                %{status: :failed, error: inspect(reason), worker: nil}}
             )
         end
       end)
 
-    send(self(), {:transfer_update, transfer.id, %{worker: pid}})
+    send(self(), {:transfer_update, transfer.id, transfer.attempt, %{worker: pid}})
   end
 
   defp run_transfer(%{direction: :upload} = transfer, pid, manager) do
     SFTP.upload_file(pid, transfer.source, transfer.destination, fn meta ->
-      send(manager, {:transfer_update, transfer.id, progress_attrs(meta)})
+      send(manager, {:transfer_update, transfer.id, transfer.attempt, progress_attrs(meta)})
     end)
   end
 
   defp run_transfer(%{direction: :download} = transfer, pid, manager) do
     SFTP.download_file(pid, transfer.source, transfer.destination, fn meta ->
-      send(manager, {:transfer_update, transfer.id, progress_attrs(meta)})
+      send(manager, {:transfer_update, transfer.id, transfer.attempt, progress_attrs(meta)})
     end)
   end
 
   defp resolve_channel(%{channel_pid: pid}) when is_pid(pid), do: {pid, false}
+
+  defp resolve_channel(%{session_id: id}) when is_binary(id) do
+    with {:ok, worker} <- SSHClient.SessionManager.get_session(id),
+         {:ok, connection} <- SSHClient.SessionWorker.connection(worker),
+         {:ok, channel} <- SFTP.start_channel(connection) do
+      Process.put(:owned_sftp, {:shared, channel})
+      {channel, true}
+    else
+      _ -> {nil, false}
+    end
+  end
 
   defp resolve_channel(%{server: server}) when not is_nil(server) do
     case SSH.connect(server) do
@@ -228,6 +274,9 @@ defmodule SSHClient.SFTP.TransferManager do
 
   defp close_owned(_transfer) do
     case Process.get(:owned_sftp) do
+      {:shared, pid} ->
+        SFTP.stop_channel(pid)
+
       {conn, pid} ->
         SFTP.stop_channel(pid)
         SSH.close(conn)

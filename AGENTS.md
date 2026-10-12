@@ -19,6 +19,8 @@ This document governs the coding, testing, release, and style rules for `ssh-cli
 
 ## 2. Pull Request, CI & Release Bot Monitoring Rules
 - Every change must go through a dedicated feature or bugfix branch and a GitHub Pull Request.
+- Every PR must target `main`. Never create stacked PRs or use a feature branch as the PR base.
+- Start each branch from the latest `origin/main`. If a change depends on another PR, wait until that PR is merged into `main` before opening the dependent PR.
 - **PR Metadata Requirements**:
   1. **Assignee**: Every PR must be explicitly assigned to the PR author (`--assignee "@me"`).
   2. **Labels**: Every PR must have appropriate semantic labels attached (e.g. `enhancement`, `bug`, `documentation`, `feature`, `chore`, `ci`, `testing`, `security`).

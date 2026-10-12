@@ -17,6 +17,7 @@ import sys
 import os
 import re
 import argparse
+import subprocess
 from datetime import date
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -83,6 +84,14 @@ def extract_versions():
             if m:
                 versions["web/index.html"] = m.group(1)
 
+    for key in ["web_install", "web_install_idx", "web_changelog", "web_changelog_idx"]:
+        path = FILES.get(key)
+        if path and os.path.exists(path):
+            with open(path, encoding="utf-8") as source:
+                content = source.read()
+            match = re.search(r'class="[^"]*(?:app-version-badge|font-mono text-\[10px\])[^"]*"[^>]*>\s*v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)\s*<', content)
+            if match:
+                versions[os.path.relpath(path, ROOT_DIR)] = match.group(1)
     return versions
 
 
@@ -127,8 +136,21 @@ def check_emoji_violations():
         ".yaml",
         ".sh",
         ".bat",
+        ".cs",
+        ".xaml",
+        ".csproj",
+        ".ps1",
     )
     ignored_dirs = {".git", "_build", "deps", "node_modules", "installer", ".elixir_ls"}
+
+    project_files = None
+    try:
+        top = subprocess.run(["git", "-C", ROOT_DIR, "rev-parse", "--show-toplevel"], capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
+        if os.path.normcase(os.path.abspath(top)) == os.path.normcase(ROOT_DIR):
+            listing = subprocess.run(["git", "-C", ROOT_DIR, "ls-files", "--cached", "--others", "--exclude-standard", "-z"], capture_output=True, check=True)
+            project_files = set(listing.stdout.decode("utf-8").split("\0"))
+    except (OSError, subprocess.CalledProcessError):
+        pass
 
     for root, dirs, files in os.walk(ROOT_DIR):
         dirs[:] = [d for d in dirs if d not in ignored_dirs]
@@ -137,6 +159,8 @@ def check_emoji_violations():
                 continue
             path = os.path.join(root, file)
             rel_path = os.path.relpath(path, ROOT_DIR)
+            if project_files is not None and rel_path.replace(os.sep, "/") not in project_files:
+                continue
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 for line_num, line in enumerate(f, 1):
                     for char in line:
