@@ -115,6 +115,7 @@ public partial class App : Application
                 await api.PostAsync($"files/{id}/download", new { path = "native-roundtrip.txt", local_path = downloaded });
                 if (File.ReadAllText(downloaded) != "native-transfer-content") throw new IOException("Native SFTP content mismatch");
                 await api.PostAsync($"files/{id}/delete", new { path = "native-roundtrip.txt" });
+                await window.VerifyFilesForSmokeAsync(id, local);
                 await window.VerifySessionLifecycleForSmokeAsync(connectionHost, id);
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
                 File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, screen }));

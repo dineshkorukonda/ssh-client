@@ -131,6 +131,9 @@ defmodule SSHClient.Desktop do
           "delete" ->
             SFTP.delete_file(channel, attrs["path"])
 
+          "mkdir" ->
+            SFTP.make_dir(channel, attrs["path"])
+
           _ ->
             {:error, :unknown_action}
         end
