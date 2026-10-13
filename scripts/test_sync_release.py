@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -53,6 +54,27 @@ class TestSyncRelease(unittest.TestCase):
                 self.assertFalse(sync_release.check_sync())
             finally:
                 sync_release.ROOT_DIR, sync_release.FILES = old_root, old_files
+
+    def test_marketing_downloads_match_published_asset_names(self):
+        version = sync_release.get_current_version()
+        expected = {
+            f"ssh-client-setup-v{version}-windows-x64.exe",
+            "ssh-client-windows-x64.zip",
+            "ssh-client-linux-x64.tar.gz",
+        }
+        for key, path in sync_release.FILES.items():
+            if not key.startswith("web_"):
+                continue
+            with open(path, encoding="utf-8") as source:
+                links = re.findall(
+                    r"https://github\.com/dineshkorukonda/ssh-client/releases/download/([^\s\"'<]+)",
+                    source.read(),
+                )
+            for link in links:
+                with self.subTest(page=key, link=link):
+                    tag, asset = link.split("/", 1)
+                    self.assertEqual(tag, f"v{version}")
+                    self.assertIn(asset, expected)
 
     def test_get_current_version(self):
         ver = sync_release.get_current_version()
