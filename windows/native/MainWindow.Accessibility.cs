@@ -33,6 +33,9 @@ public partial class MainWindow
         var health = await api.GetAsync("health");
         var ready = health.GetProperty("ready").GetBoolean();
         var version = health.GetProperty("version").GetString();
+        runningVersion = version ?? "";
+        UpdateCheckButton.IsEnabled = !string.IsNullOrEmpty(runningVersion) && !updating;
+        if (!updating && availableUpdate == null) UpdateStatus.Text = $"Installed version: v{version}. Updates replace the app in place.";
         AppVersionLabel.Text = "v" + version;
         BackendReadyText.Text = ready ? "Ready" : "Starting";
         DaemonStatusText.Text = ready ? "Local SSH service ready" : "Local SSH service starting";

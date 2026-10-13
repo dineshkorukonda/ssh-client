@@ -12,6 +12,7 @@ $fixture = Start-Process -FilePath "$env:SystemRoot/System32/cmd.exe" -ArgumentL
 $previousKnownHosts = $env:SSH_CLIENT_KNOWN_HOSTS_FILE
 $previousHosts = $env:SSH_CLIENT_SERVERS_CONFIG
 $previousDatabase = $env:SSH_CLIENT_DATABASE_PATH
+$previousSshHome = $env:SSH_CLIENT_SSH_HOME
 try {
     $ready = Join-Path $fixtureRoot "port"
     for ($i = 0; $i -lt 100 -and -not (Test-Path -LiteralPath $ready); $i++) { Start-Sleep -Milliseconds 200 }
@@ -19,8 +20,12 @@ try {
     $env:SSH_CLIENT_KNOWN_HOSTS_FILE = Join-Path $fixtureRoot "known_hosts"
     $env:SSH_CLIENT_SERVERS_CONFIG = Join-Path $fixtureRoot "hosts.json"
     $env:SSH_CLIENT_DATABASE_PATH = Join-Path $fixtureRoot "workspaces.db"
+    $env:SSH_CLIENT_SSH_HOME = $fixtureRoot
     $report = Join-Path $fixtureRoot "report.json"
     $key = (Resolve-Path -LiteralPath "test/fixtures/docker/ssh-target/id_ed25519").Path
+    $sshDirectory = Join-Path $fixtureRoot '.ssh'
+    New-Item -ItemType Directory -Path $sshDirectory | Out-Null
+    Copy-Item -LiteralPath $key -Destination (Join-Path $sshDirectory 'id_ed25519')
     $arguments = '--terminal-smoke "' + $report + '" ' + (Get-Content -LiteralPath $ready) + ' "' + $key + '"'
     $native = Start-Process -FilePath $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru
     if (-not $native.WaitForExit(120000)) {
@@ -32,7 +37,7 @@ try {
     $result = Get-Content -LiteralPath $report -Raw
     if ($native.ExitCode -ne 0) { throw "Native terminal smoke failed: $result" }
     $decoded = $result | ConvertFrom-Json
-    foreach ($journey in @('ready','terminal','sftp','files_page','session_lifecycle','host_editor','preferences','palette','accessible_names','connection_dialog','host_trust_rejection')) { if (-not $decoded.$journey) { throw "Native journey validation failed: $journey" } }
+    foreach ($journey in @('ready','terminal','sftp','files_page','session_lifecycle','host_editor','host_key_flow','update_controls','preferences','palette','accessible_names','connection_dialog','host_trust_rejection')) { if (-not $decoded.$journey) { throw "Native journey validation failed: $journey" } }
     Start-Sleep -Milliseconds 500
     $prefix = $ReleaseRoot.TrimEnd('\') + '\'
     $orphans = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) }
@@ -52,5 +57,6 @@ try {
     $env:SSH_CLIENT_KNOWN_HOSTS_FILE = $previousKnownHosts
     $env:SSH_CLIENT_SERVERS_CONFIG = $previousHosts
     $env:SSH_CLIENT_DATABASE_PATH = $previousDatabase
+    $env:SSH_CLIENT_SSH_HOME = $previousSshHome
     if (-not $fixture.HasExited) { & "$env:SystemRoot/System32/taskkill.exe" /PID $fixture.Id /T /F | Out-Null }
 }

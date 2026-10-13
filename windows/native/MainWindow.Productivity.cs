@@ -141,7 +141,12 @@ public partial class MainWindow
     private async Task ImportHostsAsync(string type) => await GuardAsync(async () => {
         if (api == null) return; var picker = new OpenFileDialog { Title = type == "json" ? "Import exported host metadata" : "Import OpenSSH config", FileName = type == "ssh_config" ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "config") : "" };
         if (picker.ShowDialog(this) != true) return;
-        var result = await api.PostAsync("import", new { path = picker.FileName, type }); await RefreshAsync(); StatusText.Text = "Imported " + result.GetProperty("imported") + " host(s). Existing hosts were preserved.";
+        var preview = (await api.PostAsync("import/preview", new { path = picker.FileName, type })).Deserialize<ImportPreview>(DesktopClient.Json)!;
+        var dialog = new ImportPreviewDialog(this, preview);
+        if (dialog.ShowDialog() != true) return;
+        var result = await api.PostAsync("import", new { path = picker.FileName, type, selected_ids = dialog.SelectedIds });
+        await RefreshAsync(); await RefreshKeysAsync();
+        StatusText.Text = $"Imported {result.GetProperty("imported")} host(s); skipped {result.GetProperty("skipped")}. Existing hosts were preserved.";
     });
 
     private async void RetryOperation_Click(object sender, RoutedEventArgs e) { RecoveryPanel.Visibility = Visibility.Collapsed; if (retryOperation != null) await GuardAsync(retryOperation); }
@@ -166,6 +171,7 @@ public partial class MainWindow
         await SaveEditorAsync(false);
         var loaded = (await api!.GetAsync("hosts")).Deserialize<List<Host>>(DesktopClient.Json)!.Single(host => host.Id == fixture.Id);
         if (loaded.Notes != "Smoke editor persistence") throw new IOException("Editor save did not persist its changes.");
+        await VerifyHostKeyFlowForSmokeAsync(fixture);
         SettingsFontSize.Text = "16"; SettingsScrollback.Text = "5000"; ReducedMotion.IsChecked = true;
         await SavePreferencesAsync(); await LoadPreferencesAsync();
         if (SettingsFontSize.Text != "16" || ReducedMotion.IsChecked != true) throw new IOException("Preferences did not survive reload.");

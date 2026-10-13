@@ -72,6 +72,10 @@ defmodule SSHClient.Keychain do
   Detects the OS credential backend based on runtime platform.
   """
   def detect_backend do
+    Application.get_env(:ssh_client, :keychain_backend) || platform_backend()
+  end
+
+  defp platform_backend do
     case :os.type() do
       {:win32, _} -> :credential_manager
       {:unix, :darwin} -> :libsecret

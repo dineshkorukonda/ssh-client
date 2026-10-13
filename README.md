@@ -41,6 +41,18 @@ mix test
 
 ## Documentation & Downloads
 
+On Windows, use **Settings > Check for updates > Install and restart** to upgrade
+in place. Installed copies use the Windows installer; portable copies use the ZIP
+package. The app closes active sessions during restart and preserves saved hosts,
+preferences and local SSH key files. An older version without these controls can
+be upgraded by running the new installer over the existing installation, without
+uninstalling first.
+
+New hosts can use private keys discovered in your local `.ssh` folder or referenced
+by explicit `IdentityFile` entries. You can also choose another file directly in
+the host form. Bcrypt-encrypted OpenSSH keys are identified but cannot be decrypted
+by the bundled SSH engine; encrypted PEM keys remain supported.
+
 For pre-built installers (Windows `.exe` / `.zip`, Linux `.tar.gz`, container images) and complete guides, visit:
 
 - **Website**: [ssh-client Documentation](https://dineshkorukonda.github.io/ssh-client/)

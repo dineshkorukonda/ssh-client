@@ -235,7 +235,8 @@ defmodule SSHClient.ServerManagerTest do
       refute Map.has_key?(workers, "orphan-srv")
 
       # Remove should succeed and remove it from config
-      System.put_env("OMARCHY_SERVERS_CONFIG", config_file)
+      original = System.get_env("SSH_CLIENT_SERVERS_CONFIG")
+      System.put_env("SSH_CLIENT_SERVERS_CONFIG", config_file)
 
       try do
         assert {:ok, rem_result} = ServerManager.remove_server(manager, "orphan-srv")
@@ -245,7 +246,9 @@ defmodule SSHClient.ServerManagerTest do
         assert {:ok, updated_cfg} = Config.load_file(config_file)
         assert updated_cfg.servers == []
       after
-        System.delete_env("OMARCHY_SERVERS_CONFIG")
+        if original,
+          do: System.put_env("SSH_CLIENT_SERVERS_CONFIG", original),
+          else: System.delete_env("SSH_CLIENT_SERVERS_CONFIG")
       end
     end
   end

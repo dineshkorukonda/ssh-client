@@ -60,4 +60,95 @@ defmodule SSHClient.DesktopKeysTest do
     assert {:error, _} = DesktopKeys.register(%{"path" => invalid})
     assert {:error, _} = DesktopKeys.register(%{"path" => nil})
   end
+
+  test "discovers only private keys in .ssh and explicit config paths without registering them",
+       %{dir: dir} do
+    ssh = Path.join(dir, ".ssh")
+    File.mkdir_p!(ssh)
+    path = Path.join(ssh, "custom-name")
+    external = Path.join(dir, "outside-ssh")
+    assert {:ok, _} = DesktopKeys.generate(%{"path" => path})
+    assert {:ok, _} = DesktopKeys.generate(%{"path" => external})
+
+    File.write!(
+      Path.join(ssh, "config"),
+      "Host test\n HostName example.com\n IdentityFile #{external}\n"
+    )
+
+    File.write!(Path.join(ssh, "known_hosts"), "not a private key")
+    File.mkdir_p!(Path.join(ssh, "nested"))
+    File.cp!(path, Path.join(ssh, "nested/id_ed25519"))
+    File.write!(Path.join(ssh, "oversized"), String.duplicate("x", 262_145))
+    before = DesktopKeys.list()
+    entries = DesktopKeys.discover(home: dir)
+
+    assert Enum.sort(Enum.map(entries, & &1.private_key_path)) ==
+             Enum.sort(Enum.map([path, external], &Path.expand/1))
+
+    assert Enum.all?(entries, &(&1.source == "local" and &1.status == "ready"))
+    assert DesktopKeys.list() == before
+    assert {:error, message} = DesktopKeys.inspect_file(%{"path" => path <> ".pub"})
+    assert message =~ "public key"
+    assert {:error, _} = DesktopKeys.inspect_file(%{"path" => ssh})
+    assert {:error, _} = DesktopKeys.inspect_file(%{"path" => Path.join(ssh, "oversized")})
+    assert {:error, _} = DesktopKeys.register(%{"path" => Path.join(ssh, "oversized")})
+    assert DesktopKeys.discover(home: Path.join(dir, "missing")) == []
+  end
+
+  test "encrypted OpenSSH keys expose public metadata without retaining passphrases", %{dir: dir} do
+    path = Path.join(dir, "encrypted")
+    executable = System.find_executable("ssh-keygen")
+    assert is_binary(executable)
+
+    assert {_, 0} =
+             System.cmd(executable, [
+               "-t",
+               "ed25519",
+               "-N",
+               "fixture-passphrase",
+               "-f",
+               path,
+               "-q"
+             ])
+
+    before = DesktopKeys.list()
+    assert {:ok, locked} = DesktopKeys.inspect_file(%{"path" => path})
+    assert locked.status == "unsupported"
+    assert locked.is_passphrase_protected
+    assert locked.algorithm == "ssh-ed25519"
+    assert locked.fingerprint =~ "SHA256:"
+    assert {:error, _} = DesktopKeys.inspect_file(%{"path" => path, "passphrase" => "wrong"})
+
+    assert {:error, message} =
+             DesktopKeys.inspect_file(%{"path" => path, "passphrase" => "fixture-passphrase"})
+
+    assert message =~ "bundled SSH engine"
+    refute Jason.encode!(locked) =~ "fixture-passphrase"
+    assert DesktopKeys.list() == before
+  end
+
+  test "encrypted PEM private keys remain selectable and validate their passphrase", %{dir: dir} do
+    path = Path.join(dir, "encrypted-pem")
+    key = :public_key.generate_key({:rsa, 2048, 65_537})
+
+    pem =
+      :public_key.pem_entry_encode(
+        :RSAPrivateKey,
+        key,
+        {{~c"AES-256-CBC", :crypto.strong_rand_bytes(16)}, ~c"correct"}
+      )
+
+    File.write!(path, :public_key.pem_encode([pem]))
+    public = :ssh_file.encode([{{:RSAPublicKey, elem(key, 2), elem(key, 3)}, []}], :openssh_key)
+    File.write!(path <> ".pub", public)
+    assert {:ok, locked} = DesktopKeys.inspect_file(%{"path" => path})
+    assert locked.status == "locked"
+
+    assert {:ok, unlocked} =
+             DesktopKeys.inspect_file(%{"path" => path, "passphrase" => "correct"})
+
+    assert unlocked.status == "ready"
+    assert unlocked.fingerprint == locked.fingerprint
+    assert {:error, _} = DesktopKeys.inspect_file(%{"path" => path, "passphrase" => "wrong"})
+  end
 end

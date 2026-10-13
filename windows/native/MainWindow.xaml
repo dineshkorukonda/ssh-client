@@ -440,28 +440,26 @@
 
             <!-- Full-Page Host Editor Mode -->
             <Grid x:Name="HostEditorGrid" Visibility="Collapsed" Background="{DynamicResource Surface}">
-              <DockPanel>
+              <DockPanel MaxWidth="680" HorizontalAlignment="Left">
                 <StackPanel DockPanel.Dock="Bottom" Margin="24,12">
                   <TextBlock x:Name="EditorError" Foreground="{DynamicResource AccentYellow}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                   <WrapPanel>
-                    <Button Content="Save host" Click="EditorSave_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
-                    <Button Content="Save and connect" Click="EditorSaveAndConnect_Click" Margin="0,0,12,0"/>
+                    <Button Content="Save and connect" Click="EditorSaveAndConnect_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
+                    <Button Content="Save host" Click="EditorSave_Click" Margin="0,0,12,0"/>
                     <Button Content="Cancel" Click="EditorCancel_Click"/>
                   </WrapPanel>
                 </StackPanel>
               <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <Border MaxWidth="720" Margin="32,24" HorizontalAlignment="Left" Width="680">
+                <Border Margin="24,16">
                   <StackPanel>
                     <Button Content="← Back to hosts" Click="EditorCancel_Click" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,0,0,16"/>
                     <TextBlock x:Name="EditorHeader" Text="New host" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Text}"/>
-                    <TextBlock Text="Configure remote endpoint parameters and authentication" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,4,0,24"/>
+                    <TextBlock Text="Enter an address or paste user@host:port. Choose how to sign in." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="12" Margin="0,4,0,16"/>
 
                     <!-- Section 1: Server Details -->
                     <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                       <StackPanel>
                         <TextBlock Text="SERVER DETAILS" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/>
-                        <Label Content="Display _name" Target="{Binding ElementName=EditorName}" Padding="0" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
-                        <TextBox x:Name="EditorName" AutomationProperties.Name="Host display name" Height="34" Margin="0,0,0,12"/>
                         
                         <Grid Margin="0,0,0,12">
                           <Grid.ColumnDefinitions>
@@ -477,34 +475,35 @@
                             <TextBox x:Name="EditorPort" AutomationProperties.Name="SSH port" Text="22" Height="34"/>
                           </StackPanel>
                         </Grid>
-                      </StackPanel>
-                    </Border>
-
-                    <!-- Section 2: Authentication -->
-                    <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
-                      <StackPanel>
-                        <TextBlock Text="AUTHENTICATION" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/>
                         <TextBlock Text="Remote Username" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
-                        <TextBox x:Name="EditorUser" AutomationProperties.Name="Remote username" Text="root" Height="34" Margin="0,0,0,12"/>
+                        <TextBox x:Name="EditorUser" AutomationProperties.Name="Remote username" Height="34" Margin="0,0,0,12"/>
 
                         <TextBlock Text="Authentication method" Margin="0,0,0,4"/>
                         <ComboBox x:Name="EditorAuth" AutomationProperties.Name="Authentication method" SelectedIndex="0" Margin="0,0,0,12" SelectionChanged="EditorAuth_Changed">
-                          <ComboBoxItem Content="Private key" Tag="key"/>
+                          <ComboBoxItem Content="SSH key" Tag="key"/>
                           <ComboBoxItem Content="Password" Tag="password"/>
                           <ComboBoxItem Content="Keyboard interactive" Tag="keyboard_interactive"/>
                         </ComboBox>
-                        <TextBlock Text="Registered identity (optional)" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="EditorIdentity" AutomationProperties.Name="Registered SSH identity" DisplayMemberPath="Name" SelectionChanged="EditorIdentity_Changed" Margin="0,0,0,12"/>
-                        <TextBlock Text="Private Key File (OpenSSH / PEM)" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
-                        <DockPanel>
-                          <Button Content="Browse..." Click="EditorBrowseKey_Click" Style="{StaticResource OutlineButton}" DockPanel.Dock="Right" Height="34" Width="80" Margin="8,0,0,0"/>
-                          <TextBox x:Name="EditorKeyPath" AutomationProperties.Name="Private key file" Height="34"/>
-                        </DockPanel>
+                        <TextBlock x:Name="EditorAuthHint" Text="Choose an existing private key. Its contents stay on this computer." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
+                        <StackPanel x:Name="EditorKeySection">
+                          <TextBlock Text="Choose a key" Margin="0,0,0,4"/>
+                          <ComboBox x:Name="EditorIdentity" AutomationProperties.Name="SSH key on this computer or saved key" DisplayMemberPath="SelectionLabel" SelectionChanged="EditorIdentity_Changed" Margin="0,0,0,8"/>
+                          <TextBox x:Name="EditorKeyPath" AutomationProperties.Name="Private key file" IsReadOnly="True" Visibility="Collapsed"/>
+                          <TextBlock x:Name="EditorKeyDetails" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
+                          <WrapPanel>
+                            <Button Content="Choose another file" Click="EditorBrowseKey_Click" Margin="0,0,8,4"/>
+                            <Button Content="Generate key" Click="GenerateKeypair_Click" Margin="0,0,8,4"/>
+                            <Button Content="Refresh local keys" Click="DiscoverKeys_Click" Margin="0,0,0,4"/>
+                          </WrapPanel>
+                        </StackPanel>
+                        <Label Content="Display _name (optional)" Target="{Binding ElementName=EditorName}" Padding="0" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,12,0,4"/>
+                        <TextBox x:Name="EditorName" AutomationProperties.Name="Host display name" Height="34"/>
+                        <TextBlock Text="Uses the server address if left blank." Foreground="{DynamicResource Muted}" FontSize="11" Margin="0,4,0,0"/>
                       </StackPanel>
                     </Border>
 
                     <!-- Section 3: Advanced Details -->
-                    <Expander Header="Advanced options" Margin="0,0,0,16">
+                    <Expander x:Name="EditorAdvanced" Header="Advanced options: jump host, tags and notes" Foreground="{DynamicResource Text}" Margin="0,0,0,16">
                     <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,24">
                       <StackPanel>
                         <TextBlock Text="ADVANCED &amp; PROXY" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/>
@@ -572,7 +571,8 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                  <Button Content="+ Register Key" Click="RegisterKey_Click" Style="{StaticResource PrimaryButton}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                  <Button Content="Find local keys" Click="DiscoverKeys_Click" Height="32" Padding="14,0" Margin="0,0,8,0"/>
+                  <Button Content="Add key" Click="RegisterKey_Click" Style="{StaticResource PrimaryButton}" Height="32" Padding="14,0" Margin="0,0,8,0"/>
                   <Button Content="Generate Keypair" Click="GenerateKeypair_Click" Style="{StaticResource OutlineButton}" Height="32" Padding="14,0"/>
                 </StackPanel>
               </DockPanel>
@@ -592,16 +592,16 @@
                           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource HostTextWidth}}" FontWeight="Bold" FontSize="13.5" Foreground="{DynamicResource Text}"/>
                             <Border Background="{DynamicResource CardLow}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="10,0,0,0" VerticalAlignment="Center">
-                              <TextBlock Text="{Binding CreatedAt, StringFormat='Added {0}'}" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{DynamicResource MutedSubtle}"/>
+                              <TextBlock Text="{Binding SourceLabel}" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{DynamicResource MutedSubtle}"/>
                             </Border>
                           </StackPanel>
-                          <TextBlock Text="{Binding Fingerprint}" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/>
+                          <TextBlock Text="{Binding Details}" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <!-- Actions on Right -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                          <Button Content="Copy Public Key" Tag="{Binding}" Click="CopyPubKey_Click" Style="{StaticResource OutlineButton}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
-                          <Button Content="Remove" Tag="{Binding}" Click="RemoveKey_Click" Style="{StaticResource OutlineButton}" Foreground="#EF4444" Height="28" Padding="10,0"/>
+                          <Button Content="Copy Public Key" Tag="{Binding}" IsEnabled="{Binding HasPublicKey}" Click="CopyPubKey_Click" Style="{StaticResource OutlineButton}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
+                          <Button Content="Remove" Tag="{Binding}" IsEnabled="{Binding CanRemove}" Click="RemoveKey_Click" Style="{StaticResource OutlineButton}" Foreground="#EF4444" Height="28" Padding="10,0"/>
                         </StackPanel>
                       </DockPanel>
                     </Border>
@@ -637,6 +637,18 @@
                 </Border>
 
                 <!-- Terminal Typography Card -->
+                <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                  <StackPanel>
+                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="UpdateStatus" Text="Connect the local service to check the installed version." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <ProgressBar x:Name="UpdateProgress" AutomationProperties.Name="Update download progress" Height="6" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,12"/>
+                    <WrapPanel>
+                      <Button x:Name="UpdateCheckButton" Content="Check for updates" Click="CheckUpdate_Click" IsEnabled="False" Margin="0,0,8,0"/>
+                      <Button x:Name="UpdateInstallButton" Content="Install and restart" Click="InstallUpdate_Click" Visibility="Collapsed" Style="{StaticResource PrimaryButton}"/>
+                    </WrapPanel>
+                    <TextBlock Text="No uninstall needed. Saved hosts, preferences and local key files stay in place." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="11" Margin="0,12,0,0"/>
+                  </StackPanel>
+                </Border>
                 <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                   <StackPanel>
                     <TextBlock Text="TERMINAL EMULATION" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Muted}" Margin="0,0,0,14"/>

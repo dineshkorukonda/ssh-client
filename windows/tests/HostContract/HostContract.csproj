@@ -12,5 +12,7 @@
     <Compile Include="../../native/ConnectionRequest.cs" Link="ConnectionRequest.cs" />
     <Compile Include="../../native/QuickConnect.cs" Link="QuickConnect.cs" />
     <Compile Include="../../native/DirectoryBreadcrumbs.cs" Link="DirectoryBreadcrumbs.cs" />
+    <Compile Include="../../native/NativeUpdater.cs" Link="NativeUpdater.cs" />
+    <Compile Include="../../native/KeyEntry.cs" Link="KeyEntry.cs" />
   </ItemGroup>
 </Project>

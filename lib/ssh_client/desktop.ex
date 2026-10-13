@@ -181,6 +181,35 @@ defmodule SSHClient.Desktop do
   end
 
   def import_file(attrs) do
+    selected = attrs["selected_ids"]
+
+    with true <-
+           is_nil(selected) or
+             (is_list(selected) and length(selected) <= 1000 and Enum.all?(selected, &is_binary/1)),
+         {:ok, preview} <- preview_import(attrs) do
+      fresh =
+        Enum.filter(
+          preview.hosts,
+          &(not &1.duplicate and (is_nil(selected) or &1.host.id in selected))
+        )
+
+      Enum.reduce_while(
+        fresh,
+        {:ok, %{imported: 0, skipped: length(preview.hosts) - length(fresh)}},
+        fn entry, {:ok, result} ->
+          case Store.put(:hosts, entry.host.id, Store.host_document(entry.host)) do
+            :ok -> {:cont, {:ok, %{result | imported: result.imported + 1}}}
+            error -> {:halt, error}
+          end
+        end
+      )
+    else
+      false -> {:error, :invalid_selection}
+      error -> error
+    end
+  end
+
+  def preview_import(attrs) do
     path = attrs["path"]
 
     if is_binary(path) and byte_size(path) in 1..4096 do
@@ -193,19 +222,37 @@ defmodule SSHClient.Desktop do
         endpoints = MapSet.new(Enum.map(existing, &{&1["host"], &1["user"], &1["port"]}))
         ids = MapSet.new(Enum.map(existing, & &1["id"]))
 
-        fresh =
-          Enum.reject(
-            servers,
-            &(MapSet.member?(endpoints, {&1.host, &1.user, &1.port}) or MapSet.member?(ids, &1.id))
-          )
-          |> Enum.uniq_by(& &1.id)
+        {entries, _} =
+          Enum.map_reduce(servers, {ids, endpoints}, fn server, {seen_ids, seen_endpoints} ->
+            endpoint = {server.host, server.user, server.port}
 
-        Enum.reduce_while(fresh, {:ok, %{imported: 0}}, fn server, {:ok, result} ->
-          case Store.put(:hosts, server.id, Store.host_document(server)) do
-            :ok -> {:cont, {:ok, %{imported: result.imported + 1}}}
-            error -> {:halt, error}
+            duplicate =
+              MapSet.member?(seen_endpoints, endpoint) or MapSet.member?(seen_ids, server.id)
+
+            entry = %{
+              host: server,
+              duplicate: duplicate,
+              key_missing:
+                is_binary(server.identity_file) and not File.regular?(server.identity_file)
+            }
+
+            {entry, {MapSet.put(seen_ids, server.id), MapSet.put(seen_endpoints, endpoint)}}
+          end)
+
+        unsupported =
+          if attrs["type"] == "ssh_config" do
+            data
+            |> String.split("\n")
+            |> Enum.filter(
+              &String.match?(&1, ~r/^\s*(Include|ProxyCommand|Match|CertificateFile)\s+/i)
+            )
+            |> Enum.map(&(String.split(String.trim(&1)) |> hd()))
+            |> Enum.uniq()
+          else
+            []
           end
-        end)
+
+        {:ok, %{hosts: entries, unsupported: unsupported}}
       else
         false -> {:error, "Host import files must be smaller than 2 MB."}
         error -> error

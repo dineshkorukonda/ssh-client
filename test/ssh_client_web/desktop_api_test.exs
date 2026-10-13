@@ -53,6 +53,64 @@ defmodule SSHClientWeb.DesktopAPITest do
     assert request(:get, "/health").status == 401
   end
 
+  test "key discovery and inspection are read-only and require desktop authorization" do
+    path = Path.join(System.tmp_dir!(), "inspect-#{System.unique_integer([:positive])}")
+    assert {:ok, key} = SSHClient.DesktopKeys.generate(%{"path" => path})
+
+    on_exit(fn ->
+      SSHClient.DesktopKeys.remove(key.id)
+      File.rm(path)
+      File.rm(path <> ".pub")
+    end)
+
+    before = SSHClient.DesktopKeys.list()
+    response = request(:post, "/keys/inspect", %{path: path})
+    assert response.status == 200
+    assert Jason.decode!(response.resp_body)["fingerprint"] == key.fingerprint
+    assert request(:post, "/keys/inspect", %{path: path <> ".pub"}).status == 422
+    assert request(:get, "/keys/discover").status == 200
+    assert request(:get, "/keys/discover", nil, [{"authorization", "Bearer wrong"}]).status == 401
+    assert SSHClient.DesktopKeys.list() == before
+  end
+
+  test "SSH config preview reports duplicates and missing keys before selective import" do
+    path = Path.join(System.tmp_dir!(), "preview-config-#{System.unique_integer([:positive])}")
+    key = Path.join(System.tmp_dir!(), "missing-preview-key")
+
+    File.write!(
+      path,
+      "Host saved\n HostName example.com\n User fixture\nHost fresh\n HostName new.example.com\n User fixture\n IdentityFile #{key}\n ProxyCommand unsupported\nHost later\n HostName later.example.com\n User fixture\n"
+    )
+
+    on_exit(fn ->
+      File.rm(path)
+      for id <- ~w(saved fresh later), do: SSHClient.Store.delete(:hosts, id)
+    end)
+
+    assert request(:post, "/hosts", %{
+             id: "saved",
+             name: "Saved",
+             host: "example.com",
+             user: "fixture"
+           }).status == 200
+
+    preview = request(:post, "/import/preview", %{path: path, type: "ssh_config"})
+    assert preview.status == 200
+    data = Jason.decode!(preview.resp_body)
+    assert data["unsupported"] == ["ProxyCommand"]
+    assert Enum.find(data["hosts"], &(&1["host"]["id"] == "saved"))["duplicate"]
+    assert Enum.find(data["hosts"], &(&1["host"]["id"] == "fresh"))["key_missing"]
+    assert SSHClient.Store.get(:hosts, "fresh") == nil
+    result = request(:post, "/import", %{path: path, type: "ssh_config", selected_ids: ["fresh"]})
+    assert result.status == 200
+    assert Jason.decode!(result.resp_body) == %{"imported" => 1, "skipped" => 2}
+    assert SSHClient.Store.get(:hosts, "fresh")["identity_file"] == Path.expand(key)
+    assert SSHClient.Store.get(:hosts, "later") == nil
+
+    assert request(:post, "/import", %{path: path, type: "ssh_config", selected_ids: "invalid"}).status ==
+             422
+  end
+
   test "native host operations preserve configuration and never persist passwords" do
     credential = Base.encode64(:crypto.strong_rand_bytes(24))
 
