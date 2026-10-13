@@ -45,6 +45,7 @@ public partial class MainWindow : Window
 
         if (KeysList != null) KeysList.ItemsSource = keys;
         EditorIdentity.ItemsSource = keys;
+        SetHostView(true);
         SftpSessionCombo.ItemsSource = openSessions;
         if (SidebarSessionsList != null) SidebarSessionsList.ItemsSource = openSessions;
 
@@ -858,7 +859,7 @@ public partial class MainWindow : Window
                 }
             }
             UpdateDashboardMetrics();
-        });
+        }, endpoint);
         Grid.SetRow(view, 1); pane.Children.Add(view);
         Grid.SetColumn(pane, column);
         grid.Children.Add(pane);

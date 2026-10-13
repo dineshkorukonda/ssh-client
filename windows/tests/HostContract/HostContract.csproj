@@ -14,5 +14,6 @@
     <Compile Include="../../native/DirectoryBreadcrumbs.cs" Link="DirectoryBreadcrumbs.cs" />
     <Compile Include="../../native/NativeUpdater.cs" Link="NativeUpdater.cs" />
     <Compile Include="../../native/KeyEntry.cs" Link="KeyEntry.cs" />
+    <Compile Include="../../native/HostCardLayout.cs" Link="HostCardLayout.cs" />
   </ItemGroup>
 </Project>

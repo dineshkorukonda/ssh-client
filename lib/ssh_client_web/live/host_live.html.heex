@@ -210,7 +210,7 @@
             Server Endpoints
           </h2>
         </div>
-        <span class="text-xs text-muted-foreground font-mono">Live Telemetry</span>
+         <span class="text-xs text-muted-foreground font-mono">Live Telemetry</span>
       </div>
 
       <%= if filtered_servers == [] do %>
@@ -263,194 +263,255 @@
           </div>
         </div>
       <% else %>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left font-mono text-xs">
-            <thead>
-              <tr class="border-b border-border text-muted-foreground text-[11px] uppercase tracking-wider bg-muted/20">
-                <th class="py-3 px-5 font-medium">Server Name</th>
+        <div class="flex items-center justify-between gap-3 p-4 border-b border-border">
+          <span class="text-xs text-muted-foreground">Choose a host to connect</span>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              phx-click="toggle_view_mode"
+              phx-value-mode="grid"
+              aria-pressed={@view_mode == :grid}
+              class="px-3 py-1.5 text-xs border border-border rounded-md hover:bg-muted"
+            >Grid</button>
+            <button
+              type="button"
+              phx-click="toggle_view_mode"
+              phx-value-mode="table"
+              aria-pressed={@view_mode == :table}
+              class="px-3 py-1.5 text-xs border border-border rounded-md hover:bg-muted"
+            >List</button>
+          </div>
+        </div>
 
-                <th class="py-3 px-5 font-medium">Endpoint</th>
+        <%= if @view_mode == :grid do %>
+          <div
+            id="host-card-grid"
+            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4"
+          >
+            <%= for server <- filtered_servers do %>
+              <article class="p-5 rounded-lg bg-card border border-border hover:border-sky-500/40 transition-colors">
+                <div class="flex items-center justify-between mb-5">
+                  <.os_badge os={detect_os(server)} />
+                  <span class="text-[11px] text-muted-foreground">{if server.favorite,
+                    do: "Favorite",
+                    else: server.status}</span>
+                </div>
 
-                <th class="py-3 px-5 font-medium">Status</th>
+                <h3 class="text-base font-semibold truncate">{server.name}</h3>
 
-                <th class="py-3 px-5 font-medium">CPU</th>
+                <p class="text-xs font-mono text-muted-foreground mt-2 truncate">
+                  {server.user}@{server.host}:{server.port}
+                </p>
 
-                <th class="py-3 px-5 font-medium">Memory</th>
+                <div class="flex flex-wrap items-center gap-2 mt-5">
+                  <button
+                    type="button"
+                    phx-click="open_connect_modal"
+                    phx-value-id={server.id}
+                    class="px-3 py-2 bg-primary text-primary-foreground rounded-md text-xs font-semibold"
+                  >Connect</button>
+                  <a
+                    href={"/terminal/" <> server.id}
+                    class="px-3 py-2 border border-border rounded-md text-xs"
+                  >Terminal</a>
+                  <a
+                    href={"/sftp/" <> server.id}
+                    class="px-3 py-2 border border-border rounded-md text-xs"
+                  >Files</a>
+                </div>
+              </article>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left font-mono text-xs">
+              <thead>
+                <tr class="border-b border-border text-muted-foreground text-[11px] uppercase tracking-wider bg-muted/20">
+                  <th class="py-3 px-5 font-medium">Server Name</th>
 
-                <th class="py-3 px-5 font-medium">Disk</th>
+                  <th class="py-3 px-5 font-medium">Endpoint</th>
 
-                <th class="py-3 px-5 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
+                  <th class="py-3 px-5 font-medium">Status</th>
 
-            <tbody class="divide-y divide-border">
-              <%= for server <- filtered_servers do %>
-                <tr class="hover:bg-muted/40 transition-colors">
-                  <td class="py-3.5 px-5 font-semibold text-foreground">
-                    <div class="flex items-center gap-2.5">
-                      <span class={"status-dot " <> if(server.status in ["polling", "connected"], do: "online", else: "offline")}></span>
-                      <span>{server.name}</span>
-                      <%= if server.favorite do %>
-                        <span class="text-[10px] text-primary font-mono">PIN</span>
-                      <% end %>
-                    </div>
-                  </td>
+                  <th class="py-3 px-5 font-medium">CPU</th>
 
-                  <td class="py-3.5 px-5">
-                    <div class="text-foreground font-mono">{server.host}:{server.port}</div>
+                  <th class="py-3 px-5 font-medium">Memory</th>
 
-                    <div class="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                      <span>{server.user}</span>
-                      <%= if length(server.users || []) > 1 do %>
+                  <th class="py-3 px-5 font-medium">Disk</th>
+
+                  <th class="py-3 px-5 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody class="divide-y divide-border">
+                <%= for server <- filtered_servers do %>
+                  <tr class="hover:bg-muted/40 transition-colors">
+                    <td class="py-3.5 px-5 font-semibold text-foreground">
+                      <div class="flex items-center gap-2.5">
+                        <span class={"status-dot " <> if(server.status in ["polling", "connected"], do: "online", else: "offline")}></span>
+                        <span>{server.name}</span>
+                        <%= if server.favorite do %>
+                          <span class="text-[10px] text-primary font-mono">PIN</span>
+                        <% end %>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-5">
+                      <div class="text-foreground font-mono">{server.host}:{server.port}</div>
+
+                      <div class="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <span>{server.user}</span>
+                        <%= if length(server.users || []) > 1 do %>
+                          <button
+                            type="button"
+                            phx-click="open_connect_modal"
+                            phx-value-id={server.id}
+                            class="text-[10px] px-1.5 py-0.2 bg-muted hover:bg-accent text-muted-foreground border border-border rounded transition-colors"
+                          >
+                            +{length(server.users) - 1}
+                          </button>
+                        <% end %>
+
+                        <%= if server.default_auth_method == :password do %>
+                          <span class="text-[10px] px-1 py-0.2 bg-muted text-muted-foreground border border-border rounded">
+                            pwd
+                          </span>
+                        <% end %>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-5">
+                      <.status_badge status={server.status} />
+                    </td>
+
+                    <td class="py-3.5 px-5">
+                      <div class="flex items-center gap-2">
+                        <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
+                          <div
+                            class={[
+                              "h-full rounded-full transition-all duration-300",
+                              bar_color(server.cpu_percent)
+                            ]}
+                            style={"width: #{min(100.0, max(0.0, server.cpu_percent))}%"}
+                          >
+                          </div>
+                        </div>
+
+                        <span class={["text-[11px] font-mono", metric_color(server.cpu_percent)]}>
+                          {format_pct(server.cpu_percent)}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-5">
+                      <div class="flex items-center gap-2">
+                        <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
+                          <div
+                            class={[
+                              "h-full rounded-full transition-all duration-300",
+                              bar_color(server.ram_percent)
+                            ]}
+                            style={"width: #{min(100.0, max(0.0, server.ram_percent))}%"}
+                          >
+                          </div>
+                        </div>
+
+                        <span class={["text-[11px] font-mono", metric_color(server.ram_percent)]}>
+                          {format_pct(server.ram_percent)}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-5">
+                      <div class="flex items-center gap-2">
+                        <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
+                          <div
+                            class={[
+                              "h-full rounded-full transition-all duration-300",
+                              bar_color(server.disk_percent)
+                            ]}
+                            style={"width: #{min(100.0, max(0.0, server.disk_percent))}%"}
+                          >
+                          </div>
+                        </div>
+
+                        <span class={["text-[11px] font-mono", metric_color(server.disk_percent)]}>
+                          {format_pct(server.disk_percent)}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-5 text-right">
+                      <div class="flex items-center justify-end gap-1.5">
+                        <a
+                          href={"/terminal/#{server.id}"}
+                          class="h-7 px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-medium rounded transition-colors shadow-sm inline-flex items-center"
+                          title="Open full terminal session"
+                        >
+                          Terminal
+                        </a>
+
                         <button
-                          type="button"
                           phx-click="open_connect_modal"
                           phx-value-id={server.id}
-                          class="text-[10px] px-1.5 py-0.2 bg-muted hover:bg-accent text-muted-foreground border border-border rounded transition-colors"
+                          class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded transition-colors shadow-sm"
+                          title="Configure connection"
                         >
-                          +{length(server.users) - 1}
+                          Connect
                         </button>
-                      <% end %>
 
-                      <%= if server.default_auth_method == :password do %>
-                        <span class="text-[10px] px-1 py-0.2 bg-muted text-muted-foreground border border-border rounded">
-                          pwd
-                        </span>
-                      <% end %>
-                    </div>
-                  </td>
-
-                  <td class="py-3.5 px-5">
-                    <.status_badge status={server.status} />
-                  </td>
-
-                  <td class="py-3.5 px-5">
-                    <div class="flex items-center gap-2">
-                      <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
-                        <div
-                          class={[
-                            "h-full rounded-full transition-all duration-300",
-                            bar_color(server.cpu_percent)
-                          ]}
-                          style={"width: #{min(100.0, max(0.0, server.cpu_percent))}%"}
+                        <a
+                          href={"/sftp/#{server.id}"}
+                          class="h-7 px-2.5 flex items-center bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono rounded transition-colors"
+                          title="Open SFTP Explorer"
                         >
-                        </div>
-                      </div>
+                          SFTP
+                        </a>
 
-                      <span class={["text-[11px] font-mono", metric_color(server.cpu_percent)]}>
-                        {format_pct(server.cpu_percent)}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td class="py-3.5 px-5">
-                    <div class="flex items-center gap-2">
-                      <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
-                        <div
-                          class={[
-                            "h-full rounded-full transition-all duration-300",
-                            bar_color(server.ram_percent)
-                          ]}
-                          style={"width: #{min(100.0, max(0.0, server.ram_percent))}%"}
+                        <button
+                          phx-click="poll_now"
+                          phx-value-id={server.id}
+                          class="h-7 px-2 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-mono rounded transition-colors"
+                          title="Refresh metrics"
                         >
-                        </div>
-                      </div>
+                          Poll
+                        </button>
 
-                      <span class={["text-[11px] font-mono", metric_color(server.ram_percent)]}>
-                        {format_pct(server.ram_percent)}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td class="py-3.5 px-5">
-                    <div class="flex items-center gap-2">
-                      <div class="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
-                        <div
-                          class={[
-                            "h-full rounded-full transition-all duration-300",
-                            bar_color(server.disk_percent)
-                          ]}
-                          style={"width: #{min(100.0, max(0.0, server.disk_percent))}%"}
+                        <button
+                          phx-click="toggle_favorite"
+                          phx-value-id={server.id}
+                          class="h-7 px-2 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-mono rounded transition-colors"
+                          title="Pin host"
                         >
-                        </div>
+                          Pin
+                        </button>
+
+                        <button
+                          phx-click="duplicate_server"
+                          phx-value-id={server.id}
+                          class="h-7 px-2 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-mono rounded transition-colors"
+                          title="Duplicate host"
+                        >
+                          Dup
+                        </button>
+
+                        <button
+                          phx-click="remove_server"
+                          phx-value-id={server.id}
+                          data-confirm={"Are you sure you want to remove #{server.name}?"}
+                          class="h-7 px-2 bg-transparent hover:bg-destructive/10 text-destructive/80 hover:text-destructive text-xs font-mono rounded transition-colors"
+                          title="Delete server"
+                        >
+                          Delete
+                        </button>
                       </div>
-
-                      <span class={["text-[11px] font-mono", metric_color(server.disk_percent)]}>
-                        {format_pct(server.disk_percent)}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td class="py-3.5 px-5 text-right">
-                    <div class="flex items-center justify-end gap-1.5">
-                      <a
-                        href={"/terminal/#{server.id}"}
-                        class="h-7 px-2.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-medium rounded transition-colors shadow-sm inline-flex items-center"
-                        title="Open full terminal session"
-                      >
-                        Terminal
-                      </a>
-
-                      <button
-                        phx-click="open_connect_modal"
-                        phx-value-id={server.id}
-                        class="h-7 px-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono font-medium rounded transition-colors shadow-sm"
-                        title="Configure connection"
-                      >
-                        Connect
-                      </button>
-
-                      <a
-                        href={"/sftp/#{server.id}"}
-                        class="h-7 px-2.5 flex items-center bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-mono rounded transition-colors"
-                        title="Open SFTP Explorer"
-                      >
-                        SFTP
-                      </a>
-
-                      <button
-                        phx-click="poll_now"
-                        phx-value-id={server.id}
-                        class="h-7 px-2 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-mono rounded transition-colors"
-                        title="Refresh metrics"
-                      >
-                        Poll
-                      </button>
-
-                      <button
-                        phx-click="toggle_favorite"
-                        phx-value-id={server.id}
-                        class="h-7 px-2 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-mono rounded transition-colors"
-                        title="Pin host"
-                      >
-                        Pin
-                      </button>
-
-                      <button
-                        phx-click="duplicate_server"
-                        phx-value-id={server.id}
-                        class="h-7 px-2 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-mono rounded transition-colors"
-                        title="Duplicate host"
-                      >
-                        Dup
-                      </button>
-
-                      <button
-                        phx-click="remove_server"
-                        phx-value-id={server.id}
-                        data-confirm={"Are you sure you want to remove #{server.name}?"}
-                        class="h-7 px-2 bg-transparent hover:bg-destructive/10 text-destructive/80 hover:text-destructive text-xs font-mono rounded transition-colors"
-                        title="Delete server"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
       <% end %>
     </div>
   </main>
@@ -679,7 +740,7 @@
               + Other
             </button>
           </div>
-          <input type="hidden" name="user" value={@connect_user} />
+           <input type="hidden" name="user" value={@connect_user} />
           <%= if @connect_user == "custom" do %>
             <input
               type="text"
@@ -724,7 +785,7 @@
               Password
             </button>
           </div>
-          <input type="hidden" name="auth_method" value={to_string(@connect_auth_method)} />
+           <input type="hidden" name="auth_method" value={to_string(@connect_auth_method)} />
         </div>
 
         <%= if @connect_auth_method == :password do %>
@@ -891,18 +952,23 @@
       class="bg-card border border-border rounded p-6 max-w-xl space-y-4"
     >
       <h2>Verify SSH host key</h2>
+
       <p>{@host_key_prompt.details.host}:{@host_key_prompt.details.port}</p>
+
       <%= if @host_key_prompt.type == :host_key_changed do %>
         <p class="text-red-400">
           The saved host key has changed. Verify this change with the server administrator.
         </p>
+
         <p class="font-mono break-all">Previous: {@host_key_prompt.details.old_fingerprint}</p>
       <% end %>
+
       <p class="font-mono break-all">
         New: {@host_key_prompt.details[:fingerprint] || @host_key_prompt.details[:new_fingerprint]}
       </p>
+
       <p>Verify this fingerprint before trusting the server.</p>
-      <button phx-click="reject_host_key" class="border border-border px-4 py-2">Reject</button>
+       <button phx-click="reject_host_key" class="border border-border px-4 py-2">Reject</button>
       <button phx-click="accept_host_key" class="bg-primary text-primary-foreground px-4 py-2">Trust and connect</button>
     </div>
   </div>

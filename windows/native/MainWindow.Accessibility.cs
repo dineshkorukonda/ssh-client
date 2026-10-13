@@ -12,7 +12,7 @@ public partial class MainWindow
     private void ApplyCompactLayout(double width)
     {
         if (InspectorColumn == null) return;
-        var visible = inspectorRequested ?? width >= 1100;
+        var visible = inspectorRequested ?? false;
         InspectorColumn.Width = new GridLength(visible ? Math.Min(300, width * .32) : 0);
         HostInspector.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         PalettePopup.Width = Math.Max(260, Math.Min(420, width - 200));
@@ -21,7 +21,7 @@ public partial class MainWindow
     }
     private void ToggleInspector_Click(object sender, RoutedEventArgs e)
     {
-        inspectorRequested = !(inspectorRequested ?? ActualWidth >= 1100);
+        inspectorRequested = !(inspectorRequested ?? false);
         ApplyCompactLayout(ActualWidth);
     }
     internal void SetPreviewWidth(double width) => ApplyCompactLayout(width);
@@ -44,6 +44,7 @@ public partial class MainWindow
 
     internal void VerifyAccessibilityForSmoke()
     {
+        VerifyHostCardsForSmoke();
         ApplyCompactLayout(720);
         if (HostInspector.Visibility != Visibility.Collapsed || InspectorColumn.Width.Value != 0) throw new InvalidOperationException("Compact host layout did not release inspector space.");
         if (System.Windows.Automation.AutomationProperties.GetName(EditorHost) != "Server address") throw new InvalidOperationException("Host input lacks its accessible name.");

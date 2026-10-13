@@ -80,3 +80,10 @@ var localCrumbs = DirectoryBreadcrumbs.Local(Path.Combine(Path.GetTempPath(), "b
 Require(localCrumbs.Last().Label == "nested" && localCrumbs.Last().Path == Path.GetFullPath(Path.Combine(Path.GetTempPath(), "breadcrumb", "nested")), "Local breadcrumbs must preserve the complete filesystem path.");
 Console.WriteLine("Directory breadcrumb regression checks passed.");
 await NativeUpdaterRegression.RunAsync();
+foreach (var width in new[] { 200d, 540d, 720d, 1000d, 1600d }) {
+    var cardWidth = HostCardLayout.Width(width, true);
+    var columns = Math.Max(1, Math.Floor((width - 22) / 260));
+    Require(cardWidth > 0 && (cardWidth + 8) * columns <= width, "Host cards must fit the available width at every breakpoint.");
+    Require(HostCardLayout.Width(width, false) == width - 22, "List mode must use the full available width.");
+}
+Console.WriteLine("Responsive host-card sizing regressions passed.");

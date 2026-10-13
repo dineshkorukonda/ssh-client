@@ -3,6 +3,61 @@ defmodule SSHClientWeb.HostLiveTest do
 
   alias SSHClientWeb.HostLive
 
+  test "host layout toggles preserve the filter and reject unknown view modes" do
+    socket = build_socket(%{view_mode: :grid, filter: "production"})
+
+    assert {:noreply, socket} =
+             HostLive.handle_event("toggle_view_mode", %{"mode" => "table"}, socket)
+
+    assert socket.assigns.view_mode == :table
+    assert socket.assigns.filter == "production"
+
+    assert {:noreply, socket} =
+             HostLive.handle_event("toggle_view_mode", %{"mode" => "untrusted-mode"}, socket)
+
+    assert socket.assigns.view_mode == :grid
+  end
+
+  test "host grid renders the same saved hosts and credential actions as the list" do
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{__changed__: %{}, flash: %{}},
+      endpoint: SSHClientWeb.Endpoint
+    }
+
+    assert {:ok, socket} = HostLive.mount(%{}, %{}, socket)
+
+    server = %{
+      id: "grid-fixture",
+      name: "Ubuntu fixture",
+      host: "fixture.internal",
+      port: 22,
+      user: "fixture",
+      users: ["fixture"],
+      tags: [],
+      favorite: false,
+      status: "disconnected",
+      cpu_percent: nil,
+      ram_percent: nil,
+      disk_percent: nil,
+      default_auth_method: :key
+    }
+
+    assigns = Map.merge(socket.assigns, %{servers: [server], view_mode: :grid})
+    html = HostLive.render(assigns) |> Phoenix.HTML.Safe.to_iodata() |> IO.iodata_to_binary()
+    assert html =~ "host-card-grid"
+    assert html =~ "fixture@fixture.internal:22"
+    assert html =~ "open_connect_modal"
+
+    list =
+      HostLive.render(Map.put(assigns, :view_mode, :table))
+      |> Phoenix.HTML.Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    assert list =~ "<table"
+    assert list =~ "Unavailable"
+    refute list =~ "host-card-grid"
+  end
+
   test "hosts workspace exposes first-use trust prompts and rejection clears them" do
     socket = build_socket(%{host_key_prompt: nil})
     details = %{host: "example", port: 22, fingerprint: "SHA256:test"}
