@@ -72,3 +72,10 @@ foreach (var invalid in new[] { "user@server:0", "server:65536", "server:wrong",
     catch (ArgumentException) { }
 }
 Console.WriteLine("Quick-connect regression checks passed: IPv6, defaults and invalid endpoints.");
+var absoluteCrumbs = DirectoryBreadcrumbs.Remote("/srv/project/logs/");
+Require(absoluteCrumbs.Select(crumb => crumb.Path).SequenceEqual(new[] { "/", "/srv", "/srv/project", "/srv/project/logs" }), "Absolute remote breadcrumbs must navigate each ancestor.");
+Require(DirectoryBreadcrumbs.Remote("./project/logs").Select(crumb => crumb.Path).SequenceEqual(new[] { ".", "./project", "./project/logs" }), "Relative remote breadcrumbs must preserve the session directory.");
+Require(DirectoryBreadcrumbs.Remote("/").Count == 1 && DirectoryBreadcrumbs.Remote(".").Count == 1, "Root directories have one breadcrumb.");
+var localCrumbs = DirectoryBreadcrumbs.Local(Path.Combine(Path.GetTempPath(), "breadcrumb", "nested"));
+Require(localCrumbs.Last().Label == "nested" && localCrumbs.Last().Path == Path.GetFullPath(Path.Combine(Path.GetTempPath(), "breadcrumb", "nested")), "Local breadcrumbs must preserve the complete filesystem path.");
+Console.WriteLine("Directory breadcrumb regression checks passed.");

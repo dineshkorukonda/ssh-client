@@ -22,11 +22,14 @@ public sealed class SftpPane : UserControl, IDisposable
     private readonly ListView localEntries = new();
     private readonly ListView transferEntries = new() { MaxHeight = 130 };
     private readonly CheckBox showHidden = new() { Content = "Show hidden files", Margin = new Thickness(8) };
+    private readonly WrapPanel remoteBreadcrumbs = new();
+    private readonly WrapPanel localBreadcrumbs = new();
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly CancellationTokenSource stop = new();
     private List<FileEntry> files = [];
     private bool polling, disposed;
     private string completedIds = "";
+    private readonly TaskCompletionSource initialLoad = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public SftpPane(DesktopClient api, string session, Window? owner = null)
     {
@@ -44,7 +47,7 @@ public sealed class SftpPane : UserControl, IDisposable
 
         // Header bar with Path navigation
         var pathBar = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-        var upBtn = new Button { Content = "▲ Up", Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 0, 6, 0), ToolTip = "Navigate up one directory" };
+        var upBtn = new Button { Content = "Up", Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 0, 6, 0), ToolTip = "Navigate up one directory" };
         upBtn.Click += async (_, _) =>
         {
             var current = path.Text.TrimEnd('/');
@@ -68,6 +71,8 @@ public sealed class SftpPane : UserControl, IDisposable
         pathBar.Children.Add(path);
         DockPanel.SetDock(pathBar, Dock.Top);
         root.Children.Add(pathBar);
+        DockPanel.SetDock(remoteBreadcrumbs, Dock.Top);
+        root.Children.Add(remoteBreadcrumbs);
 
         // Action Toolbar
         AddButton("Upload", UploadAsync);
@@ -130,12 +135,13 @@ public sealed class SftpPane : UserControl, IDisposable
         var localHeader = new TextBlock { Text = "Local", FontWeight = FontWeights.SemiBold }; DockPanel.SetDock(localHeader, Dock.Top); localPanel.Children.Add(localHeader);
         var localBar = new DockPanel { Margin = new Thickness(0,6,0,8) };
         var upLocal = new Button { Content = "Up", Margin = new Thickness(0,0,8,0) };
-        upLocal.Click += (_, _) => { localPath.Text = Directory.GetParent(Path.GetFullPath(localPath.Text))?.FullName ?? localPath.Text; LoadLocal(); };
+        upLocal.Click += (_, _) => GuardLocal(() => { localPath.Text = Directory.GetParent(Path.GetFullPath(localPath.Text))?.FullName ?? localPath.Text; LoadLocal(); });
         DockPanel.SetDock(upLocal, Dock.Left); localBar.Children.Add(upLocal); localBar.Children.Add(localPath);
         localPath.KeyDown += (_, e) => { if(e.Key == System.Windows.Input.Key.Enter) { try { LoadLocal(); } catch(Exception error) { status.Text = error.Message; } } };
         DockPanel.SetDock(localBar, Dock.Top); localPanel.Children.Add(localBar);
+        DockPanel.SetDock(localBreadcrumbs, Dock.Top); localPanel.Children.Add(localBreadcrumbs);
         var localColumns = new GridView(); localColumns.Columns.Add(new GridViewColumn { Header = "Name", DisplayMemberBinding = new Binding("Name"), Width = 220 }); localColumns.Columns.Add(new GridViewColumn { Header = "Size", DisplayMemberBinding = new Binding("SizeLabel"), Width = 90 }); localEntries.View = localColumns;
-        localEntries.MouseDoubleClick += (_, _) => { if(localEntries.SelectedItem is FileEntry { Type: "directory" } entry) { localPath.Text = entry.Path; LoadLocal(); } };
+        localEntries.MouseDoubleClick += (_, _) => GuardLocal(() => { if(localEntries.SelectedItem is FileEntry { Type: "directory" } entry) { localPath.Text = entry.Path; LoadLocal(); } });
         localPanel.Children.Add(localEntries);
         var browsers = new Grid(); browsers.ColumnDefinitions.Add(new()); browsers.ColumnDefinitions.Add(new() { Width = new GridLength(6) }); browsers.ColumnDefinitions.Add(new());
         var splitter = new GridSplitter { Width = 6, HorizontalAlignment = HorizontalAlignment.Stretch, ResizeDirection = GridResizeDirection.Columns, ResizeBehavior = GridResizeBehavior.PreviousAndNext }; Grid.SetColumn(splitter,1); browsers.Children.Add(splitter);
@@ -143,7 +149,7 @@ public sealed class SftpPane : UserControl, IDisposable
         timer.Tick += async (_, _) => { if (polling || disposed) return; polling = true; try { await RefreshTransfersAsync(); } catch (OperationCanceledException) { } catch (Exception error) { status.Text = error.Message; } finally { polling = false; } };
         Content = root;
 
-        Loaded += async (_, _) => { if (disposed) return; timer.Start(); await GuardAsync(LoadAsync); };
+        Loaded += async (_, _) => { if (disposed) return; timer.Start(); await GuardAsync(LoadAsync); initialLoad.TrySetResult(); };
     }
 
     private void AddButton(string title, Func<Task> action)
@@ -168,11 +174,29 @@ public sealed class SftpPane : UserControl, IDisposable
         var result = await api.PostAsync($"files/{session}/list", new { path = path.Text });
         files = result.Deserialize<List<FileEntry>>(DesktopClient.Json) ?? [];
         entries.ItemsSource = files.Where(file => showHidden.IsChecked == true || !file.Name.StartsWith('.')).ToArray();
+        PopulateBreadcrumbs(remoteBreadcrumbs, DirectoryBreadcrumbs.Remote(path.Text), destination => GuardAsync(async () => { path.Text = destination; await LoadAsync(); }));
         LoadLocal();
         status.Text = "Double-click folder to open. Drag files here to upload.";
     }
 
     private string RemotePath(string name) => path.Text.TrimEnd('/') + "/" + name;
+
+    private void GuardLocal(Action action)
+    {
+        try { action(); } catch (Exception error) { status.Text = "Cannot open local folder: " + error.Message; }
+    }
+
+    private static void PopulateBreadcrumbs(WrapPanel panel, IReadOnlyList<DirectoryCrumb> crumbs, Func<string, Task> navigate)
+    {
+        panel.Children.Clear();
+        foreach (var crumb in crumbs)
+        {
+            var button = new Button { Content = crumb.Label, ToolTip = crumb.Path, Margin = new Thickness(0, 0, 4, 6) };
+            System.Windows.Automation.AutomationProperties.SetName(button, "Open folder " + crumb.Path);
+            button.Click += async (_, _) => await navigate(crumb.Path);
+            panel.Children.Add(button);
+        }
+    }
 
     private Window ResolveOwner() => owner ?? Window.GetWindow(this) ?? Application.Current.MainWindow;
 
@@ -240,6 +264,7 @@ public sealed class SftpPane : UserControl, IDisposable
         localEntries.ItemsSource = new DirectoryInfo(localPath.Text).EnumerateFileSystemInfos()
             .Where(file => showHidden.IsChecked == true || (!file.Name.StartsWith('.') && (file.Attributes & FileAttributes.Hidden) == 0))
             .Select(file => new FileEntry { Name = file.Name, Path = file.FullName, Type = file is DirectoryInfo ? "directory" : "regular", Size = file is FileInfo info ? info.Length : 0 }).ToArray();
+        PopulateBreadcrumbs(localBreadcrumbs, DirectoryBreadcrumbs.Local(localPath.Text), destination => { GuardLocal(() => { localPath.Text = destination; LoadLocal(); }); return Task.CompletedTask; });
     }
     private async Task NewFolderAsync()
     {
@@ -260,6 +285,25 @@ public sealed class SftpPane : UserControl, IDisposable
 
     internal async Task VerifyFilesJourneyForSmokeAsync(string localFile)
     {
+        await initialLoad.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        for (var i = 0; i < 100 && !toolbar.IsEnabled; i++) await Task.Delay(50);
+        if (!toolbar.IsEnabled) throw new IOException("Initial file-browser load did not finish.");
+        await LoadAsync();
+        localPath.Text = Path.GetDirectoryName(localFile)!; LoadLocal();
+        if (localBreadcrumbs.Children.Count < 2 || remoteBreadcrumbs.Children.Count != 1) throw new IOException("File browser did not populate directory breadcrumbs.");
+        var parent = (Button)localBreadcrumbs.Children[^2];
+        var expectedParent = parent.ToolTip.ToString(); parent.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (localPath.Text != expectedParent) throw new IOException("Clicking a local breadcrumb did not navigate.");
+        // Invalid paths must remain a recoverable file-browser error.
+        localPath.Text = "\0"; GuardLocal(LoadLocal);
+        if (!status.Text.StartsWith("Cannot open local folder:")) throw new IOException("Invalid local directory was not reported.");
+        localPath.Text = Path.GetDirectoryName(localFile)!; LoadLocal();
+        path.Text = "client-files"; await LoadAsync();
+        if (remoteBreadcrumbs.Children.Count != 2) throw new IOException("Remote nested folder did not expose its ancestors.");
+        ((Button)remoteBreadcrumbs.Children[0]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (path.Text != ".") throw new IOException("Remote breadcrumb did not return to the session directory.");
+        for (var i = 0; i < 100 && !toolbar.IsEnabled; i++) await Task.Delay(50);
+        if (!toolbar.IsEnabled) throw new IOException("Remote breadcrumb navigation did not finish.");
         await LoadAsync();
         await QueueUploadsAsync([localFile]);
         var upload = (await api.GetAsync("transfers")).Deserialize<List<TransferEntry>>(DesktopClient.Json)!.First(entry => entry.SessionId == session && entry.Filename == Path.GetFileName(localFile));

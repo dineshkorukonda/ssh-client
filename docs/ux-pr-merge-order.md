@@ -1,6 +1,6 @@
 # Windows UX audit PR history
 
-The original audit PRs are merged. PRs 225 and 231 reached `main` directly; PRs 226–230 and 232 were merged into feature branches. Their remaining changes are recovered together in a PR targeting `main`.
+The original audit PRs are merged. PRs 225 and 231 reached `main` directly; PRs 226-230 and 232 were merged into feature branches. Their remaining changes reached `main` through [PR 233](https://github.com/dineshkorukonda/ssh-client/pull/233) and shipped in v0.0.67.
 
 | Original order | PR | Scope | Issues |
 | --- | --- | --- | --- |

@@ -11,5 +11,6 @@
     <Compile Include="../../native/DesktopClient.cs" Link="DesktopClient.cs" />
     <Compile Include="../../native/ConnectionRequest.cs" Link="ConnectionRequest.cs" />
     <Compile Include="../../native/QuickConnect.cs" Link="QuickConnect.cs" />
+    <Compile Include="../../native/DirectoryBreadcrumbs.cs" Link="DirectoryBreadcrumbs.cs" />
   </ItemGroup>
 </Project>

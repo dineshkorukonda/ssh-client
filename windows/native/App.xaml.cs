@@ -39,6 +39,8 @@ public partial class App : Application
                 Capture(window, 1280, 820, Path.Combine(folder, "hosts_dark.png"));
                 Capture(window, 720, 540, Path.Combine(folder, "hosts-minimum.png"));
                 Capture(window, 720, 540, Path.Combine(folder, "hosts-150dpi.png"), 1.5);
+                Capture(window, 720, 540, Path.Combine(folder, "hosts-125dpi.png"), 1.25);
+                Capture(window, 720, 540, Path.Combine(folder, "hosts-200dpi.png"), 2);
 
                 // 3. Add Host Full Page Editor
                 window.ShowAddHostForPreview();
@@ -127,9 +129,34 @@ public partial class App : Application
                 await window.VerifyProductivityForSmokeAsync(connectionHost);
                 File.WriteAllText(report + ".progress", "connection dialog");
                 await window.VerifyConnectionFormForSmokeAsync(connectionHost);
+                File.WriteAllText(report + ".progress", "host trust rejection");
+                var untrustedHost = connectionHost.Copy(); untrustedHost.Address = "localhost";
+                var untrustedId = (await api.PostAsync("sessions", untrustedHost)).GetProperty("session_id").GetString()!;
+                var knownHostsPath = Environment.GetEnvironmentVariable("SSH_CLIENT_KNOWN_HOSTS_FILE")!;
+                var knownHostsBefore = File.ReadAllText(knownHostsPath);
+                var rejected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var trustWindow = new Window { Width = 400, Height = 300, Opacity = 0, ShowInTaskbar = false };
+                using (var untrustedTerminal = new TerminalView(api, untrustedId, trustWindow, _ => { })) {
+                    untrustedTerminal.ConfirmHostKeyForSmoke = text => {
+                        if (!text.Contains("localhost:") || !text.Contains("Fingerprint:")) throw new IOException("Host trust prompt omitted the server identity.");
+                        rejected.TrySetResult(); return false;
+                    };
+                    trustWindow.Content = untrustedTerminal; trustWindow.Show();
+                    await untrustedTerminal.Ready.WaitAsync(TimeSpan.FromSeconds(30));
+                    await rejected.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                    string? rejectionStatus = null;
+                    for (var i = 0; i < 100; i++) {
+                        rejectionStatus = (await api.GetAsync($"sessions/{untrustedId}")).GetProperty("status").GetString();
+                        if (rejectionStatus == "disconnected") break;
+                        await Task.Delay(100);
+                    }
+                    if (rejectionStatus != "disconnected" || File.ReadAllText(knownHostsPath) != knownHostsBefore) throw new IOException("Rejecting host trust did not disconnect safely.");
+                    trustWindow.Close();
+                }
+                await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "sessions/" + untrustedId);
                 File.WriteAllText(report + ".progress", "completed");
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
-                File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, files_page = true, session_lifecycle = true, host_editor = true, preferences = true, palette = true, accessible_names = true, connection_dialog = true, screen }));
+                File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, files_page = true, session_lifecycle = true, host_editor = true, preferences = true, palette = true, accessible_names = true, connection_dialog = true, host_trust_rejection = true, screen }));
                 window.Close(); Shutdown(0);
             }
             catch (Exception error) { File.WriteAllText(report, error.ToString()); Shutdown(1); }

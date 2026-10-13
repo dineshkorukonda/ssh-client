@@ -26,6 +26,10 @@ public partial class MainWindow
     {
         if (e.Key == Key.K && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { OpenCommandPalette(); e.Handled = true; }
         if (e.Key == Key.Escape && PalettePopup.IsOpen) { PalettePopup.IsOpen = false; e.Handled = true; }
+        if (PalettePopup.IsOpen && e.Key is Key.Down or Key.Up && PaletteList.Items.Count > 0) {
+            PaletteList.SelectedIndex = Math.Clamp(PaletteList.SelectedIndex + (e.Key == Key.Down ? 1 : -1), 0, PaletteList.Items.Count - 1);
+            PaletteList.ScrollIntoView(PaletteList.SelectedItem); e.Handled = true;
+        }
     }
     private void Window_MouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -37,6 +41,8 @@ public partial class MainWindow
         var results = hosts.Where(host => host.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || host.Address.Contains(query, StringComparison.OrdinalIgnoreCase) || string.Join(' ', host.Tags).Contains(query, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(host => host.Name.Equals(query, StringComparison.OrdinalIgnoreCase)).ThenByDescending(host => host.Favorite).ThenByDescending(host => host.LastConnectedAt)
             .Take(12).Select(host => new PaletteEntry($"{host.Name} — {host.Description}", host)).ToList();
+        results.InsertRange(0, openSessions.Reverse().Where(item => item.Summary.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Take(8).Select(item => new PaletteEntry("Switch to session: " + item.SelectionLabel, SessionId: item.SessionId)));
         foreach (var (label, command) in new[] { ("Add host", "add"), ("Hosts", "hosts"), ("Files", "sftp"), ("SSH keys", "keys"), ("Settings", "settings") })
             if (label.Contains(query, StringComparison.OrdinalIgnoreCase)) results.Add(new PaletteEntry(label, Command: command));
         try { if (query.Length > 0) { var host = QuickConnect.Parse(query); results.Add(new PaletteEntry("Quick connect: " + host.Description, host)); } } catch (ArgumentException) { }
@@ -48,7 +54,11 @@ public partial class MainWindow
     {
         if (PaletteList.SelectedItem is not PaletteEntry entry) return;
         PalettePopup.IsOpen = false;
-        if (entry.Host != null) await ConnectHostAsync(entry.Host);
+        if (entry.SessionId != null) {
+            var tab = SessionTabs.Items.Cast<TabItem>().FirstOrDefault(tab => tab.Tag is TerminalTabItem item && item.SessionId == entry.SessionId);
+            if (tab != null) { ShowPage("session"); SessionTabs.SelectedItem = tab; }
+        }
+        else if (entry.Host != null) await ConnectHostAsync(entry.Host);
         else if (entry.Command == "add") { ShowPage("hosts"); NewHost_Click(this, new()); }
         else if (entry.Command != null) ShowPage(entry.Command);
     }
@@ -165,6 +175,14 @@ public partial class MainWindow
         await SetThemeAsync(AppTheme.Dark);
         OmniBar.Text = fixture.Name; OpenCommandPalette();
         if (!PaletteList.Items.Cast<PaletteEntry>().Any(entry => entry.Host?.Id == fixture.Id)) throw new IOException("Palette did not find a saved host.");
+        var sessionEntry = PaletteList.Items.Cast<PaletteEntry>().FirstOrDefault(entry => entry.SessionId != null);
+        if (sessionEntry == null) throw new IOException("Palette did not offer the existing session.");
+        var key = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(this), Environment.TickCount, Key.Down) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+        RaiseEvent(key);
+        if (!key.Handled || PaletteList.SelectedIndex != 1) throw new IOException("Palette keyboard navigation did not move selection.");
+        var sessionCount = openSessions.Count;
+        PaletteList.SelectedItem = sessionEntry; await RunPaletteAsync();
+        if (openSessions.Count != sessionCount || SessionTabs.SelectedItem is not TabItem { Tag: TerminalTabItem selected } || selected.SessionId != sessionEntry.SessionId) throw new IOException("Palette did not select the existing session by ID.");
         PalettePopup.IsOpen = false;
     }
 
