@@ -133,43 +133,23 @@
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div>
           <h2 class="text-lg font-bold text-white tracking-tight">Desktop Client Showcase</h2>
-          <p class="text-xs text-zinc-400">Actual native interface running on Windows 11 with dark theme and hardware acceleration.</p>
+          <p class="text-xs text-zinc-400">Real native app captures in the dark theme, using demo hostnames.</p>
         </div>
 
-        <!-- View Switcher -->
-        <div class="inline-flex items-center p-1 rounded-md bg-[#0e0e11] border border-zinc-800 text-xs">
-          <button id="btn-show-overview" onclick="switchShowcase('overview')" class="px-3 py-1 rounded text-xs font-medium bg-zinc-800 text-white transition-colors">
-            Overview Dashboard
-          </button>
-          <button id="btn-show-terminal" onclick="switchShowcase('terminal')" class="px-3 py-1 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
-            Live Terminal Session
-          </button>
+        <div class="flex flex-wrap gap-1 p-1 rounded-md bg-[#0e0e11] border border-zinc-800 text-xs" role="group" aria-label="App screenshots">
+          <button data-showcase="hosts" onclick="switchShowcase('hosts')" aria-pressed="true" class="px-3 py-2 rounded bg-zinc-800 text-white">Host cards</button>
+          <button data-showcase="connecting" onclick="switchShowcase('connecting')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Connecting</button>
+          <button data-showcase="failure" onclick="switchShowcase('failure')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Reconnect</button>
+          <button data-showcase="overview" onclick="switchShowcase('overview')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Overview</button>
+          <button data-showcase="terminal" onclick="switchShowcase('terminal')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Terminal</button>
         </div>
       </div>
-
-      <!-- Native Window Frame Housing Real Screenshot -->
-      <div class="rounded-lg border border-zinc-800 bg-[#000000] overflow-hidden shadow-2xl">
-        
-        <!-- App Titlebar Mockup -->
-        <div class="h-9 bg-[#09090b] border-b border-zinc-800 px-4 flex items-center justify-between select-none">
-          <div class="flex items-center gap-2">
-            <div class="w-5 h-5 rounded bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-white">SSH</div>
-            <span class="text-xs font-mono text-zinc-300">ssh-client / v0.0.70</span>
-          </div>
-          <div class="text-[11px] font-mono text-zinc-500 hidden sm:block">Native Windows x64 Runtime</div>
-          <div class="flex items-center gap-3 text-zinc-500 text-xs">
-            <span>Theme</span>
-            <span>&minus;</span>
-            <span>&#9633;</span>
-            <span>&times;</span>
-          </div>
-        </div>
-
-        <!-- Actual Sanitized Screenshots -->
-        <div class="relative bg-black w-full">
-          <img id="img-overview" src="assets/app-overview.png" alt="ssh-client Overview Dashboard" class="w-full h-auto block" />
-          <img id="img-terminal" src="assets/app-terminal.png" alt="ssh-client Live Terminal Session" class="w-full h-auto block hidden" />
-        </div>
+      <div class="rounded-lg border border-zinc-800 bg-black overflow-hidden shadow-2xl">
+        <img data-showcase-image="hosts" src="assets/app-hosts.png" alt="Native SSH client host cards with demo hostnames" width="1280" height="820" class="w-full h-auto block" />
+        <img data-showcase-image="connecting" src="assets/app-connecting.png" alt="Native SSH connection progress screen" width="1280" height="820" class="w-full h-auto block hidden" />
+        <img data-showcase-image="failure" src="assets/app-reconnect.png" alt="Native SSH connection failure with reconnect action" width="1280" height="820" class="w-full h-auto block hidden" />
+        <img data-showcase-image="overview" src="assets/app-overview.png" alt="SSH client overview dashboard" class="w-full h-auto block hidden" />
+        <img data-showcase-image="terminal" src="assets/app-terminal.png" alt="SSH client terminal session" class="w-full h-auto block hidden" />
       </div>
 
       <!-- Caption & Details -->
@@ -180,11 +160,11 @@
         </div>
         <div class="p-3 rounded-md bg-[#0e0e11] border border-zinc-800/80">
           <div class="text-white font-medium mb-1">Erlang/OTP Transport</div>
-          <div>Concurrent, non-blocking connection supervision with sub-millisecond tab switching.</div>
+          <div>Connection progress follows the session state, with a clear action when reconnecting is needed.</div>
         </div>
         <div class="p-3 rounded-md bg-[#0e0e11] border border-zinc-800/80">
           <div class="text-white font-medium mb-1">Continuous Telemetry</div>
-          <div>Low-overhead CPU, RAM, and load tracking with zero background battery drain.</div>
+          <div>View CPU, RAM, and load when telemetry is available for a connected host.</div>
         </div>
       </div>
     </div>
@@ -468,22 +448,16 @@
   <!-- View Switcher Script -->
   <script>
     function switchShowcase(view) {
-      const imgOverview = document.getElementById('img-overview');
-      const imgTerminal = document.getElementById('img-terminal');
-      const btnOverview = document.getElementById('btn-show-overview');
-      const btnTerminal = document.getElementById('btn-show-terminal');
-
-      if (view === 'overview') {
-        imgOverview.classList.remove('hidden');
-        imgTerminal.classList.add('hidden');
-        btnOverview.className = 'px-3 py-1 rounded text-xs font-medium bg-zinc-800 text-white transition-colors';
-        btnTerminal.className = 'px-3 py-1 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors';
-      } else {
-        imgOverview.classList.add('hidden');
-        imgTerminal.classList.remove('hidden');
-        btnOverview.className = 'px-3 py-1 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors';
-        btnTerminal.className = 'px-3 py-1 rounded text-xs font-medium bg-zinc-800 text-white transition-colors';
-      }
+      if (!document.querySelector('[data-showcase-image="' + view + '"]')) return;
+      document.querySelectorAll('[data-showcase-image]').forEach(image => {
+        image.classList.toggle('hidden', image.dataset.showcaseImage !== view);
+      });
+      document.querySelectorAll('[data-showcase]').forEach(button => {
+        const selected = button.dataset.showcase === view;
+        button.setAttribute('aria-pressed', String(selected));
+        button.className = 'px-3 py-2 rounded text-xs font-medium transition-colors ' +
+          (selected ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200');
+      });
     }
   </script>
 </body>

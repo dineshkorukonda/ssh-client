@@ -59,7 +59,7 @@ public partial class MainWindow : Window
             [
                 new Host { Name = "Production K8s Gateway", Address = "prod-k8s.internal", User = "ops", Favorite = true, Notes = "Primary Kubernetes edge cluster", Tags = ["production", "ubuntu", "k8s"] },
                 new Host { Name = "Staging DB Primary", Address = "staging-db.internal", User = "postgres", Port = 5432, Favorite = true, Notes = "PostgreSQL 16 failover replica", Tags = ["staging", "debian", "database"] },
-                new Host { Name = "Worker Node 04", Address = "10.0.12.44", User = "deploy", Tags = ["worker", "alpine"] },
+                new Host { Name = "Worker Node 04", Address = "worker-04.internal", User = "deploy", Tags = ["worker", "alpine"] },
                 new Host { Name = "Legacy Telemetry Ingest", Address = "telemetry.infra", User = "admin", Tags = ["redhat", "metrics"] },
                 new Host { Name = "Build & Release CI", Address = "ci-runner.internal", User = "runner", Tags = ["ci", "arch"] },
                 new Host { Name = "Backup Storage Vault", Address = "vault-backup.internal", User = "root", Tags = ["backup", "debian"] }
