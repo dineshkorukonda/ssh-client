@@ -92,6 +92,13 @@ def extract_versions():
             match = re.search(r'class="[^"]*(?:app-version-badge|font-mono text-\[10px\])[^"]*"[^>]*>\s*v([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*)\s*<', content)
             if match:
                 versions[os.path.relpath(path, ROOT_DIR)] = match.group(1)
+    # Site build metadata is synchronized without advertising an unpublished release.
+    for key, path in FILES.items():
+        if key.startswith("web_") and os.path.exists(path):
+            with open(path, encoding="utf-8") as source:
+                match = re.search(r'<meta name="app-version" content="([^"]+)"', source.read())
+            if match:
+                versions[os.path.relpath(path, ROOT_DIR)] = match.group(1)
     return versions
 
 
@@ -265,7 +272,11 @@ def bump_version(new_version, notes=None):
             with open(wpath, "r", encoding="utf-8") as f:
                 w_content = f.read()
 
-            # Replace navbar version badge
+            w_content = re.sub(
+                r'(<meta name="app-version" content=")[^"]+("\s*/?>)',
+                rf'\g<1>{new_version}\g<2>', w_content,
+            )
+            # Replace legacy navbar version badge
             w_content = re.sub(
                 r'(class="[^"]*app-version-badge[^"]*"[^>]*>\s*)v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.\-]*(\s*</span>)',
                 rf'\g<1>v{new_version}\g<2>',
@@ -290,10 +301,9 @@ def bump_version(new_version, notes=None):
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v{new_version}</span>
-          <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded app-latest-release">latest release</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
-          <span>Released: {today}</span>
+          <span>Updated: {today}</span>
           <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v{new_version}" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
             GitHub Release ↗
           </a>
@@ -301,7 +311,7 @@ def bump_version(new_version, notes=None):
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
+        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 space-y-4">
           <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">

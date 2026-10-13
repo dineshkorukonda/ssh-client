@@ -105,6 +105,7 @@
       background: rgba(52, 211, 153, 0.1);
     }
   </style>
+  <meta name="app-version" content="0.0.72">
 </head>
 <body class="min-h-screen bg-[#09090b] text-zinc-200 antialiased flex flex-col relative selection:bg-sky-500/20 selection:text-sky-300 ">
 
@@ -119,7 +120,6 @@
           <img src="../assets/logo.svg" alt="ssh-client logo" class="w-8 h-8 rounded-none  group-hover:scale-105 transition-transform" />
           <span class="text-base font-bold tracking-tight text-white group-hover:text-zinc-200 transition-colors">ssh-client</span>
         </a>
-        <span class="font-mono text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-900/90 px-2 py-0.5 rounded-none app-version-badge">v0.0.72</span>
       </div>
 
       <nav class="hidden md:flex items-center gap-1 text-sm font-medium text-zinc-400">
@@ -177,15 +177,14 @@
           </p>
 
           <div class="cmd-block">
-            <pre># Recommended: download and run the .exe installer
-# It installs to Program Files, creates a Start Menu shortcut,
-# and opens your browser to http://localhost:4000 automatically.
-ssh-client-setup-v0.0.72-windows-x64.exe
+            <pre># Recommended: download the installer from the latest published release:
+# https://github.com/dineshkorukonda/ssh-client/releases/latest
+# Run the downloaded .exe to open the native Windows application.
 
 # Alternatively (PowerShell) &mdash; manual zip extract:
-Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.72/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
+Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/latest/download/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
 Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPDATA\Programs\ssh-client" -Force
-&amp; "$env:LOCALAPPDATA\Programs\ssh-client\bin\ssh_client.bat" start</pre>
+&amp; "$env:LOCALAPPDATA\Programs\ssh-client\ssh-client.exe"</pre>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
 

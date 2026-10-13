@@ -44,6 +44,7 @@
         linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     }
   </style>
+  <meta name="app-version" content="0.0.72">
 </head>
 <body class="selection:bg-sky-500/20 selection:text-sky-300 min-h-screen flex flex-col font-sans">
 
@@ -55,8 +56,6 @@
           <img src="assets/logo.svg" alt="ssh-client logo" class="w-8 h-8 rounded-none" />
           <span class="font-bold text-sm tracking-tight text-white group-hover:text-zinc-200 transition-colors">ssh-client</span>
         </a>
-        <span class="text-zinc-600 text-xs">/</span>
-        <span class="app-version-badge text-[11px] font-mono px-2 py-0.5 rounded-none bg-zinc-800 text-zinc-300 border border-zinc-700">v0.0.72</span>
       </div>
 
       <nav class="hidden md:flex items-center gap-6 text-xs font-medium text-zinc-400">
@@ -84,14 +83,6 @@
   <section class="relative pt-16 pb-14 px-4 sm:px-6 lg:px-8 border-b border-zinc-800/60 overflow-hidden grid-bg">
     <div class="max-w-4xl mx-auto text-center relative z-10">
       
-      <!-- Version & Status Box -->
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-none bg-[#0e0e11] border border-zinc-800 text-xs font-mono text-zinc-300 mb-6 shadow-sm">
-        <span class="w-2 h-2 rounded-none bg-sky-400 inline-block shadow-[0_0_8px_#38bdf8]"></span>
-        <span>Native Release v0.0.70 Available</span>
-        <span class="text-zinc-600">|</span>
-        <span class="text-zinc-400">Windows &amp; Linux</span>
-      </div>
-
       <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
         The native desktop SSH client with continuous telemetry.
       </h1>
@@ -102,21 +93,21 @@
 
       <!-- Primary Action Buttons -->
       <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.72/ssh-client-setup-v0.0.72-windows-x64.exe" class="px-5 py-2.5 rounded-none bg-white text-black text-xs font-semibold hover:bg-zinc-200 transition-colors shadow-sm inline-flex items-center gap-2">
+        <a data-release-asset="installer" href="https://github.com/dineshkorukonda/ssh-client/releases/latest" class="px-5 py-2.5 rounded-none bg-white text-black text-xs font-semibold hover:bg-zinc-200 transition-colors shadow-sm inline-flex items-center gap-2">
           <span>Download for Windows (.exe)</span>
           <span class="text-zinc-500 font-mono text-[10px]">64-bit</span>
         </a>
-        <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.72/ssh-client-windows-x64.zip" class="px-4 py-2.5 rounded-none bg-[#121316] text-zinc-300 border border-zinc-700 text-xs font-medium hover:border-zinc-500 hover:text-white transition-colors">
+        <a data-release-asset="portable" href="https://github.com/dineshkorukonda/ssh-client/releases/latest" class="px-4 py-2.5 rounded-none bg-[#121316] text-zinc-300 border border-zinc-700 text-xs font-medium hover:border-zinc-500 hover:text-white transition-colors">
           Portable (.zip)
         </a>
-        <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.72/ssh-client-linux-x64.tar.gz" class="px-4 py-2.5 rounded-none bg-[#121316] text-zinc-300 border border-zinc-700 text-xs font-medium hover:border-zinc-500 hover:text-white transition-colors">
+        <a data-release-asset="linux" href="https://github.com/dineshkorukonda/ssh-client/releases/latest" class="px-4 py-2.5 rounded-none bg-[#121316] text-zinc-300 border border-zinc-700 text-xs font-medium hover:border-zinc-500 hover:text-white transition-colors">
           Linux (.tar.gz)
         </a>
       </div>
 
       <!-- Linux download command -->
       <div class="mt-6 flex items-center justify-center gap-2">
-        <div class="inline-flex max-w-full items-center gap-2 px-3 py-1.5 rounded-none bg-[#0e0e11] border border-zinc-800 text-xs font-mono text-zinc-400">
+        <div class="inline-flex max-w-full items-center gap-2 py-1.5 text-xs font-mono text-zinc-400">
           <span class="text-sky-400">$</span>
           <span class="min-w-0 break-all text-left">wget https://github.com/dineshkorukonda/ssh-client/releases/latest/download/ssh-client-linux-x64.tar.gz</span>
           <button onclick="navigator.clipboard.writeText('wget https://github.com/dineshkorukonda/ssh-client/releases/latest/download/ssh-client-linux-x64.tar.gz'); this.innerText='Copied!';" class="ml-2 px-2 py-0.5 rounded-none text-[10px] bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors">Copy</button>
@@ -136,10 +127,10 @@
           <p class="text-xs text-zinc-400">Real native app captures in the dark theme, using demo hostnames.</p>
         </div>
 
-        <div class="flex flex-wrap gap-1 p-1 rounded-none bg-[#0e0e11] border border-zinc-800 text-xs" role="group" aria-label="App screenshots">
-          <button data-showcase="hosts" onclick="switchShowcase('hosts')" aria-pressed="true" class="px-3 py-2 rounded-none bg-zinc-800 text-white">Host cards</button>
-          <button data-showcase="connecting" onclick="switchShowcase('connecting')" aria-pressed="false" class="px-3 py-2 rounded-none text-zinc-400">Connecting</button>
-          <button data-showcase="failure" onclick="switchShowcase('failure')" aria-pressed="false" class="px-3 py-2 rounded-none text-zinc-400">Reconnect</button>
+        <div class="flex flex-wrap gap-4 text-xs" role="group" aria-label="App screenshots">
+          <button data-showcase="hosts" onclick="switchShowcase('hosts')" aria-pressed="true" class="py-2 border-b border-sky-400 text-white">Host cards</button>
+          <button data-showcase="connecting" onclick="switchShowcase('connecting')" aria-pressed="false" class="py-2 border-b border-transparent text-zinc-400">Connecting</button>
+          <button data-showcase="failure" onclick="switchShowcase('failure')" aria-pressed="false" class="py-2 border-b border-transparent text-zinc-400">Reconnect</button>
         </div>
       </div>
       <div class="rounded-none border border-zinc-800 bg-black overflow-hidden shadow-2xl">
@@ -360,12 +351,9 @@
   <!-- Download Center -->
   <section id="download" class="py-16 px-4 sm:px-6 lg:px-8 border-b border-zinc-800/80 bg-[#0e0e11]/60">
     <div class="max-w-4xl mx-auto text-center">
-      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-none bg-zinc-800 text-xs font-mono text-zinc-300 mb-4">
-        <span>Production Release</span>
-      </div>
-      <h2 class="text-3xl font-extrabold text-white tracking-tight">Download ssh-client v0.0.70</h2>
+      <h2 class="text-3xl font-extrabold text-white tracking-tight">Download ssh-client</h2>
       <p class="mt-2 text-sm text-zinc-400 max-w-xl mx-auto">
-        Choose your preferred distribution format. All binaries are cryptographically signed and checksummed.
+        Choose your preferred distribution format from the latest published GitHub release.
       </p>
 
       <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
@@ -378,7 +366,7 @@
             <p class="text-xs text-zinc-400 mt-2">Guided setup with Start Menu integration, desktop shortcut, and uninstaller.</p>
           </div>
           <div class="mt-6">
-            <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.72/ssh-client-setup-v0.0.72-windows-x64.exe" class="w-full block text-center py-2 px-3 rounded-none bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors">
+            <a data-release-asset="installer" href="https://github.com/dineshkorukonda/ssh-client/releases/latest" class="w-full block text-center py-2 px-3 rounded-none bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors">
               Download Installer
             </a>
           </div>
@@ -392,7 +380,7 @@
             <p class="text-xs text-zinc-400 mt-2">Zero installation required. Extract to any directory or USB drive and launch.</p>
           </div>
           <div class="mt-6">
-            <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.72/ssh-client-windows-x64.zip" class="w-full block text-center py-2 px-3 rounded-none bg-[#121316] text-zinc-200 border border-zinc-700 font-medium text-xs hover:border-zinc-500 hover:text-white transition-colors">
+            <a data-release-asset="portable" href="https://github.com/dineshkorukonda/ssh-client/releases/latest" class="w-full block text-center py-2 px-3 rounded-none bg-[#121316] text-zinc-200 border border-zinc-700 font-medium text-xs hover:border-zinc-500 hover:text-white transition-colors">
               Download Portable ZIP
             </a>
           </div>
@@ -406,7 +394,7 @@
             <p class="text-xs text-zinc-400 mt-2">Precompiled Erlang/Elixir binary distribution for Ubuntu, Debian, Fedora, and Arch.</p>
           </div>
           <div class="mt-6">
-            <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.72/ssh-client-linux-x64.tar.gz" class="w-full block text-center py-2 px-3 rounded-none bg-[#121316] text-zinc-200 border border-zinc-700 font-medium text-xs hover:border-zinc-500 hover:text-white transition-colors">
+            <a data-release-asset="linux" href="https://github.com/dineshkorukonda/ssh-client/releases/latest" class="w-full block text-center py-2 px-3 rounded-none bg-[#121316] text-zinc-200 border border-zinc-700 font-medium text-xs hover:border-zinc-500 hover:text-white transition-colors">
               Download Tarball
             </a>
           </div>
@@ -415,8 +403,8 @@
 
       <!-- Checksum Command -->
       <div class="mt-8 p-3 rounded-none bg-[#09090b] border border-zinc-800 text-left font-mono text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <span class="text-zinc-400 truncate">certutil -hashfile ssh-client-setup-v0.0.72-windows-x64.exe SHA256</span>
-        <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.72" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline shrink-0">View Checksums on GitHub &rarr;</a>
+        <span class="text-zinc-400">Published release assets</span>
+        <a href="https://github.com/dineshkorukonda/ssh-client/releases/latest" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline shrink-0">View Checksums on GitHub &rarr;</a>
       </div>
     </div>
   </section>
@@ -451,10 +439,11 @@
       document.querySelectorAll('[data-showcase]').forEach(button => {
         const selected = button.dataset.showcase === view;
         button.setAttribute('aria-pressed', String(selected));
-        button.className = 'px-3 py-2 rounded-none text-xs font-medium transition-colors ' +
-          (selected ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200');
+        button.className = 'py-2 border-b text-xs font-medium transition-colors ' +
+          (selected ? 'border-sky-400 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200');
       });
     }
   </script>
+  <script src="assets/releases.js" defer></script>
 </body>
 </html>
