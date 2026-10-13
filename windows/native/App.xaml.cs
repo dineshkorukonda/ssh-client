@@ -156,7 +156,7 @@ public partial class App : Application
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "sessions/" + untrustedId);
                 File.WriteAllText(report + ".progress", "completed");
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
-                File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, files_page = true, session_lifecycle = true, host_editor = true, preferences = true, palette = true, accessible_names = true, connection_dialog = true, host_trust_rejection = true, screen }));
+                File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, files_page = true, session_lifecycle = true, host_editor = true, host_key_flow = true, update_controls = true, preferences = true, palette = true, accessible_names = true, connection_dialog = true, host_trust_rejection = true, screen }));
                 window.Close(); Shutdown(0);
             }
             catch (Exception error) { File.WriteAllText(report, error.ToString()); Shutdown(1); }

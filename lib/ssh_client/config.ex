@@ -55,7 +55,8 @@ defmodule SSHClient.Config do
   """
   @spec os_config_dir() :: Path.t()
   def os_config_dir do
-    case :filename.basedir(:user_config, "ssh-client") do
+    case Application.get_env(:ssh_client, :config_dir) ||
+           :filename.basedir(:user_config, "ssh-client") do
       dir when is_binary(dir) -> dir
       dir when is_list(dir) -> List.to_string(dir)
     end

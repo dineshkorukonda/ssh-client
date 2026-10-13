@@ -5,17 +5,198 @@ defmodule SSHClient.DesktopKeys do
   def list, do: Store.list(:keys)
   def remove(id), do: Store.delete(:keys, id)
 
+  @max_key_size 262_144
+
+  @doc "Inspect a local private key without registering it or storing its contents."
+  def inspect_file(attrs) do
+    path = attrs["path"]
+
+    with true <- is_binary(path) and byte_size(path) in 1..4096,
+         path = Path.expand(path),
+         {:ok, stat} <- File.stat(path),
+         true <- stat.type == :regular and stat.size <= @max_key_size,
+         {:ok, data} <- File.read(path) do
+      case inspect_key(data, path, attrs["passphrase"] || "") do
+        {:ok, _, nil} ->
+          {:error, "This is a public key. Choose the private key file without .pub."}
+
+        {:ok, public, private_path} ->
+          with {:ok, entry} <- metadata(public, private_path, Path.basename(path)) do
+            {:ok,
+             Map.merge(entry, %{
+               status: "ready",
+               source: "local",
+               is_passphrase_protected: encrypted?(data)
+             })}
+          end
+
+        {:error, _} = error ->
+          unsupported = openssh_bcrypt?(data)
+
+          if unsupported and (attrs["passphrase"] || "") != "" do
+            {:error,
+             "Encrypted OpenSSH keys use bcrypt, which the bundled SSH engine cannot decrypt. Choose an unencrypted OpenSSH key or an encrypted PEM key."}
+          else
+            if encrypted?(data) and (attrs["passphrase"] || "") == "" do
+              public = encrypted_public(data, path)
+
+              entry =
+                case public && metadata(public, path, Path.basename(path)) do
+                  {:ok, entry} ->
+                    entry
+
+                  _ ->
+                    %{
+                      id: path,
+                      name: Path.basename(path),
+                      private_key_path: path,
+                      algorithm: "Encrypted key",
+                      fingerprint: "",
+                      public_key: ""
+                    }
+                end
+
+              {:ok,
+               Map.merge(entry, %{
+                 status: if(unsupported, do: "unsupported", else: "locked"),
+                 source: "local",
+                 is_passphrase_protected: true
+               })}
+            else
+              error
+            end
+          end
+      end
+    else
+      false -> {:error, "Choose a private key file smaller than 256 KB."}
+      {:error, reason} -> {:error, "Cannot read this key: #{:file.format_error(reason)}"}
+    end
+  rescue
+    _ -> {:error, "Cannot inspect this SSH key. Check its format and permissions."}
+  end
+
+  @doc "Discover private keys in .ssh and explicit IdentityFile paths; never search the home tree."
+  def discover(opts \\ []) do
+    home =
+      Keyword.get(
+        opts,
+        :home,
+        Application.get_env(:ssh_client, :ssh_home) || System.get_env("SSH_CLIENT_SSH_HOME") ||
+          System.user_home!()
+      )
+
+    directory = Path.join(home, ".ssh")
+
+    files =
+      case File.ls(directory) do
+        {:ok, names} ->
+          names |> Enum.sort() |> Enum.take(200) |> Enum.map(&Path.join(directory, &1))
+
+        _ ->
+          []
+      end
+
+    config_path = Path.join(directory, "config")
+
+    config =
+      with {:ok, stat} <- File.stat(config_path),
+           true <- stat.type == :regular and stat.size <= 2_000_000,
+           do: SSHClient.SSH.ConfigImporter.import_file(config_path)
+
+    configured =
+      case config do
+        {:ok, hosts} -> Enum.map(hosts, & &1.identity_file) |> Enum.reject(&is_nil/1)
+        _ -> []
+      end
+
+    (configured ++ files)
+    |> Enum.uniq()
+    |> Enum.take(200)
+    |> Enum.flat_map(fn path ->
+      if String.ends_with?(path, [".pub", "known_hosts", "authorized_keys", "/config"]) do
+        []
+      else
+        case inspect_file(%{"path" => path}) do
+          {:ok, entry} -> [entry]
+          _ -> []
+        end
+      end
+    end)
+  end
+
+  defp openssh_wire(data) do
+    encoded =
+      data
+      |> String.split("\n")
+      |> Enum.reject(&String.starts_with?(&1, "-----"))
+      |> Enum.map(&String.trim/1)
+      |> Enum.join()
+
+    with {:ok, <<"openssh-key-v1", 0, rest::binary>>} <- Base.decode64(encoded), do: {:ok, rest}
+  end
+
+  defp ssh_string(<<size::32, value::binary-size(size), rest::binary>>), do: {:ok, value, rest}
+  defp ssh_string(_), do: {:error, :invalid_key}
+
+  defp encrypted?(data) do
+    if String.contains?(data, "BEGIN OPENSSH PRIVATE KEY") do
+      with {:ok, wire} <- openssh_wire(data),
+           {:ok, cipher, _} <- ssh_string(wire),
+           do: cipher != "none"
+    else
+      String.contains?(data, ["BEGIN ENCRYPTED PRIVATE KEY", "Proc-Type: 4,ENCRYPTED"])
+    end
+    |> then(&(&1 == true))
+  end
+
+  defp openssh_bcrypt?(data) do
+    result =
+      with {:ok, wire} <- openssh_wire(data),
+           {:ok, _, rest} <- ssh_string(wire),
+           {:ok, kdf, _} <- ssh_string(rest),
+           do: kdf == "bcrypt"
+
+    result == true
+  end
+
+  defp encrypted_public(data, path) do
+    with {:ok, wire} <- openssh_wire(data),
+         {:ok, _, rest} <- ssh_string(wire),
+         {:ok, _, rest} <- ssh_string(rest),
+         {:ok, _, <<1::32, rest::binary>>} <- ssh_string(rest),
+         {:ok, public, _} <- ssh_string(rest),
+         {:ok, algorithm, _} <- ssh_string(public) do
+      algorithm <> " " <> Base.encode64(public)
+    else
+      _ ->
+        with {:ok, stat} <- File.stat(path <> ".pub"),
+             true <- stat.size <= @max_key_size,
+             {:ok, public} <- File.read(path <> ".pub"),
+             {:ok, _, nil} <- inspect_key(public, path <> ".pub", "") do
+          public
+        else
+          _ -> nil
+        end
+    end
+  end
+
   def register(attrs) do
     path = attrs["path"]
 
     if is_binary(path) and byte_size(path) in 1..4096 do
       path = Path.expand(path)
 
-      with {:ok, data} <- File.read(path),
+      with {:ok, stat} <- File.stat(path),
+           true <- stat.type == :regular and stat.size <= @max_key_size,
+           {:ok, data} <- File.read(path),
            {:ok, public, private_path} <- inspect_key(data, path, attrs["passphrase"] || ""),
            {:ok, entry} <- metadata(public, private_path, attrs["name"] || Path.basename(path)),
+           entry = Map.put(entry, :is_passphrase_protected, encrypted?(data)),
            :ok <- Store.put(:keys, entry.id, entry) do
         {:ok, entry}
+      else
+        false -> {:error, "Choose an SSH key file smaller than 256 KB."}
+        error -> error
       end
     else
       {:error, "Select a valid SSH key file."}
@@ -74,12 +255,21 @@ defmodule SSHClient.DesktopKeys do
     else
       password = if passphrase == "", do: :ignore, else: String.to_charlist(passphrase)
 
-      Enum.find_value([:"ssh-ed25519", :"ssh-rsa", :"ecdsa-sha2-nistp256"], fn algorithm ->
-        case :ssh_file.decode_ssh_file(:private, algorithm, data, password) do
-          {:ok, [{key, _} | _]} -> {:ok, public_text(key), path}
-          _ -> nil
+      Enum.find_value(
+        [
+          :"ssh-ed25519",
+          :"ssh-rsa",
+          :"ecdsa-sha2-nistp256",
+          :"ecdsa-sha2-nistp384",
+          :"ecdsa-sha2-nistp521"
+        ],
+        fn algorithm ->
+          case :ssh_file.decode_ssh_file(:private, algorithm, data, password) do
+            {:ok, [{key, _} | _]} -> {:ok, public_text(key), path}
+            _ -> nil
+          end
         end
-      end) || {:error, "Unsupported or encrypted private key; check its passphrase."}
+      ) || {:error, "Unsupported or encrypted private key; check its passphrase."}
     end
   end
 

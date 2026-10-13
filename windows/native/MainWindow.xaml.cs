@@ -72,6 +72,7 @@ public partial class MainWindow : Window
         Closing += (_, e) => { if (EditorDirty() && MessageBox.Show(this, "Discard unsaved host changes and close?", "Unsaved changes", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true; };
         Closed += (_, _) =>
         {
+            updateCancellation.Cancel();
             foreach (var view in terminals) view.Dispose();
             filePane?.Dispose();
             api?.Dispose();
@@ -113,7 +114,7 @@ public partial class MainWindow : Window
     {
         MainAppGrid.Visibility = Visibility.Visible;
         ShowPage("hosts");
-        OpenHostEditor(new Host { Port = 22, User = "root", DefaultAuthMethod = "key" });
+        OpenHostEditor(new Host { Port = 22, DefaultAuthMethod = "key" });
     }
 
     internal void ShowSftpForPreview()
@@ -252,12 +253,16 @@ public partial class MainWindow : Window
         var key = (EditorAuth.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "key";
         EditorKeyPath.IsEnabled = key;
         if (EditorIdentity != null) EditorIdentity.IsEnabled = key;
+        if (EditorKeySection != null) EditorKeySection.Visibility = key ? Visibility.Visible : Visibility.Collapsed;
+        if (EditorAuthHint != null) EditorAuthHint.Text = key ? "Choose an existing private key. Its contents stay on this computer." : "You will be prompted for credentials when connecting.";
     }
 
     private void EditorIdentity_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (EditorIdentity.SelectedItem is KeyEntry key && key.PrivateKeyPath != null)
+        if (EditorIdentity.SelectedItem is KeyEntry key && key.PrivateKeyPath != null) {
             EditorKeyPath.Text = key.PrivateKeyPath;
+            EditorKeyDetails.Text = key.Details;
+        }
     }
 
     // -------------------------------------------------------------
@@ -443,7 +448,7 @@ public partial class MainWindow : Window
     // Full-Page Add / Edit Host
     // -------------------------------------------------------------
     private void NewHost_Click(object sender, RoutedEventArgs e) =>
-        OpenHostEditor(new Host { Port = 22, User = "root", DefaultAuthMethod = "key" });
+        OpenHostEditor(new Host { Port = 22, DefaultAuthMethod = "key" });
 
     private void OpenHostEditor(Host host)
     {
@@ -452,14 +457,16 @@ public partial class MainWindow : Window
         EditorName.Text = host.Name;
         EditorHost.Text = host.Address;
         EditorPort.Text = host.Port.ToString();
-        EditorUser.Text = string.IsNullOrWhiteSpace(host.User) ? "root" : host.User;
+        EditorUser.Text = host.User;
         EditorKeyPath.Text = host.IdentityFile ?? "";
         EditorAuth.SelectedItem = EditorAuth.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Tag.ToString() == host.DefaultAuthMethod) ?? EditorAuth.Items[0];
         EditorIdentity.SelectedItem = keys.FirstOrDefault(key => key.PrivateKeyPath == host.IdentityFile);
         EditorJump.Text = host.ProxyJump ?? "";
         EditorTags.Text = string.Join(", ", host.Tags);
         EditorNotes.Text = host.Notes;
-        EditorHeader.Text = string.IsNullOrWhiteSpace(host.Name) ? "Register New Host" : $"Edit Host: {host.Name}";
+        EditorHeader.Text = string.IsNullOrWhiteSpace(host.Name) ? "New host" : $"Edit host: {host.Name}";
+        EditorKeyDetails.Text = (EditorIdentity.SelectedItem as KeyEntry)?.Details ?? (string.IsNullOrWhiteSpace(host.IdentityFile) ? "No key selected. Choose a local key or another file." : host.IdentityFile);
+        EditorAuth_Changed(this, null!);
 
         HostListGrid.Visibility = Visibility.Collapsed;
         HostEditorGrid.Visibility = Visibility.Visible;
@@ -476,15 +483,19 @@ public partial class MainWindow : Window
         editingHost = null;
     }
 
-    private void EditorBrowseKey_Click(object sender, RoutedEventArgs e)
+    private async void EditorBrowseKey_Click(object sender, RoutedEventArgs e)
     {
         var picker = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Select SSH Private Key",
-            Filter = "SSH Key Files (*.pem;id_*;*.key)|*.pem;id_*;*.key|All Files (*.*)|*.*"
+            Filter = "Private keys (*.pem;id_*;*.key)|*.pem;id_*;*.key|All files|*.*",
+            InitialDirectory = LocalSshDirectory()
         };
-        if (picker.ShowDialog(this) == true)
-            EditorKeyPath.Text = picker.FileName;
+        if (picker.ShowDialog(this) == true && api != null)
+            await GuardAsync(async () => {
+                var entry = (await api.PostAsync("keys/inspect", new { path = picker.FileName })).Deserialize<KeyEntry>(DesktopClient.Json)!;
+                SelectEditorKey(entry);
+            });
     }
 
     private async void EditorSave_Click(object sender, RoutedEventArgs e) => await GuardAsync(() => SaveEditorAsync(false));
@@ -494,6 +505,16 @@ public partial class MainWindow : Window
         if (editingHost == null) return;
         var address = EditorHost.Text.Trim();
         var user = EditorUser.Text.Trim();
+        if (address.Contains('@') || address.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase) || address.StartsWith('[') || address.Count(c => c == ':') == 1) {
+            try {
+                var endpoint = QuickConnect.Parse(address);
+                if (address.Contains('@')) user = endpoint.User;
+                if (address.StartsWith('[') ? address.Contains("]:") : address.Contains(':') && !address.StartsWith("ssh://")) EditorPort.Text = endpoint.Port.ToString();
+                else if (address.StartsWith("ssh://")) EditorPort.Text = endpoint.Port.ToString();
+                address = endpoint.Address;
+                EditorHost.Text = address; EditorUser.Text = user;
+            } catch (ArgumentException error) { EditorError.Text = error.Message; EditorHost.Focus(); return; }
+        }
         if (string.IsNullOrWhiteSpace(address) || string.IsNullOrWhiteSpace(user))
         {
             EditorError.Text = "Server address and username are required.";
@@ -508,6 +529,18 @@ public partial class MainWindow : Window
             return;
         }
 
+        var auth = ((ComboBoxItem)EditorAuth.SelectedItem).Tag.ToString()!;
+        if (auth == "key") {
+            if (string.IsNullOrWhiteSpace(EditorKeyPath.Text)) { EditorError.Text = "Choose an SSH private key, or use password authentication."; EditorIdentity.Focus(); return; }
+            if (api != null) {
+                try {
+                    var inspected = (await api.PostAsync("keys/inspect", new { path = EditorKeyPath.Text.Trim() })).Deserialize<KeyEntry>(DesktopClient.Json)!;
+                    if (inspected.Status == "unsupported") { EditorError.Text = inspected.Details; return; }
+                }
+                catch (Exception error) { EditorError.Text = error.Message; return; }
+            }
+        }
+
         editingHost.Name = string.IsNullOrWhiteSpace(EditorName.Text) ? address : EditorName.Text.Trim();
         editingHost.Address = address;
         editingHost.Port = port;
@@ -515,7 +548,7 @@ public partial class MainWindow : Window
         editingHost.DefaultAuthMethod = ((ComboBoxItem)EditorAuth.SelectedItem).Tag.ToString()!;
         editingHost.Extra ??= [];
         editingHost.Extra["auth_order"] = JsonSerializer.SerializeToElement(editingHost.DefaultAuthMethod == "keyboard_interactive" ? new[] { "keyboard_interactive" } : new[] { editingHost.DefaultAuthMethod, "keyboard_interactive" });
-        editingHost.IdentityFile = string.IsNullOrWhiteSpace(EditorKeyPath.Text) ? null : EditorKeyPath.Text.Trim();
+        editingHost.IdentityFile = auth != "key" || string.IsNullOrWhiteSpace(EditorKeyPath.Text) ? null : EditorKeyPath.Text.Trim();
         editingHost.ProxyJump = string.IsNullOrWhiteSpace(EditorJump.Text) ? null : EditorJump.Text.Trim();
         editingHost.Tags = EditorTags.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         editingHost.Notes = EditorNotes.Text;
@@ -559,12 +592,16 @@ public partial class MainWindow : Window
     private async void RegisterKey_Click(object sender, RoutedEventArgs e)
     {
         if (api == null) return;
-        var picker = new Microsoft.Win32.OpenFileDialog { Title = "Import SSH identity", Filter = "All SSH key files|*.*" };
+        var picker = new Microsoft.Win32.OpenFileDialog { Title = "Add SSH key", Filter = "Private keys (*.pem;id_*;*.key)|*.pem;id_*;*.key|All files|*.*", InitialDirectory = LocalSshDirectory() };
         if (picker.ShowDialog(this) != true) return;
-        var dialog = new FormDialog(this, "Import SSH identity", [new("name", "Name", Path.GetFileName(picker.FileName)), new("passphrase", "Passphrase (only for an encrypted private key)", Secret: true)], "Import", "The file is inspected locally. Private key contents and passphrases are never saved in the app database.");
+        var inspected = await InspectKeyForImportAsync(picker.FileName);
+        if (inspected == null) return;
+        var fields = new List<Field> { new("name", "Name", Path.GetFileName(picker.FileName)) };
+        if (inspected.IsPassphraseProtected) fields.Add(new("passphrase", "Key passphrase", Secret: true));
+        var dialog = new FormDialog(this, "Add SSH key", fields, "Add key", "Uses the existing file. Private key contents and passphrases are never saved in the app database.");
         if (dialog.ShowDialog() != true) return;
         await GuardAsync(async () => {
-            await api.PostAsync("keys", new { path = picker.FileName, name = dialog.Values["name"], passphrase = dialog.Values["passphrase"] });
+            await api.PostAsync("keys", new { path = picker.FileName, name = dialog.Values["name"], passphrase = dialog.Values.GetValueOrDefault("passphrase", "") });
             await RefreshKeysAsync();
             StatusText.Text = "SSH identity imported.";
         });
@@ -578,8 +615,9 @@ public partial class MainWindow : Window
         var picker = new Microsoft.Win32.SaveFileDialog { Title = "New private-key destination", FileName = "id_ed25519", OverwritePrompt = true };
         if (picker.ShowDialog(this) != true) return;
         await GuardAsync(async () => {
-            await api.PostAsync("keys/generate", new { path = picker.FileName, algorithm = dialog.Values["algorithm"], name = dialog.Values["name"] });
+            var generated = (await api.PostAsync("keys/generate", new { path = picker.FileName, algorithm = dialog.Values["algorithm"], name = dialog.Values["name"] })).Deserialize<KeyEntry>(DesktopClient.Json)!;
             await RefreshKeysAsync();
+            if (editingHost != null) SelectEditorKey(generated);
             StatusText.Text = "Keypair generated. Private key stays in the selected file.";
         });
     }
@@ -593,6 +631,7 @@ public partial class MainWindow : Window
     private async void RemoveKey_Click(object sender, RoutedEventArgs e)
     {
         if (api == null || sender is not Button { Tag: KeyEntry key }) return;
+        if (key.Source == "local") { StatusText.Text = "This key was discovered on your computer. It has no saved app entry to remove."; return; }
         if (MessageBox.Show(this, "Remove this identity from the app? The key files remain on disk.", "Remove identity", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
         await GuardAsync(async () => { await api.RequestAsync(HttpMethod.Delete, "keys/" + key.Id); await RefreshKeysAsync(); });
     }
@@ -601,9 +640,13 @@ public partial class MainWindow : Window
     {
         if (api == null) return;
         var loaded = (await api.GetAsync("keys")).Deserialize<List<KeyEntry>>(DesktopClient.Json) ?? [];
+        var discovered = (await api.GetAsync("keys/discover")).Deserialize<List<KeyEntry>>(DesktopClient.Json) ?? [];
+        var selectedPath = EditorKeyPath.Text;
         keys.Clear();
-        foreach (var key in loaded) keys.Add(key);
+        foreach (var key in loaded) { if (key.PrivateKeyPath != null && !File.Exists(key.PrivateKeyPath)) key.Status = "missing"; keys.Add(key); }
+        foreach (var key in discovered.Where(candidate => !keys.Any(saved => string.Equals(saved.PrivateKeyPath, candidate.PrivateKeyPath, StringComparison.OrdinalIgnoreCase)))) keys.Add(key);
         EditorIdentity.ItemsSource = keys.Where(key => key.PrivateKeyPath != null).ToArray();
+        EditorIdentity.SelectedItem = keys.FirstOrDefault(key => string.Equals(key.PrivateKeyPath, selectedPath, StringComparison.OrdinalIgnoreCase));
         UpdateDashboardMetrics();
     }
 

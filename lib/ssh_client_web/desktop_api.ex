@@ -41,6 +41,14 @@ defmodule SSHClientWeb.DesktopAPI do
     result(conn, {:ok, SSHClient.DesktopKeys.list()})
   end
 
+  get "/keys/discover" do
+    result(conn, {:ok, SSHClient.DesktopKeys.discover()})
+  end
+
+  post "/keys/inspect" do
+    result(conn, SSHClient.DesktopKeys.inspect_file(conn.body_params))
+  end
+
   post "/keys" do
     result(conn, SSHClient.DesktopKeys.register(conn.body_params))
   end
@@ -202,6 +210,24 @@ defmodule SSHClientWeb.DesktopAPI do
 
   post "/import" do
     result(conn, Desktop.import_file(conn.body_params))
+  end
+
+  post "/import/preview" do
+    case Desktop.preview_import(conn.body_params) do
+      {:ok, preview} ->
+        result(
+          conn,
+          {:ok,
+           %{
+             preview
+             | hosts:
+                 Enum.map(preview.hosts, &%{&1 | host: SSHClient.Store.host_document(&1.host)})
+           }}
+        )
+
+      error ->
+        result(conn, error)
+    end
   end
 
   get "/workspace" do

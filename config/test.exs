@@ -1,5 +1,19 @@
 import Config
 
+# The application starts before test_helper; isolate all user storage here.
+test_config_dir =
+  Path.join(
+    System.tmp_dir!(),
+    "ssh-client-test-#{System.unique_integer([:positive])}-#{System.os_time(:microsecond)}"
+  )
+
+System.put_env("SSH_CLIENT_SERVERS_CONFIG", Path.join(test_config_dir, "servers.json"))
+
+config :ssh_client,
+  config_dir: test_config_dir,
+  ssh_home: test_config_dir,
+  keychain_backend: :memory
+
 test_database =
   Path.join(
     System.tmp_dir!(),

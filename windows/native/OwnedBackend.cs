@@ -25,6 +25,8 @@ public sealed class OwnedBackend : IDisposable
         if (!File.Exists(launcher)) throw new FileNotFoundException("The packaged SSH backend is missing. Install the complete ssh-client package.", launcher);
         var logs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ssh-client", "logs");
         Directory.CreateDirectory(logs);
+        // A running installed copy can hold its stdout log open while another copy is validated.
+        var backendLog = Path.Combine(logs, $"backend-{Environment.ProcessId}-{Guid.NewGuid():N}.log");
         var reservation = new TcpListener(IPAddress.Loopback, 0); reservation.Start();
         var port = ((IPEndPoint)reservation.LocalEndpoint).Port;
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -46,7 +48,7 @@ public sealed class OwnedBackend : IDisposable
             var limits = new JobLimits { Basic = new BasicLimits { LimitFlags = 0x2000 } }; // Kill this job's processes when its handle closes.
             if (!SetInformationJobObject(job, 9, ref limits, (uint)Marshal.SizeOf<JobLimits>())) throw new Win32Exception();
             var startup = new StartupInfo { Size = (uint)Marshal.SizeOf<StartupInfo>() };
-            var command = new StringBuilder($"cmd.exe /d /s /c \"\"{launcher}\" start > \"{Path.Combine(logs, "backend.log")}\" 2>&1\"");
+            var command = new StringBuilder($"cmd.exe /d /s /c \"\"{launcher}\" start > \"{backendLog}\" 2>&1\"");
             if (!CreateProcess(Path.Combine(Environment.SystemDirectory, "cmd.exe"), command, 0, 0, false, 0x08000000 | 0x00000004 | 0x00000400,
                 blockPointer, root, ref startup, out var info)) throw new Win32Exception();
             process = info.Process;
@@ -64,7 +66,10 @@ public sealed class OwnedBackend : IDisposable
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         while (!deadline.IsCancellationRequested)
         {
-            if (!IsRunning) { api.Dispose(); throw new IOException("The SSH backend failed to start. See " + Path.Combine(logs, "backend.log")); }
+            if (!IsRunning) {
+                GetExitCodeProcess(process, out var exitCode);
+                api.Dispose(); throw new IOException($"The SSH backend failed to start (exit code {exitCode}). See " + backendLog);
+            }
             try
             {
                 var health = await api.GetAsync("health", deadline.Token);
@@ -74,7 +79,7 @@ public sealed class OwnedBackend : IDisposable
             await Task.Delay(250);
         }
         api.Dispose();
-        throw new TimeoutException("The SSH backend did not become ready within 60 seconds. See " + Path.Combine(logs, "backend.log"));
+        throw new TimeoutException("The SSH backend did not become ready within 60 seconds. See " + backendLog);
     }
 
     public void Dispose()

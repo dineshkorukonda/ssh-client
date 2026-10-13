@@ -79,3 +79,4 @@ Require(DirectoryBreadcrumbs.Remote("/").Count == 1 && DirectoryBreadcrumbs.Remo
 var localCrumbs = DirectoryBreadcrumbs.Local(Path.Combine(Path.GetTempPath(), "breadcrumb", "nested"));
 Require(localCrumbs.Last().Label == "nested" && localCrumbs.Last().Path == Path.GetFullPath(Path.Combine(Path.GetTempPath(), "breadcrumb", "nested")), "Local breadcrumbs must preserve the complete filesystem path.");
 Console.WriteLine("Directory breadcrumb regression checks passed.");
+await NativeUpdaterRegression.RunAsync();

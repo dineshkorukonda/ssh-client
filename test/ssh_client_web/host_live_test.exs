@@ -244,6 +244,7 @@ defmodule SSHClientWeb.HostLiveTest do
 
       on_exit(fn ->
         SSHClient.Keychain.delete("appuser@secured-vault")
+        SSHClient.ServerManager.remove_server("secured-vault")
       end)
 
       assert {:noreply, updated} = HostLive.handle_event("add_server", params, socket)
