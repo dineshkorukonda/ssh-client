@@ -16,6 +16,19 @@ def resource_key(item):
 
 
 class WindowsUIContract(unittest.TestCase):
+    def test_branding_is_shared_by_app_installer_and_website(self):
+        icon = (ROOT / "windows/app.ico").read_bytes()
+        self.assertEqual(icon, (ROOT / "web/assets/favicon.ico").read_bytes())
+        self.assertEqual(icon, (ROOT / "priv/static/favicon.ico").read_bytes())
+        self.assertEqual((ROOT / "priv/static/images/icon.png").read_bytes(), (ROOT / "web/assets/icon.png").read_bytes())
+        project = ET.parse(ROOT / "windows/native/SSHClient.Windows.csproj").getroot()
+        self.assertEqual(project.find("PropertyGroup/ApplicationIcon").text, "../app.ico")
+        resources = {item.get("Link") for item in project.iter("Resource")}
+        self.assertTrue({"branding/app.ico", "branding/icon.png"}.issubset(resources))
+        installer = (ROOT / "windows/installer.iss").read_text(encoding="utf-8")
+        self.assertIn("SetupIconFile=app.ico", installer)
+        self.assertIn('IconFilename: "{app}\\app.ico"', installer)
+
     def test_application_resource_keys_are_unique(self):
         resources = ET.parse(ROOT / "windows/native/App.xaml").getroot().find(P + "Application.Resources")
         keys = [resource_key(item) for item in resources]

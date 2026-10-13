@@ -36,9 +36,7 @@
 
           <!-- Left: App Identity -->
           <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-            <Border Background="{DynamicResource CardLow}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="5,2" Margin="0,0,8,0">
-              <TextBlock Text="SSH" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
-            </Border>
+            <Image Source="branding/icon.png" Width="28" Height="28" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="ssh-client logo"/>
             <TextBlock Text="ssh-client" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
             <TextBlock Text=" / " Foreground="{DynamicResource MutedSubtle}" Margin="4,0" VerticalAlignment="Center"/>
             <TextBlock x:Name="AppVersionLabel" Text="" Foreground="{DynamicResource Muted}" FontSize="11" VerticalAlignment="Center"/>
