@@ -45,9 +45,9 @@ public static class ThemeManager
             SetBrush(res, "TagBg", Color.FromRgb(24, 24, 27));            // #18181b
             SetBrush(res, "Selection", Color.FromRgb(255, 255, 255));
 
-            SetBrush(res, "NavActiveBg", Color.FromRgb(28, 28, 32));      // #1c1c20
-            SetBrush(res, "NavActiveBorder", Color.FromRgb(63, 63, 70));  // #3f3f46
-            SetBrush(res, "NavActiveFg", Color.FromRgb(255, 255, 255));   // #ffffff
+            SetBrush(res, "NavActiveBg", Color.FromArgb(22, 56, 189, 248));
+            SetBrush(res, "NavActiveBorder", Color.FromArgb(65, 56, 189, 248));
+            SetBrush(res, "NavActiveFg", Color.FromRgb(56, 189, 248));
         }
         else
         {

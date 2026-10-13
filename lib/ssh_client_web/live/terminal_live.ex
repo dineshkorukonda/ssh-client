@@ -289,6 +289,7 @@ defmodule SSHClientWeb.TerminalLive do
         |> assign(:command_palette_index, 0)
         |> assign(:show_shortcuts_modal, false)
         |> assign(:restore_layout, nil)
+        |> assign(:show_connection_logs, false)
         |> restore_or_prepare_sessions()
 
       if connected?(socket) do
@@ -315,6 +316,10 @@ defmodule SSHClientWeb.TerminalLive do
   @impl true
   def handle_event("terminal_ready", _params, socket) do
     {:noreply, ensure_tab_session(socket)}
+  end
+
+  def handle_event("toggle_connection_logs", _params, socket) do
+    {:noreply, assign(socket, :show_connection_logs, !socket.assigns.show_connection_logs)}
   end
 
   def handle_event("pane_ready", params, socket) do
@@ -1117,7 +1122,6 @@ defmodule SSHClientWeb.TerminalLive do
           <div class="flex items-center gap-2 min-w-0 shrink-0">
             <span class="text-foreground text-xs font-mono font-semibold truncate">{@server_id}</span>
             <span class="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20">BETA</span>
-
             <!-- Multi-Tab workspace pills -->
             <div class="hidden sm:flex items-center gap-1 pl-1.5 border-l border-border">
               <%= for tab <- @tabs do %>
@@ -1178,7 +1182,6 @@ defmodule SSHClientWeb.TerminalLive do
               </button>
             </div>
           </div>
-
           <!-- Right: Quick Controls & Status -->
           <div class="flex items-center gap-1.5 shrink-0">
             <!-- Connection badge for active tab -->
@@ -1363,6 +1366,135 @@ defmodule SSHClientWeb.TerminalLive do
               data-cols={@cols}
               data-rows={@rows}
             >
+            </div>
+          <% end %>
+          <!-- Connecting Stage Animation Overlay -->
+          <%= if @cur_tab && Map.get(@cur_tab, :status) in [:connecting, :reconnecting] && not @cur_tab.error do %>
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div class="w-full max-w-md p-6 flex flex-col items-center text-center">
+                <!-- Host identity card -->
+                <div class="flex items-center gap-3 mb-6 p-2.5 px-4 rounded-xl bg-card border border-border/80 shadow-sm">
+                  <.os_badge os={detect_os(@server || %{})} size="sm" />
+                  <div class="text-left min-w-0">
+                    <div class="text-xs font-bold font-mono text-foreground truncate">
+                      {(@server && @server.name) || @server_id || "Remote Host"}
+                    </div>
+
+                    <div class="text-[11px] font-mono text-muted-foreground truncate">
+                      SSH {(@server && @server.user) || "root"}@{(@server && @server.host) ||
+                        @server_id}:{(@server && @server.port) || 22}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    phx-click="toggle_connection_logs"
+                    class="ml-2 px-2 py-0.5 text-[10px] font-mono rounded border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    {if @show_connection_logs, do: "Hide logs", else: "Connection details"}
+                  </button>
+                </div>
+                <!-- Animated Connection Timeline (Plug -> Wire -> Terminal) -->
+                <div class="w-full flex items-center justify-center gap-3 my-4">
+                  <!-- Left: Animated Ripple Plug Node -->
+                  <div class="relative flex items-center justify-center shrink-0">
+                    <div class="w-12 h-12 rounded-full bg-sky-500/20 border-2 border-sky-400 flex items-center justify-center text-sky-400 animate-pulse-ripple shadow-lg shadow-sky-500/20 z-10">
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <!-- Center: Illuminated Wire with Traveling Light Beam -->
+                  <div class="flex-1 max-w-[140px] sm:max-w-[200px] h-1 bg-muted rounded-full relative overflow-hidden">
+                    <div class="absolute inset-0 animate-beam-travel rounded-full"></div>
+                  </div>
+                  <!-- Right: Terminal Screen Node -->
+                  <div class="relative flex items-center justify-center shrink-0">
+                    <div class="w-12 h-12 rounded-full bg-card border-2 border-border flex items-center justify-center text-muted-foreground font-mono font-bold text-sm shadow-sm">
+                      <span>&gt;_</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- Status Caption -->
+                <div class="mt-4 space-y-1">
+                  <div class="text-xs font-mono font-semibold text-sky-400 uppercase tracking-widest animate-pulse">
+                    Connecting...
+                  </div>
+
+                  <div class="text-[11px] font-mono text-muted-foreground">
+                    Establishing encrypted SSH transport
+                  </div>
+                </div>
+                <!-- Expandable Logs Drawer -->
+                <%= if @show_connection_logs do %>
+                  <div class="mt-5 w-full text-left bg-black/90 border border-border rounded-lg p-3 font-mono text-[11px] text-zinc-300 space-y-1 max-h-40 overflow-y-auto shadow-inner">
+                    <div class="text-muted-foreground">
+                      [client] Connecting to {(@server && @server.host) || @server_id}:{(@server &&
+                                                                                           @server.port) ||
+                        22}...
+                    </div>
+
+                    <div class="text-muted-foreground">
+                      Waiting for the SSH session to connect. Server verification or authentication may require your response.
+                    </div>
+                  </div>
+                <% end %>
+                <!-- Cancel Button -->
+                <div class="mt-6">
+                  <button
+                    type="button"
+                    phx-click="disconnect"
+                    class="px-3.5 py-1 text-xs font-mono rounded-md border border-border bg-card hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive text-muted-foreground transition-colors"
+                  >
+                    Cancel Connection
+                  </button>
+                </div>
+              </div>
+            </div>
+          <% end %>
+          <!-- Error State Overlay -->
+          <%= if @cur_tab && @cur_tab.error do %>
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div class="w-full max-w-sm p-6 flex flex-col items-center text-center">
+                <div class="w-12 h-12 rounded-full bg-destructive/10 border border-destructive/40 flex items-center justify-center text-destructive mb-3 shadow-md">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+
+                <h3 class="text-sm font-bold font-mono text-foreground">Connection Failed</h3>
+
+                <p class="text-xs font-mono text-muted-foreground mt-1 max-w-xs">
+                  {@cur_tab.error}
+                </p>
+
+                <div class="flex items-center gap-2 mt-5">
+                  <button
+                    type="button"
+                    phx-click="reconnect"
+                    class="px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-medium rounded transition-colors"
+                  >
+                    Retry Connection
+                  </button>
+
+                  <a
+                    href="/"
+                    class="px-3 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border text-xs font-mono font-medium rounded transition-colors"
+                  >
+                    Back to Hosts
+                  </a>
+                </div>
+              </div>
             </div>
           <% end %>
           <!-- Slide-out / Docked Command Autocomplete & Suggestions Drawer -->
@@ -1683,6 +1815,7 @@ defmodule SSHClientWeb.TerminalLive do
               <span class="text-foreground font-semibold uppercase tracking-wider text-xs">Keyboard Shortcuts</span>
               <span class="text-[10px] text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">Terminal & Panes</span>
             </div>
+
             <button
               phx-click="close_shortcuts"
               class="text-muted-foreground hover:text-foreground text-sm px-1.5 py-0.5 rounded hover:bg-muted transition-colors"
@@ -1697,19 +1830,23 @@ defmodule SSHClientWeb.TerminalLive do
               <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Navigation & Modals
               </h4>
+
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Command Palette</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + K</kbd>
                 </div>
+
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Shortcuts Cheat Sheet</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + Shift + ?</kbd>
                 </div>
+
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Dismiss Modal</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Esc</kbd>
                 </div>
+
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Clear Terminal</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + L</kbd>
@@ -1721,11 +1858,13 @@ defmodule SSHClientWeb.TerminalLive do
               <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Split Panes & Layouts
               </h4>
+
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Split Pane Right</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + Shift + |</kbd>
                 </div>
+
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Split Pane Down</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + Shift + _</kbd>
@@ -1737,19 +1876,23 @@ defmodule SSHClientWeb.TerminalLive do
               <h4 class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Clipboard & Zoom
               </h4>
+
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Copy Selection</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + C</kbd>
                 </div>
+
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Paste Clipboard</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + V</kbd>
                 </div>
+
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Increase Font Size</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + +</kbd>
                 </div>
+
                 <div class="flex items-center justify-between p-2 rounded bg-background/60 border border-border">
                   <span>Decrease Font Size</span>
                   <kbd class="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] text-muted-foreground">Ctrl + -</kbd>

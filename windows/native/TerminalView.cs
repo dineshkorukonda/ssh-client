@@ -25,10 +25,14 @@ public sealed class TerminalView : Grid, IDisposable
     public Task Ready => completion.Task;
     public string SessionId { get; }
     internal Func<string, bool>? ConfirmHostKeyForSmoke { get; set; }
-    public TerminalView(DesktopClient api, string id, Window owner, Action<string> status, Action<string>? stateChanged = null)
+    private readonly ConnectionStage connectionStage;
+    internal bool ConnectionStageVisible => connectionStage.Visibility == Visibility.Visible;
+    public TerminalView(DesktopClient api, string id, Window owner, Action<string> status, Action<string>? stateChanged = null, string? hostLabel = null)
     {
         this.api = api; SessionId = id; this.owner = owner; this.status = status; this.stateChanged = stateChanged;
         Children.Add(web);
+        connectionStage = new ConnectionStage(hostLabel, () => api.PostAsync($"sessions/{SessionId}/reconnect", new { }, stop.Token));
+        Children.Add(connectionStage);
         Loaded += async (_, _) =>
         {
             if (initializing) return; initializing = true;
@@ -115,6 +119,7 @@ public sealed class TerminalView : Grid, IDisposable
     {
         if (!ready) return;
         var settings = await api.GetAsync("settings", stop.Token);
+        connectionStage.SetMotion(settings.TryGetProperty("reduced_motion", out var motion) && motion.GetBoolean());
         web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "settings", settings }));
     }
 
@@ -128,11 +133,13 @@ public sealed class TerminalView : Grid, IDisposable
                 web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type = "output", snapshot }));
                 cursor = snapshot.GetProperty("cursor").GetInt64();
                 var state = snapshot.GetProperty("status").GetString();
+                connectionStage.SetState(state switch { "connected" => "Connected", "connecting" => "Connecting", "disconnected" => "Disconnected", _ => "Failed" }, state == "error" ? snapshot.GetProperty("error").GetString() : null);
                 stateChanged?.Invoke(state switch { "connected" => "Connected", "connecting" => "Connecting", "error" => "Failed", "disconnected" => "Disconnected", _ => state ?? "Unknown" });
                 status(state == "error" ? snapshot.GetProperty("error").GetString() ?? "Connection failed" : state ?? "");
                 if (snapshot.TryGetProperty("host_key_prompt", out var prompt) && prompt.ValueKind == JsonValueKind.Object)
                 {
                     stateChanged?.Invoke("Awaiting host approval");
+                    connectionStage.SetState("Awaiting host approval");
                     var details = prompt.GetProperty("details");
                     var changed = prompt.GetProperty("type").GetString() == "host_key_changed";
                     var fingerprint = details.GetProperty(changed ? "new_fingerprint" : "fingerprint").GetString();
@@ -145,6 +152,7 @@ public sealed class TerminalView : Grid, IDisposable
                 if (snapshot.TryGetProperty("auth_prompt", out var auth) && auth.ValueKind == JsonValueKind.Object)
                 {
                     stateChanged?.Invoke("Awaiting authentication");
+                    connectionStage.SetState("Awaiting authentication");
                     var prompts = auth.GetProperty("prompts").EnumerateArray().ToArray();
                     var fields = prompts.Select((p, i) => new Field(i.ToString(), p.GetProperty("text").GetString()!, Secret: !p.GetProperty("echo").GetBoolean()));
                     var dialog = new FormDialog(owner, "SSH authentication", fields, "Continue", auth.GetProperty("instruction").GetString());
@@ -154,7 +162,7 @@ public sealed class TerminalView : Grid, IDisposable
                 }
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception error) { stateChanged?.Invoke("Backend unavailable"); status(error.Message); }
+            catch (Exception error) { connectionStage.SetState("Backend unavailable", error.Message); stateChanged?.Invoke("Backend unavailable"); status(error.Message); }
             try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { break; }
         }
     }

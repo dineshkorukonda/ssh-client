@@ -6,7 +6,8 @@ Runs all repository checks in sequence:
   2. Release metadata version synchronization
   3. Release script unit tests
   4. Release workflow regression tests
-  5. Elixir unit test suite (mix test)
+  5. Elixir formatting (mix format --check-formatted)
+  6. Elixir unit test suite (mix test)
 """
 
 import os
@@ -91,6 +92,12 @@ def main():
     )
 
     mix_cmd = resolve_mix_command(env=env)
+    format_cmd = mix_cmd[:-1] + [
+        "mix format --check-formatted" if mix_cmd[-1] == "mix test" else "format"
+    ]
+    if mix_cmd[-1] != "mix test":
+        format_cmd.append("--check-formatted")
+    run_step("Elixir Formatting", format_cmd, env=env)
     run_step(
         "Elixir Unit Tests (mix test)",
         mix_cmd,

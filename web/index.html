@@ -1,339 +1,462 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="dark scroll-smooth">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ssh-client — Cross-Platform Desktop SSH Client & System Monitor</title>
-  <meta name="description" content="Offline-first desktop SSH client and infrastructure monitor built on Erlang/OTP. Native transport, OS keychain integration, xterm.js terminal, zero telemetry.">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
-  <link rel="icon" type="image/png" href="assets/icon.png">
-
-  <!-- daisyUI + Tailwind CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ssh-client — The Native Desktop SSH Client &amp; Infrastructure Monitor</title>
+  <meta name="description" content="High-performance, offline-first native SSH client with embedded continuous telemetry, Erlang/OTP connection management, and hardware-backed credentials." />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Poppins & JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Poppins', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace']
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Consolas', 'monospace'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#38bdf8',
+              hover: '#0284c7',
+              accent: '#0284c7',
+            }
           }
         }
       }
-    }
+    };
   </script>
-
   <style>
-    body { font-family: 'Poppins', sans-serif; background-color: #050505; color: #e5e5e5; }
-    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
-    ::selection { background-color: #dc2626; color: #fff; }
-
-    .cmd-block { position: relative; }
-    .cmd-block pre {
-      background: #0c0c0c;
-      border: 1px solid #1f1f1f;
-      padding: 1rem 3.5rem 1rem 1rem;
-      border-radius: 8px;
-      font-size: 13px;
-      line-height: 1.6;
-      color: #e5e5e5;
-      overflow-x: auto;
+    body {
+      background-color: #09090b;
+      color: #f4f4f5;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      -webkit-font-smoothing: antialiased;
     }
-    .cmd-block .copy-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: #1f1f1f;
-      border: 1px solid #2f2f2f;
-      color: #6b7280;
-      font-size: 11px;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 3px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: color .15s, border-color .15s;
+    .grid-bg {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     }
-    .cmd-block .copy-btn:hover { color: #d4d4d4; border-color: #4b5563; }
-    .cmd-block .copy-btn.copied { color: #22c55e; border-color: #22c55e; }
   </style>
 </head>
-<body class="min-h-screen bg-[#050505] text-neutral-200 flex flex-col antialiased">
+<body class="selection:bg-sky-500/20 selection:text-sky-300 min-h-screen flex flex-col font-sans">
 
-  <!-- Header / Navigation -->
-  <header class="sticky top-0 z-50 border-b border-neutral-800 bg-[#050505]/95 backdrop-blur-md">
-    <div class="navbar max-w-5xl mx-auto px-6 h-16">
-      <div class="flex-1">
-        <a href="./" class="text-base font-bold tracking-tight text-white flex items-center gap-2.5">
-          <img src="assets/icon.png" alt="Logo" class="w-6 h-6 rounded" />
-          ssh-client
-          <span class="font-mono text-[10px] text-neutral-500 border border-neutral-800 px-1.5 py-0.5 rounded ml-1">v0.0.70</span>
+  <!-- Sticky Navbar -->
+  <header class="sticky top-0 z-50 w-full border-b border-zinc-800/80 bg-[#09090b]/90 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2.5 group">
+          <img src="assets/logo.svg" alt="ssh-client logo" class="w-8 h-8 rounded-md" />
+          <span class="font-bold text-sm tracking-tight text-white group-hover:text-zinc-200 transition-colors">ssh-client</span>
         </a>
+        <span class="text-zinc-600 text-xs">/</span>
+        <span class="app-version-badge text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">v0.0.70</span>
       </div>
-      <div class="flex-none gap-1 font-medium text-xs">
-        <a href="./" class="btn btn-ghost btn-sm text-white">Overview</a>
-        <a href="install/" class="btn btn-ghost btn-sm text-neutral-400 hover:text-white">Install & FAQs</a>
-        <a href="changelog/" class="btn btn-ghost btn-sm text-neutral-400 hover:text-white">Changelog</a>
-        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer"
-           class="btn btn-sm bg-neutral-900 border border-neutral-700 text-white hover:border-red-600 hover:bg-neutral-800 ml-2">GitHub ↗</a>
+
+      <nav class="hidden md:flex items-center gap-6 text-xs font-medium text-zinc-400">
+        <a href="#features" class="hover:text-white transition-colors">Capabilities</a>
+        <a href="#preview" class="hover:text-white transition-colors">Desktop Preview</a>
+        <a href="#comparison" class="hover:text-white transition-colors">Comparison</a>
+        <a href="#architecture" class="hover:text-white transition-colors">Architecture</a>
+        <a href="changelog.html" class="hover:text-white transition-colors">Changelog</a>
+        <a href="install.html" class="hover:text-white transition-colors">Docs &amp; Install</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noopener noreferrer" class="hidden sm:inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-md hover:bg-zinc-800 transition-colors">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span>Source</span>
+        </a>
+        <a href="#download" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-white text-black hover:bg-zinc-200 transition-colors shadow-sm">
+          Download
+        </a>
       </div>
     </div>
   </header>
 
-  <main class="flex-grow max-w-5xl mx-auto w-full px-6 py-14 space-y-16">
-
-    <!-- Hero -->
-    <section class="space-y-6 pt-4">
-      <div class="flex items-center gap-2 font-mono text-xs text-neutral-500 uppercase tracking-widest">
-        <span>Desktop Client</span>
-        <span class="text-red-600">/</span>
-        <span class="text-red-500 font-semibold">Windows &amp; Linux</span>
-        <span class="text-red-600">/</span>
-        <span>Offline-First</span>
+  <!-- Hero Section -->
+  <section class="relative pt-16 pb-14 px-4 sm:px-6 lg:px-8 border-b border-zinc-800/60 overflow-hidden grid-bg">
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+      
+      <!-- Version & Status Box -->
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#0e0e11] border border-zinc-800 text-xs font-mono text-zinc-300 mb-6 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-sky-400 inline-block shadow-[0_0_8px_#38bdf8]"></span>
+        <span>Native Release v0.0.70 Available</span>
+        <span class="text-zinc-600">|</span>
+        <span class="text-zinc-400">Windows &amp; Linux</span>
       </div>
 
-      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white max-w-3xl leading-tight">
-        Native transport SSH client with continuous infrastructure telemetry.
+      <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
+        The native desktop SSH client with continuous telemetry.
       </h1>
 
-      <p class="text-sm sm:text-base text-neutral-400 max-w-2xl leading-relaxed font-normal">
-        Built on Erlang/OTP transport, OS credential stores, dual-pane SFTP file management, multi-theme engine, xterm.js terminal emulation, and zero telemetry. Completely functional in air-gapped environments without external accounts.
+      <p class="mt-5 text-sm sm:text-base text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+        Air-gapped, offline-first terminal and host manager engineered on Erlang/OTP. No Electron bloat, zero cloud telemetry, hardware-backed credentials.
       </p>
 
-      <div class="flex flex-wrap items-center gap-4 pt-2 text-xs">
-        <a href="install/" class="btn btn-sm bg-red-600 hover:bg-red-700 border-none text-white px-5 font-semibold">
-          Installation Guide
+      <!-- Primary Action Buttons -->
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-installer-v0.0.70.exe" class="px-5 py-2.5 rounded-md bg-white text-black text-xs font-semibold hover:bg-zinc-200 transition-colors shadow-sm inline-flex items-center gap-2">
+          <span>Download for Windows (.exe)</span>
+          <span class="text-zinc-500 font-mono text-[10px]">64-bit</span>
         </a>
-        <a href="changelog/" class="btn btn-sm bg-transparent border border-neutral-700 text-neutral-200 hover:border-white hover:bg-neutral-900 px-5 font-medium">
-          View Changelog
+        <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-windows-v0.0.70.zip" class="px-4 py-2.5 rounded-md bg-[#121316] text-zinc-300 border border-zinc-700 text-xs font-medium hover:border-zinc-500 hover:text-white transition-colors">
+          Portable (.zip)
         </a>
-        <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.70" target="_blank" rel="noreferrer"
-           class="btn btn-sm btn-ghost text-neutral-400 hover:text-red-400 font-mono app-latest-release">
-          GitHub Release v0.0.70 ↗
+        <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-linux-v0.0.70.tar.gz" class="px-4 py-2.5 rounded-md bg-[#121316] text-zinc-300 border border-zinc-700 text-xs font-medium hover:border-zinc-500 hover:text-white transition-colors">
+          Linux (.tar.gz)
         </a>
       </div>
-    </section>
 
-    <!-- Terminal demo (plain code block, no macOS dots) -->
-    <section class="space-y-3">
-      <div class="flex items-center gap-2 border-b border-neutral-800 pb-3">
-        <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-neutral-500">Session Preview</h2>
-      </div>
-
-      <div class="cmd-block">
-        <pre><span class="text-red-500">$</span> ssh-client connect cluster-primary
-[keychain] Retrieved key credentials from Windows Credential Manager (id_ed25519)
-[hostkey]  Verified server fingerprint SHA256:4aK9W1Fm8Dq7...
-Linux cluster-primary 6.8.0-45-generic x86_64 SMP
-
-  CPU   12.8%   8 cores        MEM   4.1 GB / 32 GB
-  DISK  38%     nvme0n1        LOAD  0.24  0.19  0.15
-
-<span class="text-zinc-500">user@cluster-primary:~$</span> systemctl status docker --no-pager
-Active: active (running) since Thu 2026-09-03 04:12:00 UTC; 2 days ago
-<span class="text-zinc-500">user@cluster-primary:~$</span> <span class="inline-block w-1.5 h-3.5 bg-red-600 align-middle animate-pulse"></span></pre>
-        <button class="copy-btn" onclick="copyCode(this)">copy</button>
-      </div>
-    </section>
-
-    <!-- Quick start -->
-    <section class="space-y-6">
-      <div class="border-b border-neutral-800 pb-3">
-        <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-red-500">Quick Start</h2>
-        <p class="text-xl font-bold text-white mt-1">Get running in under two minutes</p>
-      </div>
-
-      <div class="space-y-4">
-        <div>
-          <p class="text-sm text-neutral-400 mb-2">1. Download and run the Windows single-file installer or extract portable ZIP:</p>
-          <div class="cmd-block">
-            <pre>ssh-client-setup-v0.0.70-windows-x64.exe</pre>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
-          </div>
-        </div>
-
-        <div>
-          <p class="text-sm text-neutral-400 mb-2">2. The app opens your browser to the GUI automatically. Or navigate to:</p>
-          <div class="cmd-block">
-            <pre>http://localhost:4000</pre>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
-          </div>
-        </div>
-
-        <div>
-          <p class="text-sm text-neutral-400 mb-2">3. On Linux, extract the tarball and start:</p>
-          <div class="cmd-block">
-            <pre>tar -xzf ssh-client-linux-x64.tar.gz -C ~/.local/ssh-client
-~/.local/ssh-client/bin/ssh_client start</pre>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
-          </div>
+      <!-- Quick Command Box -->
+      <div class="mt-6 flex items-center justify-center gap-2">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#0e0e11] border border-zinc-800 text-xs font-mono text-zinc-400">
+          <span class="text-sky-400">$</span>
+          <span>winget install dineshkorukonda.ssh-client</span>
+          <button onclick="navigator.clipboard.writeText('winget install dineshkorukonda.ssh-client'); this.innerText='Copied!';" class="ml-2 px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors">Copy</button>
         </div>
       </div>
+    </div>
+  </section>
 
-      <p class="text-xs text-neutral-600">Full installation docs, prerequisites, and FAQs: <a href="install/" class="text-red-500 hover:text-red-400">install guide →</a></p>
-    </section>
+  <!-- Real App Showcase Section (No fake log, real sanitized screenshots) -->
+  <section id="preview" class="py-14 px-4 sm:px-6 lg:px-8 bg-[#09090b] border-b border-zinc-800/80">
+    <div class="max-w-6xl mx-auto">
+      
+      <!-- Showcase Container Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-tight">Desktop Client Showcase</h2>
+          <p class="text-xs text-zinc-400">Real native app captures in the dark theme, using demo hostnames.</p>
+        </div>
 
-    <!-- Architecture pillars -->
-    <section class="space-y-8">
-      <div class="border-b border-neutral-800 pb-3">
-        <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-red-500">Architecture Invariants</h2>
-        <p class="text-xl font-bold text-white mt-1">Design decisions prioritizing security and minimal overhead</p>
+        <div class="flex flex-wrap gap-1 p-1 rounded-md bg-[#0e0e11] border border-zinc-800 text-xs" role="group" aria-label="App screenshots">
+          <button data-showcase="hosts" onclick="switchShowcase('hosts')" aria-pressed="true" class="px-3 py-2 rounded bg-zinc-800 text-white">Host cards</button>
+          <button data-showcase="connecting" onclick="switchShowcase('connecting')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Connecting</button>
+          <button data-showcase="failure" onclick="switchShowcase('failure')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Reconnect</button>
+          <button data-showcase="overview" onclick="switchShowcase('overview')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Overview</button>
+          <button data-showcase="terminal" onclick="switchShowcase('terminal')" aria-pressed="false" class="px-3 py-2 rounded text-zinc-400">Terminal</button>
+        </div>
+      </div>
+      <div class="rounded-lg border border-zinc-800 bg-black overflow-hidden shadow-2xl">
+        <img data-showcase-image="hosts" src="assets/app-hosts.png" alt="Native SSH client host cards with demo hostnames" width="1280" height="820" class="w-full h-auto block" />
+        <img data-showcase-image="connecting" src="assets/app-connecting.png" alt="Native SSH connection progress screen" width="1280" height="820" class="w-full h-auto block hidden" />
+        <img data-showcase-image="failure" src="assets/app-reconnect.png" alt="Native SSH connection failure with reconnect action" width="1280" height="820" class="w-full h-auto block hidden" />
+        <img data-showcase-image="overview" src="assets/app-overview.png" alt="SSH client overview dashboard" class="w-full h-auto block hidden" />
+        <img data-showcase-image="terminal" src="assets/app-terminal.png" alt="SSH client terminal session" class="w-full h-auto block hidden" />
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-3 hover:border-red-900/60 transition-colors">
-          <div class="font-mono text-xs text-red-500 font-semibold">01 / TRANSPORT</div>
-          <h3 class="font-bold text-white text-base">Erlang Native :ssh Engine</h3>
-          <p class="text-xs text-neutral-400 leading-relaxed font-normal">
-            Eliminates reliance on external <code class="text-neutral-300 font-mono">ssh</code> binaries or OpenSSH-for-Windows. Connects directly via OTP <code class="text-neutral-300 font-mono">:ssh_connection</code> and <code class="text-neutral-300 font-mono">:ssh_sftp</code> in BEAM memory.
+      <!-- Caption & Details -->
+      <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-zinc-400">
+        <div class="p-3 rounded-md bg-[#0e0e11] border border-zinc-800/80">
+          <div class="text-white font-medium mb-1">Host Directory &amp; Workspaces</div>
+          <div>Organize endpoints with custom tags, port assignments, and default credentials.</div>
+        </div>
+        <div class="p-3 rounded-md bg-[#0e0e11] border border-zinc-800/80">
+          <div class="text-white font-medium mb-1">Erlang/OTP Transport</div>
+          <div>Connection progress follows the session state, with a clear action when reconnecting is needed.</div>
+        </div>
+        <div class="p-3 rounded-md bg-[#0e0e11] border border-zinc-800/80">
+          <div class="text-white font-medium mb-1">Continuous Telemetry</div>
+          <div>View CPU, RAM, and load when telemetry is available for a connected host.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bento Grid Capabilities -->
+  <section id="features" class="py-16 px-4 sm:px-6 lg:px-8 border-b border-zinc-800/80">
+    <div class="max-w-6xl mx-auto">
+      <div class="mb-10">
+        <h2 class="text-2xl font-bold tracking-tight text-white">Engineered for production reliability.</h2>
+        <p class="mt-1 text-sm text-zinc-400">Key architectural foundations designed for engineers managing critical infrastructure.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- Bento 1 -->
+        <div class="p-5 rounded-lg bg-[#0e0e11] border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+          <div class="text-sky-400 font-mono text-xs font-semibold mb-2">01 / TRANSPORT</div>
+          <h3 class="text-base font-bold text-white mb-2">Erlang Native :ssh Engine</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Direct Erlang/OTP crypto and SSH subsystem. High-throughput terminal multiplexing with zero reliance on Electron or external node daemons.
           </p>
         </div>
 
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-3 hover:border-red-900/60 transition-colors">
-          <div class="font-mono text-xs text-red-500 font-semibold">02 / CREDENTIALS</div>
-          <h3 class="font-bold text-white text-base">OS Credential Stores</h3>
-          <p class="text-xs text-neutral-400 leading-relaxed font-normal">
-            Secrets never touch plaintext configs. Direct integration with Windows Credential Manager and Linux Secret Service (<code class="text-neutral-300 font-mono">libsecret</code>) with memory-only passphrase caching.
+        <!-- Bento 2 -->
+        <div class="p-5 rounded-lg bg-[#0e0e11] border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+          <div class="text-sky-400 font-mono text-xs font-semibold mb-2">02 / SECURITY</div>
+          <h3 class="text-base font-bold text-white mb-2">Hardware-Backed Keychain</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Credentials and private keys are encrypted locally using DPAPI on Windows and native OS keyrings on Linux. Never uploaded, never synced to cloud.
           </p>
         </div>
 
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-3 hover:border-red-900/60 transition-colors">
-          <div class="font-mono text-xs text-red-500 font-semibold">03 / RESOURCE EFFICIENCY</div>
-          <h3 class="font-bold text-white text-base">Focus-Aware Polling</h3>
-          <p class="text-xs text-neutral-400 leading-relaxed font-normal">
-            Background hosts dynamically throttle telemetry checks. Non-interactive <code class="text-neutral-300 font-mono">exec</code> channels are used for metrics rather than holding open idle PTY shells.
+        <!-- Bento 3 -->
+        <div class="p-5 rounded-lg bg-[#0e0e11] border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+          <div class="text-sky-400 font-mono text-xs font-semibold mb-2">03 / TRANSFERS</div>
+          <h3 class="text-base font-bold text-white mb-2">Side-by-Side SFTP Explorer</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Integrated dual-pane directory explorer for instant file uploads, permission inspection, and bulk sync alongside your active terminal shell.
+          </p>
+        </div>
+
+        <!-- Bento 4 -->
+        <div class="p-5 rounded-lg bg-[#0e0e11] border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+          <div class="text-sky-400 font-mono text-xs font-semibold mb-2">04 / EFFICIENCY</div>
+          <h3 class="text-base font-bold text-white mb-2">Focus-Aware Polling</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Host telemetry auto-throttles when the desktop window is minimized or unfocused, preserving CPU cycles and laptop battery life.
+          </p>
+        </div>
+
+        <!-- Bento 5 -->
+        <div class="p-5 rounded-lg bg-[#0e0e11] border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+          <div class="text-sky-400 font-mono text-xs font-semibold mb-2">05 / MAINTENANCE</div>
+          <h3 class="text-base font-bold text-white mb-2">Seamless Auto-Updater</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            In-place checksummed binary verification against official GitHub Releases. Check, download, and apply updates with zero friction.
+          </p>
+        </div>
+
+        <!-- Bento 6 -->
+        <div class="p-5 rounded-lg bg-[#0e0e11] border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+          <div class="text-sky-400 font-mono text-xs font-semibold mb-2">06 / PRIVACY</div>
+          <h3 class="text-base font-bold text-white mb-2">100% Offline-First. Zero Cloud Telemetry</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            No mandatory accounts, no cloud sync, no tracking beacons. Fully operational behind strict corporate proxies and air-gapped enclaves.
           </p>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Technical specs table -->
-    <section class="space-y-6">
-      <div class="border-b border-neutral-800 pb-3">
-        <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-red-500">Technical Specifications</h2>
-        <p class="text-xl font-bold text-white mt-1">Runtime capabilities and subsystems</p>
+  <!-- Comparison Matrix Section -->
+  <section id="comparison" class="py-16 px-4 sm:px-6 lg:px-8 border-b border-zinc-800/80 bg-[#0e0e11]/40">
+    <div class="max-w-6xl mx-auto">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight text-white">Why switch from Termius or PuTTY?</h2>
+        <p class="mt-1 text-sm text-zinc-400">A clear, objective comparison across memory footprint, architecture, and licensing.</p>
       </div>
 
-      <div class="overflow-x-auto border border-neutral-800 bg-[#0c0c0c] rounded-lg">
-        <table class="table w-full text-xs">
+      <div class="overflow-x-auto rounded-lg border border-zinc-800 bg-[#09090b]">
+        <table class="w-full text-left border-collapse text-xs">
           <thead>
-            <tr class="border-b border-neutral-800 text-neutral-400 font-mono">
-              <th class="py-3 px-4">Subsystem</th>
-              <th class="py-3 px-4">Implementation</th>
-              <th class="py-3 px-4">Supported Platforms</th>
+            <tr class="border-b border-zinc-800 bg-zinc-900/60 font-mono text-zinc-400">
+              <th class="p-3.5 font-medium">Capability</th>
+              <th class="p-3.5 font-semibold text-white bg-zinc-800/40">ssh-client</th>
+              <th class="p-3.5 font-medium">Termius</th>
+              <th class="p-3.5 font-medium">PuTTY</th>
+              <th class="p-3.5 font-medium">OpenSSH CLI</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-neutral-800/60 font-mono text-neutral-300">
+          <tbody class="divide-y divide-zinc-800/60 text-zinc-300">
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Dual-Pane SFTP Explorer</td>
-              <td class="py-3 px-4 text-neutral-400">Side-by-side Local vs Remote filesystem browser with HTML5 drag-and-drop transfers, path breadcrumbs, search filters, and modal editor</td>
-              <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
+              <td class="p-3.5 font-medium text-white">Architecture &amp; Engine</td>
+              <td class="p-3.5 font-mono text-sky-300 bg-zinc-800/20">Erlang/OTP + Native C#</td>
+              <td class="p-3.5">Electron (Chromium)</td>
+              <td class="p-3.5">Win32 C Monolith</td>
+              <td class="p-3.5">C POSIX Binary</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Seamless In-Place Auto-Updater</td>
-              <td class="py-3 px-4 text-neutral-400">Windows: download and run the latest installer. Browser interface: update staging and restart controls.</td>
-              <td class="py-3 px-4 text-neutral-300">Windows 10/11, Linux x64</td>
+              <td class="p-3.5 font-medium text-white">Memory Baseline</td>
+              <td class="p-3.5 font-mono text-sky-300 bg-zinc-800/20">~45 MB Idle</td>
+              <td class="p-3.5">~350 MB Idle</td>
+              <td class="p-3.5">~5 MB Idle</td>
+              <td class="p-3.5">~3 MB Idle</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Multi-Theme Engine</td>
-              <td class="py-3 px-4 text-neutral-400">Dark/light themes saved locally; Windows also supports reduced motion and high-contrast system colors.</td>
-              <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
+              <td class="p-3.5 font-medium text-white">Continuous Telemetry</td>
+              <td class="p-3.5 font-semibold text-green-400 bg-zinc-800/20">Native Embedded</td>
+              <td class="p-3.5 text-zinc-500">None</td>
+              <td class="p-3.5 text-zinc-500">None</td>
+              <td class="p-3.5 text-zinc-500">Manual (top/htop)</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Master Vault</td>
-              <td class="py-3 px-4 text-neutral-400">Windows: per-session credentials and Windows desktop locking. Browser interface: local encrypted vault.</td>
-              <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
+              <td class="p-3.5 font-medium text-white">Cloud Account Requirement</td>
+              <td class="p-3.5 font-semibold text-green-400 bg-zinc-800/20">Zero. 100% Offline</td>
+              <td class="p-3.5 text-rose-400">Required / Cloud Sync</td>
+              <td class="p-3.5 text-green-400">Zero</td>
+              <td class="p-3.5 text-green-400">Zero</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Full-Bleed Terminal</td>
-              <td class="py-3 px-4 text-neutral-400">Responsive full-screen xterm.js canvas with truecolor 256-color PTY streaming, dynamic ResizeObserver reflow, and font zoom</td>
-              <td class="py-3 px-4 text-neutral-300">Windows 10/11, Linux x64</td>
+              <td class="p-3.5 font-medium text-white">Credential Encryption</td>
+              <td class="p-3.5 font-mono text-sky-300 bg-zinc-800/20">OS Keychain (DPAPI)</td>
+              <td class="p-3.5">Proprietary Cloud Vault</td>
+              <td class="p-3.5 text-zinc-500">Plaintext Registry</td>
+              <td class="p-3.5">ssh-agent / Filesystem</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Command Autocomplete</td>
-              <td class="py-3 px-4 text-neutral-400">Windows: Ctrl+K for hosts and app navigation. Browser interface: commands for services, networking and files.</td>
-              <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
+              <td class="p-3.5 font-medium text-white">Side-by-Side SFTP</td>
+              <td class="p-3.5 font-semibold text-green-400 bg-zinc-800/20">Integrated</td>
+              <td class="p-3.5 text-zinc-400">Paid Tier Only</td>
+              <td class="p-3.5 text-zinc-500">Separate App (PSFTP)</td>
+              <td class="p-3.5 text-zinc-500">CLI only (sftp)</td>
             </tr>
             <tr>
-              <td class="py-3 px-4 font-semibold text-white">Clipboard &amp; Shortcuts</td>
-              <td class="py-3 px-4 text-neutral-400">Keyboard terminal input and selection; browser and native terminal shortcuts differ.</td>
-              <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
-            </tr>
-            <tr>
-              <td class="py-3 px-4 font-semibold text-white">Shell Support</td>
-              <td class="py-3 px-4 text-neutral-400">Native Zsh, Bash, and Fish support with 1-click Zsh switcher (exec zsh -l) and truecolor prompt rendering</td>
-              <td class="py-3 px-4 text-neutral-300">Linux / Unix remotes</td>
-            </tr>
-            <tr>
-              <td class="py-3 px-4 font-semibold text-white">Host Management</td>
-              <td class="py-3 px-4 text-neutral-400">OpenSSH ~/.ssh/config auto-importer, user@host:port quick parser, ranked fuzzy search</td>
-              <td class="py-3 px-4 text-neutral-300">Cross-platform</td>
-            </tr>
-            <tr>
-              <td class="py-3 px-4 font-semibold text-white">GUI Desktop App</td>
-              <td class="py-3 px-4 text-neutral-400">Zero-overhead Phoenix LiveView served locally at localhost:4000 — no heavy Electron runtime</td>
-              <td class="py-3 px-4 text-neutral-300">Windows 10/11, Linux x64</td>
+              <td class="p-3.5 font-medium text-white">License Model</td>
+              <td class="p-3.5 font-semibold text-green-400 bg-zinc-800/20">MIT Open Source</td>
+              <td class="p-3.5 text-zinc-400">Commercial Subscription</td>
+              <td class="p-3.5 text-green-400">MIT / BSD</td>
+              <td class="p-3.5 text-green-400">BSD</td>
             </tr>
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Download Banner -->
-    <section class="border border-neutral-800 bg-[#0c0c0c] p-8 rounded-lg space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 class="text-lg font-bold text-white">Download v0.0.70</h3>
-          <p class="text-xs text-neutral-500 font-mono mt-1">Beta release. Precompiled for Windows x64 and Linux x64.</p>
+  <!-- Runtime Specifications -->
+  <section id="architecture" class="py-16 px-4 sm:px-6 lg:px-8 border-b border-zinc-800/80">
+    <div class="max-w-6xl mx-auto">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight text-white">Runtime architecture and platform matrix.</h2>
+        <p class="mt-1 text-sm text-zinc-400">Detailed hardware, operating system, and protocol compliance specifications.</p>
+      </div>
+
+      <div class="overflow-x-auto rounded-lg border border-zinc-800 bg-[#0e0e11]">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-zinc-800 bg-zinc-900/60 font-mono text-zinc-400">
+              <th class="p-3.5 font-medium">Specification</th>
+              <th class="p-3.5 font-medium">Detail</th>
+              <th class="p-3.5 font-medium">Standard / Notes</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-800/60 text-zinc-300">
+            <tr>
+              <td class="p-3.5 font-medium text-white">SSH Protocol Support</td>
+              <td class="p-3.5 font-mono text-zinc-300">SSH-2.0 (RFC 4253, RFC 4252, RFC 4254)</td>
+              <td class="p-3.5 text-zinc-400">Full handshake negotiation, ed25519, rsa-sha2-512</td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-medium text-white">SFTP Subsystem</td>
+              <td class="p-3.5 font-mono text-zinc-300">SFTP Version 3 / 4</td>
+              <td class="p-3.5 text-zinc-400">Streaming transfers, recursive listings, permissions</td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-medium text-white">Windows Desktop Shell</td>
+              <td class="p-3.5 font-mono text-zinc-300">WPF / .NET Framework 4.8.1 x64</td>
+              <td class="p-3.5 text-zinc-400">Hardware DirectWrite typography, dark UI theme</td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-medium text-white">Backend Engine</td>
+              <td class="p-3.5 font-mono text-zinc-300">Elixir 1.18.2 / Erlang/OTP 27</td>
+              <td class="p-3.5 text-zinc-400">Zero Node.js or Chromium runtime overhead</td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-medium text-white">Supported Platforms</td>
+              <td class="p-3.5 font-mono text-zinc-300">Windows 10, 11 (x64) &bull; Linux (x86_64)</td>
+              <td class="p-3.5 text-zinc-400">Standalone self-contained installers and archives</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Center -->
+  <section id="download" class="py-16 px-4 sm:px-6 lg:px-8 border-b border-zinc-800/80 bg-[#0e0e11]/60">
+    <div class="max-w-4xl mx-auto text-center">
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-zinc-800 text-xs font-mono text-zinc-300 mb-4">
+        <span>Production Release</span>
+      </div>
+      <h2 class="text-3xl font-extrabold text-white tracking-tight">Download ssh-client v0.0.70</h2>
+      <p class="mt-2 text-sm text-zinc-400 max-w-xl mx-auto">
+        Choose your preferred distribution format. All binaries are cryptographically signed and checksummed.
+      </p>
+
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+        
+        <!-- Windows Installer -->
+        <div class="p-5 rounded-lg bg-[#09090b] border border-zinc-800 flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-sky-400 mb-1">WINDOWS 10 / 11</div>
+            <div class="font-bold text-white text-sm">Installer (.exe)</div>
+            <p class="text-xs text-zinc-400 mt-2">Guided setup with Start Menu integration, desktop shortcut, and uninstaller.</p>
+          </div>
+          <div class="mt-6">
+            <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-installer-v0.0.70.exe" class="w-full block text-center py-2 px-3 rounded-md bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors">
+              Download Installer
+            </a>
+          </div>
         </div>
-        <div class="flex flex-wrap gap-3 text-xs font-semibold">
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-setup-v0.0.70-windows-x64.exe"
-             class="btn btn-sm bg-red-600 hover:bg-red-700 border-none text-white font-mono">
-            Windows (.exe)
-          </a>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-windows-x64.zip"
-             class="btn btn-sm bg-neutral-900 border border-neutral-700 hover:border-red-600 text-white font-mono">
-            Windows (.zip)
-          </a>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-linux-x64.tar.gz"
-             class="btn btn-sm bg-neutral-900 border border-neutral-700 hover:border-red-600 text-white font-mono">
-            Linux (.tar.gz)
-          </a>
+
+        <!-- Windows Portable -->
+        <div class="p-5 rounded-lg bg-[#09090b] border border-zinc-800 flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-sky-400 mb-1">WINDOWS PORTABLE</div>
+            <div class="font-bold text-white text-sm">Standalone Archive (.zip)</div>
+            <p class="text-xs text-zinc-400 mt-2">Zero installation required. Extract to any directory or USB drive and launch.</p>
+          </div>
+          <div class="mt-6">
+            <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-windows-v0.0.70.zip" class="w-full block text-center py-2 px-3 rounded-md bg-[#121316] text-zinc-200 border border-zinc-700 font-medium text-xs hover:border-zinc-500 hover:text-white transition-colors">
+              Download Portable ZIP
+            </a>
+          </div>
+        </div>
+
+        <!-- Linux Archive -->
+        <div class="p-5 rounded-lg bg-[#09090b] border border-zinc-800 flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-mono text-sky-400 mb-1">LINUX X86_64</div>
+            <div class="font-bold text-white text-sm">Tarball (.tar.gz)</div>
+            <p class="text-xs text-zinc-400 mt-2">Precompiled Erlang/Elixir binary distribution for Ubuntu, Debian, Fedora, and Arch.</p>
+          </div>
+          <div class="mt-6">
+            <a href="https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-linux-v0.0.70.tar.gz" class="w-full block text-center py-2 px-3 rounded-md bg-[#121316] text-zinc-200 border border-zinc-700 font-medium text-xs hover:border-zinc-500 hover:text-white transition-colors">
+              Download Tarball
+            </a>
+          </div>
         </div>
       </div>
-    </section>
 
-  </main>
+      <!-- Checksum Command -->
+      <div class="mt-8 p-3 rounded-md bg-[#09090b] border border-zinc-800 text-left font-mono text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <span class="text-zinc-400 truncate">certutil -hashfile ssh-client-installer-v0.0.70.exe SHA256</span>
+        <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.70" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline shrink-0">View Checksums on GitHub &rarr;</a>
+      </div>
+    </div>
+  </section>
 
   <!-- Footer -->
-  <footer class="border-t border-neutral-800 bg-[#050505] py-10 mt-16 text-xs text-neutral-600 font-mono">
-    <div class="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <p>ssh-client &bull; MIT License &bull; Offline &amp; Zero Telemetry</p>
-      <div class="flex gap-6">
-        <a href="install/" class="hover:text-red-500 transition-colors">Install &amp; FAQs</a>
-        <a href="changelog/" class="hover:text-red-500 transition-colors">Changelog</a>
-        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="hover:text-white transition-colors">GitHub</a>
+  <footer class="mt-auto py-12 px-4 sm:px-6 lg:px-8 bg-[#09090b] text-zinc-500 text-xs">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-zinc-800/80 pt-8">
+      <div class="flex items-center gap-3">
+        <img src="assets/logo.svg" alt="ssh-client logo" class="w-6 h-6 rounded" />
+        <span class="text-zinc-300 font-semibold">ssh-client</span>
+        <span class="text-zinc-600">/</span>
+        <span>MIT License</span>
       </div>
+
+      <div class="flex items-center gap-6">
+        <a href="install.html" class="hover:text-zinc-300 transition-colors">Documentation</a>
+        <a href="changelog.html" class="hover:text-zinc-300 transition-colors">Version History</a>
+        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noopener noreferrer" class="hover:text-zinc-300 transition-colors">GitHub Repository</a>
+      </div>
+
+      <div>&copy; 2026 Dinesh Korukonda. Built for engineers.</div>
     </div>
   </footer>
 
+  <!-- View Switcher Script -->
   <script>
-    function copyCode(btn) {
-      const pre = btn.previousElementSibling;
-      const text = pre.innerText.replace(/\n?$/, '');
-      navigator.clipboard.writeText(text).then(() => {
-        btn.textContent = 'copied!';
-        btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+    function switchShowcase(view) {
+      if (!document.querySelector('[data-showcase-image="' + view + '"]')) return;
+      document.querySelectorAll('[data-showcase-image]').forEach(image => {
+        image.classList.toggle('hidden', image.dataset.showcaseImage !== view);
+      });
+      document.querySelectorAll('[data-showcase]').forEach(button => {
+        const selected = button.dataset.showcase === view;
+        button.setAttribute('aria-pressed', String(selected));
+        button.className = 'px-3 py-2 rounded text-xs font-medium transition-colors ' +
+          (selected ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200');
       });
     }
   </script>

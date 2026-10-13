@@ -81,6 +81,7 @@ defmodule SSHClientWeb.HostLive do
       |> assign(:fwd_listen, "18080")
       |> assign(:fwd_dest_host, "127.0.0.1")
       |> assign(:fwd_dest_port, "3000")
+      |> assign(:view_mode, :grid)
       |> load_servers()
       |> check_crash_recovery()
 
@@ -94,6 +95,11 @@ defmodule SSHClientWeb.HostLive do
   @impl true
   def handle_event("search", %{"value" => q}, socket) do
     {:noreply, assign(socket, :filter, q)}
+  end
+
+  def handle_event("toggle_view_mode", %{"mode" => mode}, socket) do
+    mode_atom = if mode in ["table", :table], do: :table, else: :grid
+    {:noreply, assign(socket, :view_mode, mode_atom)}
   end
 
   def handle_event("poll_now", %{"id" => id}, socket) do
@@ -1425,14 +1431,15 @@ defmodule SSHClientWeb.HostLive do
   defp normalize_status(status) when is_binary(status), do: status
   defp normalize_status(_), do: "unknown"
 
-  defp format_pct(v), do: "#{:erlang.float_to_binary(v, decimals: 1)}%"
+  defp format_pct(v) when is_number(v), do: "#{:erlang.float_to_binary(v * 1.0, decimals: 1)}%"
+  defp format_pct(_), do: "Unavailable"
 
-  defp bar_color(v) when v >= 90, do: "bg-destructive"
-  defp bar_color(v) when v >= 70, do: "bg-warning"
+  defp bar_color(v) when is_number(v) and v >= 90, do: "bg-destructive"
+  defp bar_color(v) when is_number(v) and v >= 70, do: "bg-warning"
   defp bar_color(_), do: "bg-emerald-500"
 
-  defp metric_color(v) when v >= 90, do: "text-destructive"
-  defp metric_color(v) when v >= 70, do: "text-warning"
+  defp metric_color(v) when is_number(v) and v >= 90, do: "text-destructive"
+  defp metric_color(v) when is_number(v) and v >= 70, do: "text-warning"
   defp metric_color(_), do: "text-muted-foreground"
 
   @doc "Fuzzy-filters and ranks servers by query string."

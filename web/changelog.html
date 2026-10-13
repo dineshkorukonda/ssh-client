@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Changelog & Version History — ssh-client</title>
+  <title>Changelog &amp; Version History &mdash; ssh-client</title>
   <meta name="description" content="Complete version history, release notes, and commit audit log for ssh-client.">
 
   <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
   <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 
-  <!-- daisyUI + Tailwind CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Google Fonts: Poppins & JetBrains Mono -->
+  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
@@ -25,13 +25,14 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Poppins', 'sans-serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace']
           },
           colors: {
             brand: {
-              red: '#dc2626',
-              lightred: '#ef4444',
+              red: '#ef4444',
+              rose: '#38bdf8',
+              coral: '#fb7185',
               darkred: '#991b1b'
             }
           }
@@ -42,74 +43,102 @@
 
   <style>
     body {
-      font-family: 'Poppins', sans-serif;
-      background-color: #050505;
-      color: #e5e5e5;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+      overflow-x: hidden;
     }
     code, pre, .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
     ::selection {
-      background-color: #dc2626;
+      background-color: #38bdf8;
       color: #ffffff;
+    }
+
+    .bg-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    }
+
+    .hero-spotlight {
+      background: radial-gradient(ellipse 70% 45% at 50% -10%, rgba(56, 189, 248, 0.05), transparent 70%);
     }
   </style>
 </head>
-<body class="min-h-screen bg-[#050505] text-neutral-200 flex flex-col antialiased">
+<body class="min-h-screen bg-[#09090b] text-zinc-200 antialiased flex flex-col relative selection:bg-sky-500/20 selection:text-sky-300 ">
 
-  <!-- Header / Navigation -->
-  <header class="sticky top-0 z-50 border-b border-neutral-800 bg-[#050505]/95 backdrop-blur-md">
-    <div class="navbar max-w-5xl mx-auto px-6 h-16">
-      <div class="flex-1">
-        <a href="index.html" class="text-base font-bold tracking-tight text-white flex items-center gap-2.5">
-          <img src="assets/icon.png" alt="Logo" class="w-6 h-6 rounded" />
-          <span>ssh-client</span>
-          <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1">v0.0.70</span>
+  <div class="absolute inset-0 bg-grid pointer-events-none opacity-80 z-0"></div>
+  <div class="absolute top-0 left-0 right-0 h-[450px] hero-spotlight pointer-events-none z-0"></div>
+
+  <!-- Sticky Top Navigation -->
+  <header class="sticky top-0 z-50 border-b border-white/[0.07] bg-[#09090b]/80 backdrop-blur-xl transition-all">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2.5 group">
+          <img src="assets/logo.svg" alt="ssh-client logo" class="w-8 h-8 rounded-lg  group-hover:scale-105 transition-transform" />
+          <span class="text-base font-bold tracking-tight text-white group-hover:text-zinc-200 transition-colors">ssh-client</span>
         </a>
+        <span class="font-mono text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-900/90 px-2 py-0.5 rounded app-version-badge">v0.0.70</span>
       </div>
-      <div class="flex-none gap-2 font-medium text-xs">
-        <a href="index.html" class="btn btn-ghost btn-sm text-neutral-400 hover:text-white">Overview</a>
-        <a href="install.html" class="btn btn-ghost btn-sm text-neutral-400 hover:text-white">Install & FAQs</a>
-        <a href="changelog.html" class="btn btn-ghost btn-sm text-white hover:text-red-500">Changelog</a>
-        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="btn btn-sm bg-neutral-900 border border-neutral-700 text-white hover:border-red-600 hover:bg-neutral-800 ml-2">GitHub ↗</a>
+
+      <nav class="hidden md:flex items-center gap-1 text-sm font-medium text-zinc-400">
+        <a href="index.html" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.05] transition-all">Overview</a>
+        <a href="install.html" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.05] transition-all">Install &amp; FAQs</a>
+        <a href="changelog.html" class="px-3 py-1.5 rounded-lg text-white bg-white/[0.08] transition-all">Changelog</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer"
+           class="inline-flex items-center gap-2 text-xs font-mono font-medium text-zinc-300 border border-white/[0.09] bg-zinc-900/80 hover:bg-zinc-800 hover:text-white px-3.5 py-1.5 rounded-lg transition-all">
+          <span>GitHub</span>
+          <span class="text-zinc-500">&bull;</span>
+          <span class="text-sky-400">&uarr;&rarr;</span>
+        </a>
       </div>
     </div>
   </header>
 
-  <main class="flex-grow max-w-5xl mx-auto w-full px-6 py-14 space-y-16">
+  <!-- Main Content -->
+  <main class="flex-grow max-w-5xl mx-auto w-full px-6 py-12 space-y-16 z-10">
 
     <!-- Title / Header -->
-    <section class="space-y-4 pt-4 border-b border-neutral-800 pb-8">
-      <div class="font-mono text-xs text-red-500 uppercase tracking-widest font-semibold">Release Ledger</div>
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-        Version History & Audit Log
+    <section class="space-y-4 pt-4 border-b border-white/[0.08] pb-8">
+      <div class="inline-flex items-center gap-2 font-mono text-xs font-semibold text-sky-400 uppercase tracking-widest">
+        <span>RELEASE AUDIT LEDGER</span>
+        <span class="text-zinc-600">&bull;</span>
+        <span>SEMVER &amp; KEEP-A-CHANGELOG</span>
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
+        Version History &amp; Audit Log
       </h1>
-      <p class="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed font-normal">
+      <p class="text-sm sm:text-base text-zinc-400 max-w-2xl leading-relaxed font-normal">
         Record of all additions, security fixes, transport migrations, and architectural revisions adhering to Semantic Versioning and Keep a Changelog.
       </p>
     </section>
-
-    <!-- Version v0.0.70 -->
+<!-- Version v0.0.70 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.70</span>
-          <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded app-latest-release">latest release</span>
+          <span class="font-mono text-[10px] text-sky-400 border border-zinc-800 bg-zinc-900 px-2 py-0.5 rounded app-latest-release">latest release</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-13</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.70" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.70" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat: simplify host setup and restore native Windows updates (#235)</p>
@@ -122,24 +151,24 @@
 
     <!-- Version v0.0.69 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.69</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-13</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.69" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.69" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">Simplify local SSH key selection and host setup; restore native Windows in-place updates.</p>
@@ -152,24 +181,24 @@
 
     <!-- Version v0.0.68 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.68</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-13</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.68" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.68" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(windows): finish UX audit navigation and regression journeys (#234)</p>
@@ -182,24 +211,24 @@
 
     <!-- Version v0.0.67 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.67</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-12</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.67" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.67" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(windows): recover merged UX changes into main (#233)</p>
@@ -212,24 +241,24 @@
 
     <!-- Version v0.0.66 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.66</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-12</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.66" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.66" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">ci: validate and publish complete multi-platform releases (#231)</p>
@@ -242,24 +271,24 @@
 
     <!-- Version v0.0.65 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.65</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-12</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.65" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.65" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(windows): preserve host addresses across native API operations (#225)</p>
@@ -272,24 +301,24 @@
 
     <!-- Version v0.0.64 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.64</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-12</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.64" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.64" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(windows): modernize UI with plain black/white themes, smooth animations, and key vault (#201)</p>
@@ -302,24 +331,24 @@
 
     <!-- Version v0.0.63 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.63</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.63" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.63" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(windows): redesign host library and migrate local data to SQLite (#200)</p>
@@ -332,24 +361,24 @@
 
     <!-- Version v0.0.62 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.62</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.62" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.62" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(windows): recover native builds and Windows-only releases (#196)</p>
@@ -362,24 +391,24 @@
 
     <!-- Version v0.0.61 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.61</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.61" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.61" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(windows): deliver phase 2 native application to main (#194)</p>
@@ -392,24 +421,24 @@
 
     <!-- Version v0.0.60 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.60</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.60" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.60" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">chore(carf): link repository — add .carf.yml configuration</p>
@@ -422,24 +451,24 @@
 
     <!-- Version v0.0.59 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.59</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.59" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.59" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">chore(carf): link repository — add .carf.yml configuration</p>
@@ -452,24 +481,24 @@
 
     <!-- Version v0.0.58 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.58</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-10-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.58" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.58" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(ssh): restore reliable Windows server connections (#192)</p>
@@ -482,24 +511,24 @@
 
     <!-- Version v0.0.57 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.57</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-28</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.57" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.57" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">chore(carf): unlink repository — remove .carf.yml configuration</p>
@@ -512,24 +541,24 @@
 
     <!-- Version v0.0.56 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.56</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-21</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.56" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.56" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(terminal): prevent xterm remount crash and duplicate output (#182)</p>
@@ -542,24 +571,24 @@
 
     <!-- Version v0.0.55 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.55</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-21</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.55" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.55" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(terminal): handle pane_ready so SSH sessions stay connected (#181)</p>
@@ -572,24 +601,24 @@
 
     <!-- Version v0.0.54 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.54</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-20</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.54" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.54" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(auth): remove master password requirement and add sleek scrollbars (#180)</p>
@@ -602,24 +631,24 @@
 
     <!-- Version v0.0.53 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.53</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-20</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.53" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.53" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ui): modern developer console layout redesign and sftp throughput eta (#179)</p>
@@ -632,24 +661,24 @@
 
     <!-- Version v0.0.52 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.52</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-20</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.52" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.52" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">style: fix code formatting for mix format in CI (#178)</p>
@@ -662,24 +691,24 @@
 
     <!-- Version v0.0.51 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.51</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-20</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.51" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.51" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(terminal): add keyboard shortcuts cheat sheet modal and key handlers (#177)</p>
@@ -692,24 +721,24 @@
 
     <!-- Version v0.0.50 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.50</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-20</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.50" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.50" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">chore(carf): enable 1-click change-aware rollback protection (.carf.yml)</p>
@@ -722,24 +751,24 @@
 
     <!-- Version v0.0.49 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.49</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-18</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.49" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.49" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">chore(carf): unlink repository — remove .carf.yml configuration</p>
@@ -752,24 +781,24 @@
 
     <!-- Version v0.0.48 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.48</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-18</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.48" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.48" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(terminal+updater): buffer pre-connect keystrokes and fix auto-update relaunch (#176)</p>
@@ -782,24 +811,24 @@
 
     <!-- Version v0.0.47 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.47</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-17</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.47" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.47" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">chore(carf): enable 1-click change-aware rollback protection (.carf.yml)</p>
@@ -812,24 +841,24 @@
 
     <!-- Version v0.0.46 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.46</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-17</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.46" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.46" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(updater): clear inherited release environment variables on update restart (#173)</p>
@@ -842,24 +871,24 @@
 
     <!-- Version v0.0.45 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.45</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-17</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.45" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.45" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">Direct full terminal navigation, streamlined topbar controls, and safe hook fitting (#172)</p>
@@ -872,24 +901,24 @@
 
     <!-- Version v0.0.44 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.44</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-16</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.44" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.44" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ui): unify left sidebar layout across active terminal and sftp views (v0.0.43) (#171)</p>
@@ -902,24 +931,24 @@
 
     <!-- Version v0.0.43 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.43</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-16</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.43" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.43" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">Maintenance updates, bug fixes, and performance improvements.</p>
@@ -932,24 +961,24 @@
 
     <!-- Version v0.0.42 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.42</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-16</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.42" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.42" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ui): implement left sidebar navigation and layout redesign (v0.0.41) (#170)</p>
@@ -962,24 +991,24 @@
 
     <!-- Version v0.0.41 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.41</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-16</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.41" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.41" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">Left sidebar navigation and enhanced full layout architecture</p>
@@ -992,24 +1021,24 @@
 
     <!-- Version v0.0.40 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.40</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-16</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.40" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.40" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ui): UI/UX layout revamp and modular architecture (v0.0.39) (#169)</p>
@@ -1022,24 +1051,24 @@
 
     <!-- Version v0.0.39 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.39</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-16</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.39" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.39" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">UI/UX layout redesign and modular hook extraction</p>
@@ -1052,24 +1081,24 @@
 
     <!-- Version v0.0.38 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.38</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-16</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.38" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.38" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(windows): launch installed app without backend timeout (#168)</p>
@@ -1082,24 +1111,24 @@
 
     <!-- Version v0.0.37 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.37</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.37" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.37" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(launcher): resolve batch variable delayed expansion & non-console delay in launch-gui.bat (#167)</p>
@@ -1112,24 +1141,24 @@
 
     <!-- Version v0.0.36 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.36</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.36" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.36" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(launcher): add Brave browser detection for app-mode launch (#166)</p>
@@ -1142,24 +1171,24 @@
 
     <!-- Version v0.0.35 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.35</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.35" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.35" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(launcher): kill zombie erl.exe/epmd.exe before starting daemon (#165)</p>
@@ -1172,24 +1201,24 @@
 
     <!-- Version v0.0.34 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.34</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.34" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.34" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(installer): use {sys}\wscript.exe full path in [Icons] and [Run] (#164)</p>
@@ -1202,24 +1231,24 @@
 
     <!-- Version v0.0.33 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.33</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.33" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.33" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(installer): use wscript.exe explicitly in [Run] and bundle launcher scripts in [Files] (#163)</p>
@@ -1232,24 +1261,24 @@
 
     <!-- Version v0.0.32 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.32</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-10</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.32" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.32" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat: complete stabilization and architecture redesign (#162)</p>
@@ -1262,24 +1291,24 @@
 
     <!-- Version v0.0.31 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.31</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-08</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.31" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.31" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix: filter release asset downloads (#161)</p>
@@ -1292,24 +1321,24 @@
 
     <!-- Version v0.0.30 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.30</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-08</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.30" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.30" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix: restore reliable release workflow dispatch (#160)</p>
@@ -1322,24 +1351,24 @@
 
     <!-- Version v0.0.29 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.29</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.29" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.29" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix: address SQLite foundation review findings (#159)</p>
@@ -1352,24 +1381,24 @@
 
     <!-- Version v0.0.28 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.28</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.28" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.28" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat: add SQLite terminal workspace foundation (#158)</p>
@@ -1382,24 +1411,24 @@
 
     <!-- Version v0.0.27 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.27</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.27" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.27" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">ci: generate GitHub release notes and speed up OS packaging (#157)</p>
@@ -1412,24 +1441,24 @@
 
     <!-- Version v0.0.26 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.26</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.26" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.26" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat: submit Phase 1 stabilization architecture baseline (#156)</p>
@@ -1442,24 +1471,24 @@
 
     <!-- Version v0.0.25 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.25</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.25" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.25" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(vault): add master vault reset and recovery option to lock screen (#155)</p>
@@ -1472,24 +1501,24 @@
 
     <!-- Version v0.0.24 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.24</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.24" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.24" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ui): add standalone terminal and sftp routes with host picker and ssh config importer (#154)</p>
@@ -1502,24 +1531,24 @@
 
     <!-- Version v0.0.23 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.23</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.23" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.23" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(launcher): prevent premature daemon termination on windows gui launch (#153)</p>
@@ -1532,24 +1561,24 @@
 
     <!-- Version v0.0.22 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.22</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.22" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.22" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ui): overhaul UI with shadcn dashboard and dual-theme support (#152)</p>
@@ -1562,24 +1591,24 @@
 
     <!-- Version v0.0.21 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.21</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.21" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.21" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(ui): bundle precompiled Tailwind CSS utilities and DaisyUI into static app.css (#151)</p>
@@ -1592,24 +1621,24 @@
 
     <!-- Version v0.0.20 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.20</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.20" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.20" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ui): overhaul application with high performance minimal stark monochrome design</p>
@@ -1622,24 +1651,24 @@
 
     <!-- Version v0.0.19 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.19</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.19" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.19" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">ci(release): dispatch CI release build on auto-release tag creation</p>
@@ -1652,24 +1681,24 @@
 
     <!-- Version v0.0.18 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.18</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.18" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.18" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">ci(workflow): optimize PR checks speed and add unified local pre-flight runner</p>
@@ -1682,24 +1711,24 @@
 
     <!-- Version v0.0.17 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.17</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.17" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.17" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(updater): resolve release root directory and robust detached Windows restart (#147)</p>
@@ -1712,24 +1741,24 @@
 
     <!-- Version v0.0.16 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.16</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.16" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.16" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">docs(rules): enforce PR assignee, semantic labels, and merge conflict resolution (#146)</p>
@@ -1742,24 +1771,24 @@
 
     <!-- Version v0.0.15 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.15</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-07</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.15" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.15" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat(ssh): ephemeral password authentication and auto SSH key deployment (#145)</p>
@@ -1772,24 +1801,24 @@
 
     <!-- Version v0.0.14 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.14</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.14" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.14" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(live): preserve Add Host input state on change and support password credential storage (#144)</p>
@@ -1802,24 +1831,24 @@
 
     <!-- Version v0.0.13 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.13</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.13" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.13" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat: multi-user server accounts, password authentication and OS Keychain integration (#143)</p>
@@ -1832,24 +1861,24 @@
 
     <!-- Version v0.0.12 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.12</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.12" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.12" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">feat: native Windows host lifecycle, robust auto-updater and quality revamp (#142)</p>
@@ -1862,24 +1891,24 @@
 
     <!-- Version v0.0.11 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.11</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.11" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.11" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">ci: configure CircleCI test matrix and docker integration pipeline (#141)</p>
@@ -1892,24 +1921,24 @@
 
     <!-- Version v0.0.10 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.10</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.10" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.10" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">fix(release): improve website version synchronization and changelog updates (#140)</p>
@@ -1922,24 +1951,24 @@
 
     <!-- Version v0.0.9 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.9</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.9" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.9" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Release Updates</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Release Updates</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Updates & Improvements:</strong>
                 <p class="text-neutral-400 mt-0.5">resolve sync script variable reference and update PR/CI rules</p>
@@ -1952,31 +1981,31 @@
 
     <!-- Version v0.0.8 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.8</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.8" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.8" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Seamless In-Place Auto-Updater</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Seamless In-Place Auto-Updater</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Zero-Wizard Background Staging:</strong>
                 <p class="text-neutral-400 mt-0.5">Downloads portable ZIP (<code class="text-neutral-200">ssh-client-windows-x64.zip</code>) or tarball (<code class="text-neutral-200">ssh-client-linux-x64.tar.gz</code>) into user staging cache (<code class="text-neutral-200">~/.ssh-client/staging/</code>) and unpacks payload in the background without interrupting work.</p>
               </div>
             </li>
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Atomic Hot-Swap Restart:</strong>
                 <p class="text-neutral-400 mt-0.5">One-click <strong class="text-emerald-400">[Restart &amp; Apply Update]</strong> in Settings spawns a detached helper script, terminates BEAM processes cleanly to release Windows file locks, swaps release files, and relaunches the app in under 2 seconds.</p>
@@ -1996,38 +2025,38 @@
 
     <!-- Version v0.0.7 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.7</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.7" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.7" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Dual-Pane SFTP Explorer &amp; Multi-Theme Engine</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Dual-Pane SFTP Explorer &amp; Multi-Theme Engine</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Dual-Pane Parallel File Explorer:</strong>
                 <p class="text-neutral-400 mt-0.5">Side-by-side filesystem explorer with Local filesystem on the left pane and Remote SFTP on the right pane, featuring independent directory breadcrumbs, search filters, and file action buttons.</p>
               </div>
             </li>
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">HTML5 Drag &amp; Drop Transfers:</strong>
                 <p class="text-neutral-400 mt-0.5">Interactive drag-and-drop between panes and from the desktop OS. Streams uploads and downloads directly over OTP <code class="text-neutral-200">:ssh_sftp</code> with live progress dock telemetry.</p>
               </div>
             </li>
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Global Multi-Theme Engine:</strong>
                 <p class="text-neutral-400 mt-0.5">Added Stark Carbon Dark and Crisp High-Contrast Light themes with client <code class="text-neutral-200">localStorage</code> persistence and topbar quick-toggle.</p>
@@ -2040,24 +2069,24 @@
 
     <!-- Version v0.0.6 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.6</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.6" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.6" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">CI Automation &amp; Release Dispatch</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">CI Automation &amp; Release Dispatch</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Automated Release Pipeline Trigger:</strong>
                 <p class="text-neutral-400 mt-0.5">Added automated workflow dispatch from Release Bot to CI pipeline, ensuring instant multi-platform builds upon PR merge.</p>
@@ -2070,21 +2099,21 @@
 
     <!-- Version v0.0.5 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.5</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.5" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.5" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Test Suite Hardening &amp; Compiler Cleanups</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Test Suite Hardening &amp; Compiler Cleanups</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-white select-none font-bold">~</span>
@@ -2100,24 +2129,24 @@
 
     <!-- Version v0.0.4 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.4</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.4" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.4" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Automated GitHub Release Bot</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Automated GitHub Release Bot</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Release Bot GitHub Action:</strong>
                 <p class="text-neutral-400 mt-0.5">Implemented <code class="text-neutral-200">.github/workflows/release-bot.yml</code> to calculate next semvers from PR titles, sync all 6 version files, create git tags, and trigger release packaging.</p>
@@ -2130,24 +2159,24 @@
 
     <!-- Version v0.0.3 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.3</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.3" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.3" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Dark Mode Icon &amp; Routing Fixes</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Dark Mode Icon &amp; Routing Fixes</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">High-Contrast Dark Mode Taskbar Icon:</strong>
                 <p class="text-neutral-400 mt-0.5">Multi-size Windows icon layers (<code class="text-neutral-200">windows/app.ico</code> 256x256 to 16x16) with neon cyan boundary (<code class="text-neutral-200">#38bdf8</code>) and server status LEDs for crisp visibility on dark taskbars.</p>
@@ -2161,7 +2190,7 @@
               </div>
             </li>
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Release CI Consistency Checks:</strong>
                 <p class="text-neutral-400 mt-0.5">Automated 6-file version synchronization and zero-emoji auditing pipeline with <code class="text-neutral-200">scripts/sync_release.py</code>.</p>
@@ -2174,24 +2203,24 @@
 
     <!-- Version v0.0.2 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.2</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-06</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.2" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.2" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
       </div>
 
       <div class="space-y-6 font-mono text-xs">
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">In-App Updater &amp; Runtime Fixes</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">In-App Updater &amp; Runtime Fixes</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">In-App Self-Updater:</strong>
                 <p class="text-neutral-400 mt-0.5">Integrated 1-click update flow in settings and navigation with live download progress streaming (<code class="text-neutral-200">0% -&gt; 100%</code>) and automatic Windows Setup installer (<code class="text-neutral-200">.exe</code>) execution.</p>
@@ -2205,7 +2234,7 @@
               </div>
             </li>
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Multi-Engine Fetch Fallbacks:</strong>
                 <p class="text-neutral-400 mt-0.5">Added secondary (<code class="text-neutral-200">curl</code>) and tertiary (PowerShell <code class="text-neutral-200">Invoke-RestMethod</code>) fallback fetchers ensuring reliable update checks.</p>
@@ -2218,14 +2247,14 @@
 
     <!-- Version v0.0.1 -->
     <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div class="flex items-center gap-3">
           <span class="text-xl font-bold text-white">v0.0.1</span>
-          <span class="font-mono text-[10px] text-zinc-500 border border-neutral-800 px-2 py-0.5 rounded">initial beta</span>
+          <span class="font-mono text-[10px] text-zinc-500 border border-white/[0.08] px-2 py-0.5 rounded">initial beta</span>
         </div>
         <div class="font-mono text-xs text-neutral-400 flex items-center gap-4">
           <span>Released: 2026-09-05</span>
-          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.1" target="_blank" rel="noreferrer" class="text-red-500 hover:underline">
+          <a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.1" target="_blank" rel="noreferrer" class="text-sky-400 hover:underline">
             GitHub Release ↗
           </a>
         </div>
@@ -2234,11 +2263,11 @@
       <div class="space-y-6 font-mono text-xs">
 
         <!-- Category: Added -->
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Added Features &amp; Subsystems</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Added Features &amp; Subsystems</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Native Erlang/OTP SSH Transport:</strong>
                 <p class="text-neutral-400 mt-0.5">Implemented direct Erlang <code class="text-neutral-200">:ssh</code>, <code class="text-neutral-200">:ssh_connection</code>, and <code class="text-neutral-200">:ssh_sftp</code> transport layer. Completely eliminated external process shelling to the system <code class="text-neutral-200">ssh</code> binary.</p>
@@ -2246,7 +2275,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Pluggable Auth Callback System:</strong>
                 <p class="text-neutral-400 mt-0.5">Added <code class="text-neutral-200">SSHClient.SSH.Auth</code> supporting key identities (Ed25519, RSA, custom identity files), ssh-agent, passwords, and keyboard-interactive authentication with per-host priority ordering.</p>
@@ -2254,7 +2283,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Host Key Fingerprint Diff Flow:</strong>
                 <p class="text-neutral-400 mt-0.5">Added <code class="text-neutral-200">SSHClient.SSH.HostKeyVerifier</code> with visual SHA-256 fingerprint diffing and reject-by-default logic on changed host keys.</p>
@@ -2262,7 +2291,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Master Vault Encryption:</strong>
                 <p class="text-neutral-400 mt-0.5">Implemented <code class="text-neutral-200">SSHClient.Vault</code> with PBKDF2 (100,000 iterations) key derivation and AES-256-GCM authenticated local encryption protecting passphrases, SSH keys, and host credentials with auto-lock timer and master password prompt.</p>
@@ -2270,7 +2299,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Multi-Tab Terminal Session Manager:</strong>
                 <p class="text-neutral-400 mt-0.5">Full-bleed xterm.js terminal supporting concurrent background PTY sessions, instant tab switching, terminal output preservation, and font scaling.</p>
@@ -2278,7 +2307,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Full-Bleed Responsive Terminal &amp; Autocomplete:</strong>
                 <p class="text-neutral-400 mt-0.5">Embedded full-height xterm.js container streaming over Phoenix LiveView to OTP <code class="text-neutral-200">PTYSession</code> with dynamic <code class="text-neutral-200">ResizeObserver</code> auto-fit, built-in searchable command suggestions palette, and one-click execution.</p>
@@ -2286,7 +2315,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Clipboard Engine &amp; Context Menu:</strong>
                 <p class="text-neutral-400 mt-0.5">Added auto-copy on text selection, Ctrl+V / Ctrl+Shift+V clipboard integration, dedicated Paste button, and sleek right-click dark context menu.</p>
@@ -2294,7 +2323,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Zsh Shell &amp; Truecolor Support:</strong>
                 <p class="text-neutral-400 mt-0.5">Integrated 1-click remote Zsh login shell switcher (<code class="text-neutral-200">exec zsh -l</code>) with 256-color &amp; truecolor terminal emulation.</p>
@@ -2302,7 +2331,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Host Management &amp; Importers:</strong>
                 <p class="text-neutral-400 mt-0.5">Added <code class="text-neutral-200">user@host:port</code> quick-add parser, automatic <code class="text-neutral-200">~/.ssh/config</code> deduplicated importer, and ranked in-memory fuzzy search.</p>
@@ -2310,7 +2339,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">OS Keychain Integration:</strong>
                 <p class="text-neutral-400 mt-0.5">Windows Credential Manager port and Linux Secret Service (<code class="text-neutral-200">libsecret</code>) backend. Decrypted private key passphrases cached strictly in ephemeral memory.</p>
@@ -2318,7 +2347,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Telemetry &amp; Remote Operations:</strong>
                 <p class="text-neutral-400 mt-0.5">Focus-aware polling loop with idle backoff for CPU/RAM/disk metrics, remote service manager (systemd, Docker, PM2) with action confirmations, and journalctl log streamer.</p>
@@ -2326,7 +2355,7 @@
             </li>
 
             <li class="flex items-start gap-2">
-              <span class="text-red-500 select-none font-bold">+</span>
+              <span class="text-sky-400 select-none font-bold">+</span>
               <div>
                 <strong class="text-white">Automated Packaging Pipeline:</strong>
                 <p class="text-neutral-400 mt-0.5">GitHub Actions matrix CI covering unit tests on Windows &amp; Ubuntu, Docker OpenSSH target tests, and automated packaging of Windows x64 .zip and Linux x64 .tar.gz release assets on tag push.</p>
@@ -2336,8 +2365,8 @@
         </div>
 
         <!-- Category: Fixed -->
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Bug Fixes &amp; Hardening</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Bug Fixes &amp; Hardening</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-white select-none font-bold">~</span>
@@ -2374,8 +2403,8 @@
         </div>
 
         <!-- Category: Changed -->
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-red-500">Project Governance &amp; Renaming</h2>
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 rounded-lg hover:border-zinc-700 transition-all space-y-4">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400">Project Governance &amp; Renaming</h2>
           <ul class="space-y-3 text-neutral-300">
             <li class="flex items-start gap-2">
               <span class="text-neutral-500 select-none font-bold">&bull;</span>
@@ -2398,10 +2427,10 @@
     </section>
 
     <!-- Prior History (v0.1.0) -->
-    <section class="space-y-4 border-t border-neutral-800 pt-8">
+    <section class="space-y-4 border-t border-white/[0.08] pt-8">
       <div class="flex items-center gap-3">
         <span class="text-base font-bold text-neutral-400">v0.1.0</span>
-        <span class="font-mono text-[10px] text-neutral-500 border border-neutral-800 px-2 py-0.5 rounded">historical origin</span>
+        <span class="font-mono text-[10px] text-neutral-500 border border-white/[0.08] px-2 py-0.5 rounded">historical origin</span>
       </div>
       <p class="text-xs text-neutral-500 leading-relaxed max-w-3xl font-normal">
         Precursor project originated as <code class="text-neutral-400 font-mono">omarchy-server</code>, an agentless SSH monitoring daemon and QML bar widget for Omarchy/Hyprland on Linux desktop environments. Contained initial Unix domain socket JSON API, init-system detection, and standalone PTY daemon.
@@ -2410,17 +2439,24 @@
 
   </main>
 
-  <!-- Footer -->
-  <footer class="border-t border-neutral-800 bg-[#050505] py-10 mt-16 text-xs text-neutral-500 font-mono">
+  
+  </main>
+
+  <!-- Modern Clean Footer -->
+  <footer class="border-t border-white/[0.07] bg-[#06070a] py-12 text-xs text-zinc-500 font-mono">
     <div class="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <p>ssh-client &bull; MIT License &bull; Offline &amp; Zero Telemetry</p>
+      <div class="flex items-center gap-2">
+        <img src="assets/logo.svg" alt="ssh-client logo" class="w-5 h-5 rounded" />
+        <span class="text-white font-sans font-semibold">ssh-client</span>
+        <span class="text-zinc-600">&bull;</span>
+        <span>MIT License &bull; Offline &amp; Zero Telemetry</span>
+      </div>
       <div class="flex gap-6">
-        <a href="index.html" class="hover:text-red-500 transition-colors">Overview</a>
-        <a href="install.html" class="hover:text-red-500 transition-colors">Install &amp; FAQs</a>
-        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="hover:text-white transition-colors">GitHub Repository</a>
+        <a href="index.html" class="hover:text-sky-400 transition-colors">Overview</a>
+        <a href="install.html" class="hover:text-sky-400 transition-colors">Install &amp; FAQs</a>
+        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="hover:text-white transition-colors">GitHub Repository &uarr;&rarr;</a>
       </div>
     </div>
   </footer>
-
 </body>
 </html>
