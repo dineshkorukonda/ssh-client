@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Installation & FAQs — ssh-client</title>
+  <title>Installation &amp; FAQs &mdash; ssh-client</title>
   <meta name="description" content="Comprehensive installation guides, configuration details, troubleshooting steps, and technical FAQs for ssh-client on Windows and Linux.">
 
   <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
   <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 
-  <!-- daisyUI + Tailwind CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Google Fonts: Poppins & JetBrains Mono -->
+  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
@@ -25,13 +25,14 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Poppins', 'sans-serif'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace']
           },
           colors: {
             brand: {
-              red: '#dc2626',
-              lightred: '#ef4444',
+              red: '#ef4444',
+              rose: '#f43f5e',
+              coral: '#fb7185',
               darkred: '#991b1b'
             }
           }
@@ -42,95 +43,136 @@
 
   <style>
     body {
-      font-family: 'Poppins', sans-serif;
-      background-color: #050505;
-      color: #e5e5e5;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #07080b;
+      color: #f4f4f5;
+      overflow-x: hidden;
     }
     code, pre, .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
-    ::selection { background-color: #dc2626; color: #fff; }
+    ::selection {
+      background-color: #f43f5e;
+      color: #ffffff;
+    }
 
-    .cmd-block { position: relative; }
+    .bg-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    }
+
+    .hero-spotlight {
+      background: radial-gradient(ellipse 70% 45% at 50% -10%, rgba(244, 63, 94, 0.14), transparent 70%);
+    }
+
+    .cmd-block {
+      position: relative;
+    }
     .cmd-block pre {
-      background: #0c0c0c;
-      border: 1px solid #1f1f1f;
-      border-radius: 8px;
-      padding: 14px 48px 14px 16px;
+      background: #0d0e14;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 1rem 3.5rem 1rem 1.25rem;
       font-size: 13px;
       line-height: 1.6;
-      color: #d4d4d4;
+      color: #e4e4e7;
       overflow-x: auto;
-      white-space: pre;
     }
     .cmd-block .copy-btn {
       position: absolute;
-      top: 8px;
-      right: 8px;
-      background: #1f1f1f;
-      border: 1px solid #2f2f2f;
-      color: #6b7280;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #a1a1aa;
       font-size: 11px;
       font-family: 'JetBrains Mono', monospace;
-      padding: 3px 8px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
       cursor: pointer;
-      transition: color .15s, border-color .15s;
+      transition: all .15s ease;
     }
-    .cmd-block .copy-btn:hover { color: #d4d4d4; border-color: #4b5563; }
-    .cmd-block .copy-btn.copied { color: #22c55e; border-color: #22c55e; }
+    .cmd-block .copy-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .cmd-block .copy-btn.copied {
+      color: #34d399;
+      border-color: #34d399;
+      background: rgba(52, 211, 153, 0.1);
+    }
   </style>
 </head>
-<body class="min-h-screen bg-[#050505] text-neutral-200 flex flex-col antialiased">
+<body class="min-h-screen bg-[#07080b] text-zinc-200 antialiased flex flex-col relative selection:bg-rose-500 selection:text-white">
 
-  <!-- Header / Navigation -->
-  <header class="sticky top-0 z-50 border-b border-neutral-800 bg-[#050505]/95 backdrop-blur-md">
-    <div class="navbar max-w-5xl mx-auto px-6 h-16">
-      <div class="flex-1">
-        <a href="index.html" class="text-base font-bold tracking-tight text-white flex items-center gap-2.5">
-          <img src="assets/icon.png" alt="Logo" class="w-6 h-6 rounded" />
-          <span>ssh-client</span>
-          <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-1.5 py-0.5 rounded ml-1 app-version-badge">v0.0.70</span>
+  <div class="absolute inset-0 bg-grid pointer-events-none opacity-80 z-0"></div>
+  <div class="absolute top-0 left-0 right-0 h-[450px] hero-spotlight pointer-events-none z-0"></div>
+
+  <!-- Sticky Top Navigation -->
+  <header class="sticky top-0 z-50 border-b border-white/[0.07] bg-[#07080b]/80 backdrop-blur-xl transition-all">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="flex items-center gap-2.5 group">
+          <img src="assets/logo.svg" alt="ssh-client logo" class="w-8 h-8 rounded-lg shadow-[0_0_15px_rgba(244,63,94,0.35)] group-hover:scale-105 transition-transform" />
+          <span class="text-base font-bold tracking-tight text-white group-hover:text-rose-400 transition-colors">ssh-client</span>
         </a>
+        <span class="font-mono text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-900/90 px-2 py-0.5 rounded-full app-version-badge">v0.0.70</span>
       </div>
-      <div class="flex-none gap-2 font-medium text-xs">
-        <a href="index.html" class="btn btn-ghost btn-sm text-neutral-400 hover:text-white">Overview</a>
-        <a href="install.html" class="btn btn-ghost btn-sm text-white hover:text-red-500">Install & FAQs</a>
-        <a href="changelog.html" class="btn btn-ghost btn-sm text-neutral-400 hover:text-white">Changelog</a>
-        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="btn btn-sm bg-neutral-900 border border-neutral-700 text-white hover:border-red-600 hover:bg-neutral-800 ml-2">GitHub ↗</a>
+
+      <nav class="hidden md:flex items-center gap-1 text-sm font-medium text-zinc-400">
+        <a href="index.html" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.05] transition-all">Overview</a>
+        <a href="install.html" class="px-3 py-1.5 rounded-lg text-white bg-white/[0.08] transition-all">Install &amp; FAQs</a>
+        <a href="changelog.html" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.05] transition-all">Changelog</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer"
+           class="inline-flex items-center gap-2 text-xs font-mono font-medium text-zinc-300 border border-white/[0.09] bg-zinc-900/80 hover:bg-zinc-800 hover:text-white px-3.5 py-1.5 rounded-lg transition-all">
+          <span>GitHub</span>
+          <span class="text-zinc-500">&bull;</span>
+          <span class="text-rose-400">&uarr;&rarr;</span>
+        </a>
       </div>
     </div>
   </header>
 
-  <main class="flex-grow max-w-5xl mx-auto w-full px-6 py-14 space-y-16">
+  <!-- Main Content -->
+  <main class="flex-grow max-w-5xl mx-auto w-full px-6 py-12 space-y-16 z-10">
 
     <!-- Title / Header -->
-    <section class="space-y-4 pt-4 border-b border-neutral-800 pb-8">
-      <div class="font-mono text-xs text-red-500 uppercase tracking-widest font-semibold">Documentation</div>
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-        Installation, Deployment & FAQs
+    <section class="space-y-4 pt-4 border-b border-white/[0.08] pb-8">
+      <div class="inline-flex items-center gap-2 font-mono text-xs font-semibold text-rose-400 uppercase tracking-widest">
+        <span>DOCUMENTATION</span>
+        <span class="text-zinc-600">&bull;</span>
+        <span>DEPLOYMENT &amp; RUNTIME GUIDES</span>
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
+        Installation, Deployment &amp; FAQs
       </h1>
-      <p class="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed font-normal">
+      <p class="text-sm sm:text-base text-zinc-400 max-w-2xl leading-relaxed font-normal">
         Operating instructions for Windows x64, Linux distributions, source builds, and deep architectural answers to frequently encountered questions.
       </p>
     </section>
 
     <!-- OS Guides -->
     <section class="space-y-8">
-      <div class="border-b border-neutral-800 pb-3">
-        <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-red-500">Operating System Setup</h2>
-        <p class="text-xl font-bold text-white mt-1">Prebuilt Standalone Releases</p>
+      <div class="border-b border-white/[0.08] pb-3">
+        <div class="font-mono text-xs font-bold text-rose-500 uppercase tracking-wider">PLATFORMS</div>
+        <h2 class="text-2xl font-bold text-white mt-1">Prebuilt Standalone Releases</h2>
       </div>
 
-      <div class="space-y-8">
-        
+      <div class="space-y-6">
+
         <!-- Windows Setup -->
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <div class="flex items-baseline justify-between border-b border-neutral-800 pb-3">
-            <h3 class="text-base font-bold text-white">Windows (PowerShell 5.1+ / 7+)</h3>
-            <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded">Windows 10 / 11 64-bit</span>
+        <div class="border border-white/[0.08] bg-[#0c0d14] p-6 sm:p-8 rounded-2xl space-y-4 hover:border-zinc-700 transition-all">
+          <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-3">
+            <h3 class="text-lg font-bold text-white">Windows (PowerShell 5.1+ / 7+)</h3>
+            <span class="font-mono text-[10px] text-rose-400 border border-rose-900/60 bg-rose-950/40 px-2.5 py-0.5 rounded-full">Windows 10 / 11 64-bit</span>
           </div>
-          <p class="text-xs text-neutral-400 leading-relaxed font-normal">
+          <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal">
             The Windows bundle is a fully self-contained release with an embedded Erlang 27 runtime. It does not require any prerequisite Elixir or Erlang installations, nor does it require OpenSSH-for-Windows.
           </p>
 
@@ -140,26 +182,26 @@
 # and opens your browser to http://localhost:4000 automatically.
 ssh-client-setup-v0.0.70-windows-x64.exe
 
-# Alternatively (PowerShell) — manual zip extract:
+# Alternatively (PowerShell) &mdash; manual zip extract:
 Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
 Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPDATA\Programs\ssh-client" -Force
-& "$env:LOCALAPPDATA\Programs\ssh-client\bin\ssh_client.bat" start</pre>
+&amp; "$env:LOCALAPPDATA\Programs\ssh-client\bin\ssh_client.bat" start</pre>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
 
-          <div class="text-xs text-neutral-400 space-y-1 font-mono">
-            <p><span class="text-white font-semibold">Credential Storage:</span> Windows Credential Manager under target prefix <code class="text-red-400">ssh-client:host:&lt;hostname&gt;</code>.</p>
-            <p><span class="text-white font-semibold">Config Location:</span> <code class="text-neutral-300">%APPDATA%\ssh-client\servers.json</code></p>
+          <div class="text-xs text-zinc-400 space-y-1 font-mono pt-1">
+            <p><span class="text-white font-semibold">Credential Storage:</span> Windows Credential Manager under target prefix <code class="text-rose-400">ssh-client:host:&lt;hostname&gt;</code>.</p>
+            <p><span class="text-white font-semibold">Config Location:</span> <code class="text-zinc-300">%APPDATA%\ssh-client\servers.json</code></p>
           </div>
         </div>
 
         <!-- Linux Setup -->
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <div class="flex items-baseline justify-between border-b border-neutral-800 pb-3">
-            <h3 class="text-base font-bold text-white">Linux (x86_64, glibc 2.31+)</h3>
-            <span class="font-mono text-[10px] text-red-500 border border-red-950 bg-red-950/20 px-2 py-0.5 rounded">Ubuntu &bull; Debian &bull; Fedora &bull; Arch</span>
+        <div class="border border-white/[0.08] bg-[#0c0d14] p-6 sm:p-8 rounded-2xl space-y-4 hover:border-zinc-700 transition-all">
+          <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-3">
+            <h3 class="text-lg font-bold text-white">Linux (x86_64, glibc 2.31+)</h3>
+            <span class="font-mono text-[10px] text-rose-400 border border-rose-900/60 bg-rose-950/40 px-2.5 py-0.5 rounded-full">Ubuntu &bull; Debian &bull; Fedora &bull; Arch</span>
           </div>
-          <p class="text-xs text-neutral-400 leading-relaxed font-normal">
+          <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal">
             Linux releases are distributed as a standalone tarball containing OTP release executables and WebKitGTK runtime wrappers.
           </p>
 
@@ -168,26 +210,26 @@ Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPD
 curl -sSL -O https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-linux-x64.tar.gz
 
 # Unpack into target destination
-sudo mkdir -p /opt/ssh-client && sudo tar -xzf ssh-client-linux-x64.tar.gz -C /opt/ssh-client
+sudo mkdir -p /opt/ssh-client &amp;&amp; sudo tar -xzf ssh-client-linux-x64.tar.gz -C /opt/ssh-client
 
 # Start the application (opens GUI in browser at http://localhost:4000)
 /opt/ssh-client/bin/ssh_client start</pre>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
 
-          <div class="text-xs text-neutral-400 space-y-1 font-mono">
-            <p><span class="text-white font-semibold">Credential Storage:</span> Freedesktop Secret Service via <code class="text-red-400">libsecret</code> (<code class="text-neutral-300">secret-tool</code>).</p>
-            <p><span class="text-white font-semibold">Config Location:</span> <code class="text-neutral-300">~/.config/ssh-client/servers.json</code></p>
+          <div class="text-xs text-zinc-400 space-y-1 font-mono pt-1">
+            <p><span class="text-white font-semibold">Credential Storage:</span> Freedesktop Secret Service via <code class="text-rose-400">libsecret</code> (<code class="text-zinc-300">secret-tool</code>).</p>
+            <p><span class="text-white font-semibold">Config Location:</span> <code class="text-zinc-300">~/.config/ssh-client/servers.json</code></p>
           </div>
         </div>
 
         <!-- Build from Source -->
-        <div class="border border-neutral-800 bg-[#0c0c0c] p-6 rounded-lg space-y-4">
-          <div class="flex items-baseline justify-between border-b border-neutral-800 pb-3">
-            <h3 class="text-base font-bold text-white">Building from Source</h3>
-            <span class="font-mono text-[10px] text-neutral-400 border border-neutral-800 px-2 py-0.5 rounded">Elixir 1.18+ &bull; Erlang/OTP 27+</span>
+        <div class="border border-white/[0.08] bg-[#0c0d14] p-6 sm:p-8 rounded-2xl space-y-4 hover:border-zinc-700 transition-all">
+          <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-3">
+            <h3 class="text-lg font-bold text-white">Building from Source</h3>
+            <span class="font-mono text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 rounded-full">Elixir 1.18+ &bull; Erlang/OTP 27+</span>
           </div>
-          <p class="text-xs text-neutral-400 leading-relaxed font-normal">
+          <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal">
             If you wish to compile or develop directly against the repository:
           </p>
 
@@ -209,23 +251,23 @@ MIX_ENV=prod mix release ssh_client</pre>
     </section>
 
     <!-- In-Depth Technical FAQs / Troubleshooting -->
-    <section class="space-y-6">
-      <div class="border-b border-neutral-800 pb-3">
-        <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-red-500">Frequently Asked Questions</h2>
-        <p class="text-xl font-bold text-white mt-1">Technical deep-dives into edge cases and architecture</p>
+    <section id="faqs" class="space-y-6">
+      <div class="border-b border-white/[0.08] pb-3">
+        <div class="font-mono text-xs font-bold text-rose-500 uppercase tracking-wider">QUESTIONS &amp; ANSWERS</div>
+        <h2 class="text-2xl font-bold text-white mt-1">Frequently Asked Questions</h2>
+        <p class="text-xs text-zinc-400 mt-1">Technical deep-dives into edge cases, security, and architecture.</p>
       </div>
 
-      <div class="space-y-3 font-mono text-xs">
+      <div class="space-y-4 font-mono text-xs">
 
         <!-- FAQ 1 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" checked /> 
-          <div class="collapse-title font-semibold text-white text-sm">
+        <div class="border border-white/[0.08] bg-[#0c0d14] rounded-xl p-5 space-y-2">
+          <div class="font-semibold text-white text-sm font-sans">
             Does ssh-client require OpenSSH to be installed on my machine?
           </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+          <div class="text-zinc-400 leading-relaxed space-y-2 font-mono text-xs pt-1">
             <p>
-              No. Unlike most desktop terminal applications that spawn an external <code class="text-red-400">ssh.exe</code> subprocess in the background, <code class="text-white">ssh-client</code> uses Erlang/OTP's built-in <code class="text-red-400">:ssh</code> application directly.
+              No. Unlike most desktop terminal applications that spawn an external <code class="text-rose-400">ssh.exe</code> subprocess in the background, <code class="text-white">ssh-client</code> uses Erlang/OTP's built-in <code class="text-rose-400">:ssh</code> application directly.
             </p>
             <p>
               Protocol negotiation, key exchange, encryption ciphers, and PTY channels occur in native BEAM processes. It operates identically on clean Windows installations without OpenSSH-for-Windows installed on your system PATH.
@@ -234,33 +276,31 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 2 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
+        <div class="border border-white/[0.08] bg-[#0c0d14] rounded-xl p-5 space-y-2">
+          <div class="font-semibold text-white text-sm font-sans">
             How does the zero-wizard in-place auto-updater work?
           </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+          <div class="text-zinc-400 leading-relaxed space-y-2 font-mono text-xs pt-1">
             <p>
               The built-in updater (<code class="text-white">SSHClient.Updater</code>) queries the GitHub Releases API for newer semver tags. When triggered:
             </p>
-            <ul class="list-disc list-inside space-y-1 text-neutral-300">
+            <ul class="list-disc list-inside space-y-1 text-zinc-300">
               <li>It streams portable ZIP/tarball assets directly to a temporary staging workspace.</li>
               <li>It validates directory structure, unzips runtime binaries, and stages the replacement release tree.</li>
-              <li>An atomic file replacement hot-swaps the application code and invokes <code class="text-red-400">:init.restart()</code> for a seamless in-process restart.</li>
+              <li>An atomic file replacement hot-swaps the application code and invokes <code class="text-rose-400">:init.restart()</code> for a seamless in-process restart.</li>
               <li>No setup wizard dialogs, UAC re-prompts, or manual installer downloads are necessary.</li>
             </ul>
           </div>
         </div>
 
         <!-- FAQ 3 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
+        <div class="border border-white/[0.08] bg-[#0c0d14] rounded-xl p-5 space-y-2">
+          <div class="font-semibold text-white text-sm font-sans">
             How does the Dual-Pane SFTP Explorer and drag-and-drop file transfer work?
           </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+          <div class="text-zinc-400 leading-relaxed space-y-2 font-mono text-xs pt-1">
             <p>
-              The SFTP explorer displays side-by-side local and remote filesystem panes with interactive breadcrumbs, permission badges, and instant folder navigation over OTP <code class="text-red-400">:ssh_sftp</code> channels.
+              The SFTP explorer displays side-by-side local and remote filesystem panes with interactive breadcrumbs, permission badges, and instant folder navigation over OTP <code class="text-rose-400">:ssh_sftp</code> channels.
             </p>
             <p>
               The HTML5 drag-and-drop bridge allows you to drag files directly from your desktop file manager or between the parallel panes to initiate binary file transfers with real-time transfer progress indicators and conflict prompts.
@@ -269,30 +309,13 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 4 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
-            How do I toggle themes or customize the visual appearance?
-          </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
-            <p>
-              <code class="text-white">ssh-client</code> includes a zero-flash theme engine supporting Editorial Stark Dark and Crisp Light / Obsidian high-contrast modes.
-            </p>
-            <p>
-              You can toggle themes via the top navigation bar or settings menu. Your theme selection is synchronized across open windows and saved locally. Windows preferences are stored in its SQLite database.
-            </p>
-          </div>
-        </div>
-
-        <!-- FAQ 5 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
+        <div class="border border-white/[0.08] bg-[#0c0d14] rounded-xl p-5 space-y-2">
+          <div class="font-semibold text-white text-sm font-sans">
             How does ssh-client handle private key passphrases without persisting them?
           </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+          <div class="text-zinc-400 leading-relaxed space-y-2 font-mono text-xs pt-1">
             <p>
-              When a password-protected identity key (e.g. <code class="text-neutral-300">id_ed25519</code>) is encountered, the client prompts for your passphrase once per active session.
+              When a password-protected identity key (e.g. <code class="text-zinc-300">id_ed25519</code>) is encountered, the client prompts for your passphrase once per active session.
             </p>
             <p>
               The passphrase and decrypted key bytes are stored strictly in-memory via <code class="text-white">SSHClient.PassphraseCache</code>. Decrypted material is never written to disk, never cached in local configuration files, and automatically purged when the process terminates.
@@ -300,15 +323,14 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
         </div>
 
-        <!-- FAQ 6 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
+        <!-- FAQ 5 -->
+        <div class="border border-white/[0.08] bg-[#0c0d14] rounded-xl p-5 space-y-2">
+          <div class="font-semibold text-white text-sm font-sans">
             What happens if a remote host's public key fingerprint changes?
           </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+          <div class="text-zinc-400 leading-relaxed space-y-2 font-mono text-xs pt-1">
             <p>
-              <code class="text-white">ssh-client</code> enforces strict host key verification. If a host key does not match the cached record in <code class="text-neutral-300">known_hosts</code>, the connection is aborted immediately (reject-by-default).
+              <code class="text-white">ssh-client</code> enforces strict host key verification. If a host key does not match the cached record in <code class="text-zinc-300">known_hosts</code>, the connection is aborted immediately (reject-by-default).
             </p>
             <p>
               A visual fingerprint diff (displaying algorithm, old SHA-256 fingerprint, and new fingerprint) is surfaced to the operator. The connection cannot proceed unless the user explicitly approves the host key change.
@@ -316,65 +338,34 @@ MIX_ENV=prod mix release ssh_client</pre>
           </div>
         </div>
 
-        <!-- FAQ 7 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
+        <!-- FAQ 6 -->
+        <div class="border border-white/[0.08] bg-[#0c0d14] rounded-xl p-5 space-y-2">
+          <div class="font-semibold text-white text-sm font-sans">
             How is background CPU and network consumption kept low during monitoring?
           </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+          <div class="text-zinc-400 leading-relaxed space-y-2 font-mono text-xs pt-1">
             <p>
               Many monitoring tools keep full interactive SSH shells open or poll high-frequency commands repeatedly. <code class="text-white">ssh-client</code> implements:
             </p>
-            <ul class="list-disc list-inside space-y-1 text-neutral-300">
-              <li><strong>Non-interactive exec channels:</strong> Metrics are collected via ephemeral <code class="text-red-400">:ssh_connection.exec</code> channels rather than held-open PTY sessions.</li>
+            <ul class="list-disc list-inside space-y-1 text-zinc-300">
+              <li><strong>Non-interactive exec channels:</strong> Metrics are collected via ephemeral <code class="text-rose-400">:ssh_connection.exec</code> channels rather than held-open PTY sessions.</li>
               <li><strong>Focus-aware backoff:</strong> When a server panel or tab is unfocused, its poll interval dynamically backs off (e.g., from 5s to 30s+), reducing remote host load and battery consumption.</li>
             </ul>
           </div>
         </div>
 
-        <!-- FAQ 8 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
-            How are Windows connection credentials protected?
-          </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
-            <p>
-              The native Windows app has no account or master-vault login. Connection passwords and key passphrases remain in memory. SQLite stores public keys and identity file paths, not private-key contents.
-            </p>
-            <p>
-              Lock Windows protects access to the desktop while SSH sessions continue. Generated private-key files are unencrypted; protect their destination with Windows file permissions. The separate browser interface retains its local vault workflow.
-            </p>
-          </div>
-        </div>
-
-        <!-- FAQ 9 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
-            Can I run ssh-client in a web browser without the desktop window?
-          </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
-            <p>
-              Windows uses a native WPF shell with locally bundled xterm.js in WebView2. Linux and container distributions use the Phoenix LiveView browser interface at <code class="text-red-400">http://localhost:4000</code>. The native desktop API is local and rejects browser-origin requests.
-            </p>
-          </div>
-        </div>
-
-        <!-- FAQ 10 -->
-        <div class="collapse collapse-arrow border border-neutral-800 bg-[#0c0c0c]">
-          <input type="checkbox" /> 
-          <div class="collapse-title font-semibold text-white text-sm">
+        <!-- FAQ 7 -->
+        <div class="border border-white/[0.08] bg-[#0c0d14] rounded-xl p-5 space-y-2">
+          <div class="font-semibold text-white text-sm font-sans">
             Where are imported SSH configurations and host metadata stored?
           </div>
-          <div class="collapse-content text-neutral-400 leading-relaxed space-y-2">
+          <div class="text-zinc-400 leading-relaxed space-y-2 font-mono text-xs pt-1">
             <p>
-              Configurations resolve via Erlang's standard <code class="text-neutral-300">:filename.basedir/3</code>:
+              Configurations resolve via Erlang's standard <code class="text-zinc-300">:filename.basedir/3</code>:
             </p>
-            <ul class="list-disc list-inside space-y-1 text-neutral-300">
-              <li><strong>Windows:</strong> <code class="text-red-400">%APPDATA%\ssh-client\servers.json</code></li>
-              <li><strong>Linux:</strong> <code class="text-red-400">~/.config/ssh-client/servers.json</code></li>
+            <ul class="list-disc list-inside space-y-1 text-zinc-300">
+              <li><strong>Windows:</strong> <code class="text-rose-400">%APPDATA%\ssh-client\servers.json</code></li>
+              <li><strong>Linux:</strong> <code class="text-rose-400">~/.config/ssh-client/servers.json</code></li>
             </ul>
             <p>
               This file contains only connection metadata (host aliases, IP addresses, ports, auth methods). No private keys, passwords, or secret material are ever persisted in this file.
@@ -387,14 +378,19 @@ MIX_ENV=prod mix release ssh_client</pre>
 
   </main>
 
-  <!-- Footer -->
-  <footer class="border-t border-neutral-800 bg-[#050505] py-10 mt-16 text-xs text-neutral-500 font-mono">
+  <!-- Modern Clean Footer -->
+  <footer class="border-t border-white/[0.07] bg-[#06070a] py-12 text-xs text-zinc-500 font-mono">
     <div class="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <p>ssh-client &bull; MIT License &bull; Offline & Zero Telemetry</p>
+      <div class="flex items-center gap-2">
+        <img src="assets/logo.svg" alt="ssh-client logo" class="w-5 h-5 rounded" />
+        <span class="text-white font-sans font-semibold">ssh-client</span>
+        <span class="text-zinc-600">&bull;</span>
+        <span>MIT License &bull; Offline &amp; Zero Telemetry</span>
+      </div>
       <div class="flex gap-6">
-        <a href="../" class="hover:text-red-500 transition-colors">Overview</a>
-        <a href="../changelog/" class="hover:text-red-500 transition-colors">Changelog</a>
-        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="hover:text-white transition-colors">GitHub Repository</a>
+        <a href="index.html" class="hover:text-rose-400 transition-colors">Overview</a>
+        <a href="changelog.html" class="hover:text-rose-400 transition-colors">Changelog</a>
+        <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer" class="hover:text-white transition-colors">GitHub Repository &uarr;&rarr;</a>
       </div>
     </div>
   </footer>
@@ -402,14 +398,16 @@ MIX_ENV=prod mix release ssh_client</pre>
   <script>
     function copyCode(btn) {
       const pre = btn.previousElementSibling;
-      const text = pre.innerText.replace(/\n?$/, '');
+      const text = pre.innerText.replace(/^\$\s*/, '').replace(/\n?$/, '');
       navigator.clipboard.writeText(text).then(() => {
         btn.textContent = 'copied!';
         btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+        setTimeout(() => { 
+          btn.textContent = 'copy'; 
+          btn.classList.remove('copied'); 
+        }, 1800);
       });
     }
   </script>
 </body>
 </html>
-
