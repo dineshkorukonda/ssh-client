@@ -210,7 +210,7 @@
             Server Endpoints
           </h2>
         </div>
-         <span class="text-xs text-muted-foreground font-mono">Live Telemetry</span>
+        <span class="text-xs text-muted-foreground font-mono">Live Telemetry</span>
       </div>
 
       <%= if filtered_servers == [] do %>
@@ -740,7 +740,7 @@
               + Other
             </button>
           </div>
-           <input type="hidden" name="user" value={@connect_user} />
+          <input type="hidden" name="user" value={@connect_user} />
           <%= if @connect_user == "custom" do %>
             <input
               type="text"
@@ -785,7 +785,7 @@
               Password
             </button>
           </div>
-           <input type="hidden" name="auth_method" value={to_string(@connect_auth_method)} />
+          <input type="hidden" name="auth_method" value={to_string(@connect_auth_method)} />
         </div>
 
         <%= if @connect_auth_method == :password do %>
@@ -968,7 +968,7 @@
       </p>
 
       <p>Verify this fingerprint before trusting the server.</p>
-       <button phx-click="reject_host_key" class="border border-border px-4 py-2">Reject</button>
+      <button phx-click="reject_host_key" class="border border-border px-4 py-2">Reject</button>
       <button phx-click="accept_host_key" class="bg-primary text-primary-foreground px-4 py-2">Trust and connect</button>
     </div>
   </div>

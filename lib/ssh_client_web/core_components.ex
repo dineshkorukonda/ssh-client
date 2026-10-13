@@ -38,7 +38,7 @@ defmodule SSHClientWeb.CoreComponents do
           <span class="px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider rounded bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
             v{@version}
           </span>
-           <span class="text-border text-xs hidden sm:inline shrink-0">/</span>
+          <span class="text-border text-xs hidden sm:inline shrink-0">/</span>
           <!-- Breadcrumbs -->
           <nav class="hidden sm:flex items-center gap-1.5 min-w-0 text-muted-foreground text-xs truncate">
             <%= if @breadcrumbs != [] do %>
@@ -77,7 +77,7 @@ defmodule SSHClientWeb.CoreComponents do
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-             <span class="hidden md:inline">Search</span>
+            <span class="hidden md:inline">Search</span>
             <kbd class="hidden md:inline px-1 py-0.2 text-[9px] bg-background border border-border rounded text-muted-foreground">Ctrl+K</kbd>
           </button>
 
@@ -324,7 +324,7 @@ defmodule SSHClientWeb.CoreComponents do
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-             <span class={if(@compact, do: "hidden", else: "hidden lg:inline text-xs")}>Search</span>
+            <span class={if(@compact, do: "hidden", else: "hidden lg:inline text-xs")}>Search</span>
           </div>
 
           <kbd class={
@@ -342,7 +342,7 @@ defmodule SSHClientWeb.CoreComponents do
               <span class={"status-dot " <> if(@online_count > 0, do: "online", else: "offline")}></span>
               <span>Reachable</span>
             </div>
-             <span class="font-medium text-foreground">{@online_count}/{@servers_count}</span>
+            <span class="font-medium text-foreground">{@online_count}/{@servers_count}</span>
           </div>
         <% end %>
 
@@ -668,7 +668,7 @@ defmodule SSHClientWeb.CoreComponents do
               d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
             />
           </svg>
-           <span>Hosts</span>
+          <span>Hosts</span>
           <%= if @servers_count > 0 do %>
             <span class={[
               "px-1.5 py-0.2 text-[10px] rounded-full font-mono",
@@ -700,7 +700,7 @@ defmodule SSHClientWeb.CoreComponents do
               d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
-           <span>Terminal</span>
+          <span>Terminal</span>
         </a>
 
         <a
@@ -721,7 +721,7 @@ defmodule SSHClientWeb.CoreComponents do
               d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
             />
           </svg>
-           <span>SFTP</span>
+          <span>SFTP</span>
         </a>
 
         <a
@@ -742,7 +742,7 @@ defmodule SSHClientWeb.CoreComponents do
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-           <span>Logs</span>
+          <span>Logs</span>
         </a>
 
         <a
@@ -769,7 +769,7 @@ defmodule SSHClientWeb.CoreComponents do
               d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             />
           </svg>
-           <span>Settings</span>
+          <span>Settings</span>
         </a>
       </nav>
       <!-- Right: Command palette shortcut, Reachable status, Theme toggle, Vault Lock -->
@@ -789,7 +789,7 @@ defmodule SSHClientWeb.CoreComponents do
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
-           <span>Search</span>
+          <span>Search</span>
           <kbd class="px-1.5 py-0.5 text-[10px] bg-background border border-border rounded text-muted-foreground">Ctrl+K</kbd>
         </button>
 
