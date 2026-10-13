@@ -1,39 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
-  <defs>
-    <linearGradient id="ssh-grad" x1="10%" y1="10%" x2="90%" y2="90%">
-      <stop offset="0%" stop-color="#ff5364" />
-      <stop offset="50%" stop-color="#e11d48" />
-      <stop offset="100%" stop-color="#991b1b" />
-    </linearGradient>
-    <filter id="ssh-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
-  </defs>
-
-  <!-- Squircle backdrop -->
-  <rect x="4" y="4" width="92" height="92" rx="22" fill="#0d0e12" stroke="#27272a" stroke-width="1.5" />
-
-  <!-- Outer Glow Group -->
-  <g filter="url(#ssh-glow)" opacity="0.3">
-    <!-- Tunnel Portal Ring -->
-    <path d="M 52 28 C 68 28 80 40 80 56 C 80 72 68 84 52 84 C 40 84 32 76 28 66" stroke="#ff385c" stroke-width="6.5" stroke-linecap="round" fill="none" />
-    <!-- Chevron > -->
-    <path d="M 24 38 L 44 54 L 24 70" stroke="#ff385c" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-    <!-- Underscore _ -->
-    <line x1="46" y1="68" x2="62" y2="68" stroke="#ff385c" stroke-width="6.5" stroke-linecap="round" />
-  </g>
-
-  <!-- Sharp Vector Foreground -->
-  <!-- Tunnel Portal Ring -->
-  <path d="M 52 28 C 68 28 80 40 80 56 C 80 72 68 84 52 84 C 40 84 32 76 28 66" stroke="url(#ssh-grad)" stroke-width="6" stroke-linecap="round" fill="none" />
-  <!-- Inner Portal Ring Accent -->
-  <path d="M 56 38 C 66 40 71 47 71 56 C 71 65 65 72 56 74" stroke="#ff8597" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.8" />
-  <!-- Terminal Prompt Chevron > -->
-  <path d="M 24 38 L 44 54 L 24 70" stroke="url(#ssh-grad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-  <!-- Prompt Inner Highlight -->
-  <path d="M 26 40 L 41 53 L 26 66" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9" />
-  <!-- Terminal Cursor Underscore _ -->
-  <line x1="46" y1="68" x2="62" y2="68" stroke="url(#ssh-grad)" stroke-width="6" stroke-linecap="round" />
-  <line x1="47" y1="67.5" x2="61" y2="67.5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.85" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36" fill="none">
+  <rect x="2" y="2" width="32" height="32" rx="7" fill="#09090b" stroke="#27272a" stroke-width="1.5"/>
+  <text x="18" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="800" font-size="12" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">SSH</text>
+  <circle cx="27" cy="27" r="2.5" fill="#38bdf8"/>
 </svg>
