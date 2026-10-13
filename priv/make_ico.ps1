@@ -1,19 +1,15 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcPath = "C:\Users\dines\.gemini\antigravity\brain\3ea52d55-1248-4cc3-aa73-1b0c9e70b46f\.user_uploaded\media_1788626221199.png"
-if (-not (Test-Path $srcPath)) {
-    Write-Error "Source image not found at $srcPath"
-    exit 1
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$srcPath = Join-Path $PSScriptRoot 'static/images/icon.png'
+if (-not (Test-Path -LiteralPath $srcPath)) {
+    throw "Canonical icon not found at $srcPath"
 }
 
 $srcBmp = [System.Drawing.Bitmap]::FromFile($srcPath)
 
-# Destination directories
-New-Item -ItemType Directory -Force -Path "priv\static\images", "web\assets", "windows" | Out-Null
-
-# Save high-res pngs
-$srcBmp.Save("priv\static\images\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
-$srcBmp.Save("web\assets\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
+# The same checked-in artwork supplies the app, installer and website icons.
+Copy-Item -LiteralPath $srcPath -Destination (Join-Path $repoRoot 'web/assets/icon.png')
 
 # Generate multi-resolution ICO file
 $sizes = @(16, 32, 48, 64, 128, 256)
@@ -79,8 +75,8 @@ function Write-IcoFile($outputPath, $entries) {
     Write-Output "Generated: $outputPath"
 }
 
-Write-IcoFile "windows\app.ico" $pngBytesList
-Write-IcoFile "priv\static\favicon.ico" $pngBytesList
-Write-IcoFile "web\assets\favicon.ico" $pngBytesList
+Write-IcoFile (Join-Path $repoRoot "windows/app.ico") $pngBytesList
+Write-IcoFile (Join-Path $repoRoot "priv/static/favicon.ico") $pngBytesList
+Write-IcoFile (Join-Path $repoRoot "web/assets/favicon.ico") $pngBytesList
 
 Write-Output "All icons generated successfully!"
