@@ -7,12 +7,33 @@ X = "{http://schemas.microsoft.com/winfx/2006/xaml}"
 P = "{http://schemas.microsoft.com/winfx/2006/xaml/presentation}"
 
 
+def resource_key(item):
+    explicit = item.get(X + "Key")
+    if explicit:
+        return ("name", explicit)
+    target = item.get("TargetType", "").removeprefix("{x:Type ").removesuffix("}")
+    return ("type", target) if target else None
+
+
 class WindowsUIContract(unittest.TestCase):
     def test_application_resource_keys_are_unique(self):
         resources = ET.parse(ROOT / "windows/native/App.xaml").getroot().find(P + "Application.Resources")
-        keys = [item.get(X + "Key") or item.get("TargetType") for item in resources]
+        keys = [resource_key(item) for item in resources]
         keys = [key for key in keys if key]
         self.assertEqual(len(keys), len(set(keys)), "Duplicate WPF resources can compile but crash at startup")
+
+    def test_equivalent_implicit_style_keys_are_detected(self):
+        short = ET.Element(P + "Style", {"TargetType": "ScrollBar"})
+        typed = ET.Element(P + "Style", {"TargetType": "{x:Type ScrollBar}"})
+        named = ET.Element(P + "Style", {X + "Key": "ScrollBar", "TargetType": "ScrollBar"})
+        self.assertEqual(resource_key(short), resource_key(typed))
+        self.assertNotEqual(resource_key(short), resource_key(named))
+
+    def test_host_form_mnemonics_target_their_inputs(self):
+        root = ET.parse(ROOT / "windows/native/MainWindow.xaml").getroot()
+        labels = {item.get("Target") for item in root.iter(P + "Label") if "_" in item.get("Content", "")}
+        for name in ("EditorName", "EditorHost", "EditorPort"):
+            self.assertIn("{Binding ElementName=" + name + "}", labels)
 
     def test_host_editor_actions_are_outside_the_scroll_viewer(self):
         root = ET.parse(ROOT / "windows/native/MainWindow.xaml").getroot()

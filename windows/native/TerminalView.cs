@@ -24,6 +24,7 @@ public sealed class TerminalView : Grid, IDisposable
     private readonly TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Ready => completion.Task;
     public string SessionId { get; }
+    internal Func<string, bool>? ConfirmHostKeyForSmoke { get; set; }
     public TerminalView(DesktopClient api, string id, Window owner, Action<string> status, Action<string>? stateChanged = null)
     {
         this.api = api; SessionId = id; this.owner = owner; this.status = status; this.stateChanged = stateChanged;
@@ -138,7 +139,7 @@ public sealed class TerminalView : Grid, IDisposable
                     var text = $"{details.GetProperty("host").GetString()}:{details.GetProperty("port").GetInt32()}\n\n";
                     if (changed) text += "The saved host key has changed. Verify this with the server administrator.\nPrevious: " + details.GetProperty("old_fingerprint").GetString() + "\n";
                     text += "Fingerprint: " + fingerprint + "\n\nTrust this server?";
-                    var accept = MessageBox.Show(owner, text, "Verify SSH host key", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
+                    var accept = ConfirmHostKeyForSmoke?.Invoke(text) ?? (MessageBox.Show(owner, text, "Verify SSH host key", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes);
                     await api.PostAsync($"sessions/{SessionId}/{(accept ? "trust" : "disconnect")}", new { }, stop.Token);
                 }
                 if (snapshot.TryGetProperty("auth_prompt", out var auth) && auth.ValueKind == JsonValueKind.Object)

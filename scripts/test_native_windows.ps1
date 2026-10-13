@@ -32,7 +32,7 @@ try {
     $result = Get-Content -LiteralPath $report -Raw
     if ($native.ExitCode -ne 0) { throw "Native terminal smoke failed: $result" }
     $decoded = $result | ConvertFrom-Json
-    foreach ($journey in @('ready','terminal','sftp','files_page','session_lifecycle','host_editor','preferences','palette','accessible_names','connection_dialog')) { if (-not $decoded.$journey) { throw "Native journey validation failed: $journey" } }
+    foreach ($journey in @('ready','terminal','sftp','files_page','session_lifecycle','host_editor','preferences','palette','accessible_names','connection_dialog','host_trust_rejection')) { if (-not $decoded.$journey) { throw "Native journey validation failed: $journey" } }
     Start-Sleep -Milliseconds 500
     $prefix = $ReleaseRoot.TrimEnd('\') + '\'
     $orphans = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) }

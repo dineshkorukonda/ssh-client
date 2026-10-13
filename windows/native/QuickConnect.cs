@@ -24,4 +24,4 @@ public static class QuickConnect
     }
 }
 
-public sealed record PaletteEntry(string Label, Host? Host = null, string? Command = null);
+public sealed record PaletteEntry(string Label, Host? Host = null, string? Command = null, string? SessionId = null);

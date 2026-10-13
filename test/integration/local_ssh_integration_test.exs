@@ -172,6 +172,90 @@ defmodule SSHClient.Integration.LocalSSHIntegrationTest do
     assert_receive {:DOWN, ^tunnel_monitor, :process, _, :normal}, 3000
   end
 
+  test "desktop two-hop login forwards distinct bastion and destination credentials", %{
+    server: server,
+    opts: opts,
+    root: root
+  } do
+    approve(server, opts)
+
+    {:ok, daemon} =
+      :ssh.daemon({127, 0, 0, 1}, 0,
+        system_dir: String.to_charlist(root),
+        user_dir: String.to_charlist(root),
+        auth_methods: ~c"password",
+        tcpip_tunnel_in: true,
+        tcpip_tunnel_out: true,
+        pwdfun: fn user, password -> user == ~c"bastion" and password == ~c"bastion-secret" end
+      )
+
+    {:ok, info} = :ssh.daemon_info(daemon)
+    jump = %{server | port: Keyword.fetch!(info, :port), user: "bastion"}
+    previous = Application.get_env(:ssh_client, :desktop_known_hosts_file)
+
+    on_exit(fn ->
+      :ssh.stop_daemon(daemon)
+
+      if previous,
+        do: Application.put_env(:ssh_client, :desktop_known_hosts_file, previous),
+        else: Application.delete_env(:ssh_client, :desktop_known_hosts_file)
+    end)
+
+    approve(jump, opts)
+    Application.put_env(:ssh_client, :desktop_known_hosts_file, opts[:known_hosts_file])
+
+    attrs = %{
+      "host" => server.host,
+      "port" => server.port,
+      "user" => "fixture",
+      "password" => "secret",
+      "default_auth_method" => "password",
+      "auth_order" => ["password"],
+      "proxy_jump" => "wrong-user@127.0.0.1:#{jump.port}",
+      "jump_credentials" => %{"user" => "bastion", "password" => "bastion-secret"}
+    }
+
+    assert {:ok, id} = SSHClient.Desktop.open_session(attrs)
+    on_exit(fn -> SSHClient.SessionManager.close_session(id) end)
+    {:ok, worker} = SSHClient.SessionManager.get_session(id)
+    wait_connected(worker, 250)
+    Phoenix.PubSub.subscribe(SSHClient.PubSub, "ssh_client:session:#{id}")
+
+    assert :ok =
+             SSHClient.Desktop.session_action(id, "input", %{"data" => "distinct-credentials\r"})
+
+    wait_output(id, "echo:distinct-credentials", "")
+    target = %{server | proxy_jump: attrs["proxy_jump"]}
+
+    bad_opts = [
+      known_hosts_file: opts[:known_hosts_file],
+      password: "secret",
+      auth_order: [:password],
+      jump_opts: [user: "bastion", password: "secret", auth_order: [:password]],
+      timeout: 3000
+    ]
+
+    assert {:error, {:jump_host_failed, _}} = SSH.connect(target, bad_opts)
+  end
+
+  defp wait_connected(_worker, 0), do: flunk("Two-hop desktop session did not connect")
+
+  defp wait_connected(worker, remaining) do
+    case SessionWorker.get_status(worker) do
+      :connected ->
+        :ok
+
+      :error ->
+        flunk(
+          "Two-hop desktop connection failed: #{inspect(SessionWorker.desktop_snapshot(worker))}"
+        )
+
+      _ ->
+        Process.sleep(20)
+        wait_connected(worker, remaining - 1)
+    end
+  end
+
   test "native desktop sessions expose terminal events, approve trust and share SFTP", %{
     server: server,
     opts: opts

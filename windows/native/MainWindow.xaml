@@ -460,7 +460,7 @@
                     <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                       <StackPanel>
                         <TextBlock Text="SERVER DETAILS" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/>
-                        <TextBlock Text="Display Name" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
+                        <Label Content="Display _name" Target="{Binding ElementName=EditorName}" Padding="0" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                         <TextBox x:Name="EditorName" AutomationProperties.Name="Host display name" Height="34" Margin="0,0,0,12"/>
                         
                         <Grid Margin="0,0,0,12">
@@ -469,11 +469,11 @@
                             <ColumnDefinition Width="*"/>
                           </Grid.ColumnDefinitions>
                           <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                            <TextBlock Text="Hostname or IP Address" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
+                            <Label Content="_Server address" Target="{Binding ElementName=EditorHost}" Padding="0" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                             <TextBox x:Name="EditorHost" AutomationProperties.Name="Server address" Height="34"/>
                           </StackPanel>
                           <StackPanel Grid.Column="1">
-                            <TextBlock Text="SSH Port" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
+                            <Label Content="SSH _port" Target="{Binding ElementName=EditorPort}" Padding="0" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                             <TextBox x:Name="EditorPort" AutomationProperties.Name="SSH port" Text="22" Height="34"/>
                           </StackPanel>
                         </Grid>
