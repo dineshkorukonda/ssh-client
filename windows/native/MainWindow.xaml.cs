@@ -219,15 +219,19 @@ public partial class MainWindow : Window
         if (btn == null) return;
         if (isActive)
         {
-            btn.Background = (Brush)Application.Current.Resources["NavActiveBg"];
-            btn.BorderBrush = (Brush)Application.Current.Resources["NavActiveBorder"];
-            btn.Foreground = (Brush)Application.Current.Resources["NavActiveFg"];
+            btn.SetResourceReference(Button.BackgroundProperty, "NavActiveBg");
+            btn.BorderBrush = Brushes.Transparent;
+            btn.BorderThickness = new Thickness(0);
+            btn.SetResourceReference(Button.ForegroundProperty, "NavActiveFg");
+            btn.FontWeight = FontWeights.SemiBold;
         }
         else
         {
-            btn.Background = Brushes.Transparent;
-            btn.BorderBrush = Brushes.Transparent;
-            btn.Foreground = (Brush)Application.Current.Resources["Muted"];
+            btn.ClearValue(Button.BackgroundProperty);
+            btn.ClearValue(Button.BorderBrushProperty);
+            btn.BorderThickness = new Thickness(0);
+            btn.SetResourceReference(Button.ForegroundProperty, "Muted");
+            btn.FontWeight = FontWeights.Normal;
         }
     }
 
@@ -583,8 +587,49 @@ public partial class MainWindow : Window
     {
         filePane?.Dispose(); filePane = null;
         if (api != null && SftpSessionCombo.SelectedItem is TerminalTabItem item && item.State == "Connected")
-            SftpContent.Content = filePane = new SftpPane(api, item.SessionId, this);
-        else SftpContent.Content = new TextBlock { Text = "Connect this session before browsing remote files.", Margin = new Thickness(16) };
+        {
+            SftpContent.Content = filePane = new SftpPane(api, item.SessionId, this, item.Title, item.Host);
+        }
+        else
+        {
+            var emptyBorder = new Border
+            {
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(32),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 520
+            };
+            emptyBorder.SetResourceReference(Border.BackgroundProperty, "Card");
+            emptyBorder.SetResourceReference(Border.BorderBrushProperty, "Border");
+
+            var emptyStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            var emptyTitle = new TextBlock
+            {
+                Text = "No Connected Session Selected",
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            emptyTitle.SetResourceReference(TextBlock.ForegroundProperty, "Text");
+            emptyStack.Children.Add(emptyTitle);
+
+            var emptyDesc = new TextBlock
+            {
+                Text = SftpSessionCombo.SelectedItem is TerminalTabItem pending
+                    ? $"Session '{pending.Title}' is currently {pending.State.ToLowerInvariant()}. Once connected, its remote filesystem will be accessible here."
+                    : "Select an active connected SSH session from the Target Session dropdown above to browse and transfer files.",
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 12
+            };
+            emptyDesc.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            emptyStack.Children.Add(emptyDesc);
+            emptyBorder.Child = emptyStack;
+            SftpContent.Content = emptyBorder;
+        }
     }
 
     // -------------------------------------------------------------
@@ -692,10 +737,8 @@ public partial class MainWindow : Window
         if (host.DefaultAuthMethod == "password") fields.Add(new("password", "Password", Secret: true));
         else if (host.DefaultAuthMethod == "key" && !string.IsNullOrWhiteSpace(host.IdentityFile))
         {
-            if (File.Exists(host.IdentityFile) && File.ReadAllText(host.IdentityFile).Contains("ENCRYPTED", StringComparison.OrdinalIgnoreCase))
+            if (IsKeyEncrypted(host.IdentityFile))
                 fields.Add(new("passphrase", "Private-key passphrase", Secret: true));
-            else if (File.Exists(host.IdentityFile) && File.ReadAllText(host.IdentityFile).Contains("OPENSSH PRIVATE KEY", StringComparison.Ordinal))
-                fields.Add(new("passphrase", "Key passphrase (leave empty for an unencrypted key)", Secret: true));
         }
 
         if (!string.IsNullOrWhiteSpace(host.ProxyJump))
@@ -708,14 +751,28 @@ public partial class MainWindow : Window
             ]);
         }
 
-        var dialog = new FormDialog(this, "Authenticate Connection: " + host.Name, fields, "Connect", "Zero-persistence security: credentials stored in volatile memory only.");
-        PrepareDialogForSmoke?.Invoke(dialog);
-        if (dialog.ShowDialog() != true) return;
+        var values = new Dictionary<string, string>();
+        bool needsPrompt = PrepareDialogForSmoke != null ||
+                           string.IsNullOrWhiteSpace(host.User) ||
+                           host.DefaultAuthMethod == "password" ||
+                           (host.DefaultAuthMethod == "key" && IsKeyEncrypted(host.IdentityFile)) ||
+                           !string.IsNullOrWhiteSpace(host.ProxyJump);
 
-        var values = dialog.Values;
+        if (needsPrompt)
+        {
+            var dialog = new FormDialog(this, "Authenticate Connection: " + host.Name, fields, "Connect", "Zero-persistence security: credentials stored in volatile memory only.");
+            PrepareDialogForSmoke?.Invoke(dialog);
+            if (dialog.ShowDialog() != true) return;
+            values = dialog.Values;
+        }
+        else
+        {
+            values["user"] = host.User ?? "";
+        }
+
         var attrs = ConnectionRequest.Build(host, values);
         var connectionHost = host.Copy();
-        connectionHost.User = values["user"];
+        connectionHost.User = values.GetValueOrDefault("user", host.User ?? "");
 
         if (api != null)
         {
@@ -777,25 +834,25 @@ public partial class MainWindow : Window
 
         var toolBar = new Border
         {
-            Background = (Brush)Application.Current.Resources["Card"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(12, 6, 12, 6)
         };
+        toolBar.SetResourceReference(Border.BackgroundProperty, "Card");
+        toolBar.SetResourceReference(Border.BorderBrushProperty, "Border");
         var toolDock = new DockPanel();
 
         var rightInfo = new StackPanel { Orientation = Orientation.Horizontal };
         DockPanel.SetDock(rightInfo, Dock.Right);
-        rightInfo.Children.Add(new TextBlock
+        var hostInfo = new TextBlock
         {
             Text = host?.Description ?? title,
-            FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
-            Foreground = (Brush)Application.Current.Resources["MutedSubtle"],
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center
-        });
+        };
+        hostInfo.SetResourceReference(TextBlock.FontFamilyProperty, "MonoFont");
+        hostInfo.SetResourceReference(TextBlock.ForegroundProperty, "MutedSubtle");
+        rightInfo.Children.Add(hostInfo);
         toolDock.Children.Add(rightInfo);
-        ((TextBlock)rightInfo.Children[0]).SetResourceReference(TextBlock.ForegroundProperty, "Muted");
 
         var leftButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var disconnBtn = new Button { Content = "Disconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };

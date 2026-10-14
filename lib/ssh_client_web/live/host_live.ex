@@ -102,6 +102,71 @@ defmodule SSHClientWeb.HostLive do
     {:noreply, assign(socket, :view_mode, mode_atom)}
   end
 
+  def handle_event("quick_connect", params, socket) do
+    raw_query = String.trim(params["query"] || socket.assigns[:filter] || "")
+
+    cond do
+      raw_query == "" ->
+        {:noreply, socket}
+
+      found =
+          Enum.find(socket.assigns.servers, fn s ->
+            s.id == raw_query or
+              String.downcase(s.name || "") == String.downcase(raw_query) or
+                String.downcase(s.host || "") == String.downcase(raw_query)
+          end) ->
+        handle_event("connect", %{"id" => found.id}, socket)
+
+      String.contains?(raw_query, "@") ->
+        [user, endpoint] = String.split(raw_query, "@", parts: 2)
+
+        {host, port} =
+          if String.contains?(endpoint, ":") do
+            case String.split(endpoint, ":", parts: 2) do
+              [h, p] -> {h, p}
+              [h] -> {h, "22"}
+            end
+          else
+            {endpoint, "22"}
+          end
+
+        matched = Enum.find(socket.assigns.servers, fn s -> s.host == host end)
+
+        if matched do
+          handle_event("connect", %{"id" => matched.id}, socket)
+        else
+          {:noreply,
+           socket
+           |> assign(:add_modal, true)
+           |> assign(:new_name, host)
+           |> assign(:new_host, host)
+           |> assign(:new_user, user)
+           |> assign(:new_port, port)}
+        end
+
+      true ->
+        filtered =
+          if is_list(socket.assigns[:servers]) do
+            Enum.filter(socket.assigns.servers, fn s ->
+              q = String.downcase(raw_query)
+
+              String.contains?(String.downcase(s.name || ""), q) or
+                String.contains?(String.downcase(s.host || ""), q)
+            end)
+          else
+            []
+          end
+
+        case filtered do
+          [single_match] ->
+            handle_event("connect", %{"id" => single_match.id}, socket)
+
+          _ ->
+            {:noreply, socket}
+        end
+    end
+  end
+
   def handle_event("poll_now", %{"id" => id}, socket) do
     case ServerWorker.whereis(id) do
       pid when is_pid(pid) -> ServerWorker.poll_now(pid)

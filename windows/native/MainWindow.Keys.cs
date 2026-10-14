@@ -6,6 +6,38 @@ namespace SSHClient.Windows;
 
 public partial class MainWindow
 {
+    public static bool IsKeyEncrypted(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
+        try
+        {
+            var text = File.ReadAllText(path);
+            if (text.Contains("ENCRYPTED", StringComparison.OrdinalIgnoreCase)) return true;
+            if (text.Contains("OPENSSH PRIVATE KEY", StringComparison.Ordinal))
+            {
+                var lines = text.Split('\n')
+                    .Select(l => l.Trim())
+                    .Where(l => !l.StartsWith("-----") && !string.IsNullOrEmpty(l));
+                var base64 = string.Concat(lines);
+                var bytes = Convert.FromBase64String(base64);
+                var magic = "openssh-key-v1\0"u8;
+                if (bytes.Length > magic.Length + 4 && bytes.AsSpan(0, magic.Length).SequenceEqual(magic))
+                {
+                    int offset = magic.Length;
+                    int cipherLen = (bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3];
+                    offset += 4;
+                    if (cipherLen > 0 && offset + cipherLen <= bytes.Length)
+                    {
+                        var cipher = System.Text.Encoding.ASCII.GetString(bytes, offset, cipherLen);
+                        return !string.Equals(cipher, "none", StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+            }
+        }
+        catch { }
+        return false;
+    }
+
     private static string LocalSshDirectory()
     {
         var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh");

@@ -18,6 +18,7 @@ public static class ThemeManager
                 Application.Current.Dispatcher.Invoke(() => ApplyTheme(CurrentTheme));
         };
     }
+
     public static AppTheme CurrentTheme { get; private set; } = AppTheme.Dark;
 
     public static void ApplyTheme(AppTheme theme)
@@ -45,9 +46,10 @@ public static class ThemeManager
             SetBrush(res, "TagBg", Color.FromRgb(24, 24, 27));            // #18181b
             SetBrush(res, "Selection", Color.FromRgb(255, 255, 255));
 
-            SetBrush(res, "NavActiveBg", Color.FromArgb(22, 56, 189, 248));
-            SetBrush(res, "NavActiveBorder", Color.FromArgb(65, 56, 189, 248));
-            SetBrush(res, "NavActiveFg", Color.FromRgb(56, 189, 248));
+            // Clean, seamless active pill navigation (modern borderless style)
+            SetBrush(res, "NavActiveBg", Color.FromArgb(28, 255, 255, 255));   // Soft subtle white pill
+            SetBrush(res, "NavActiveBorder", Colors.Transparent);               // Borderless pill
+            SetBrush(res, "NavActiveFg", Color.FromRgb(255, 255, 255));         // Crisp bright white text
         }
         else
         {
@@ -69,10 +71,12 @@ public static class ThemeManager
             SetBrush(res, "TagBg", Color.FromRgb(244, 244, 245));         // #f4f4f5
             SetBrush(res, "Selection", Color.FromRgb(9, 9, 11));
 
-            SetBrush(res, "NavActiveBg", Color.FromRgb(244, 244, 245));   // #f4f4f5
-            SetBrush(res, "NavActiveBorder", Color.FromRgb(24, 24, 27));  // #18181b
-            SetBrush(res, "NavActiveFg", Color.FromRgb(9, 9, 11));        // #09090b
+            // Clean, seamless active pill navigation (modern borderless style)
+            SetBrush(res, "NavActiveBg", Color.FromRgb(230, 232, 236));        // Crisp grey pill
+            SetBrush(res, "NavActiveBorder", Colors.Transparent);               // Borderless pill
+            SetBrush(res, "NavActiveFg", Color.FromRgb(9, 9, 11));              // Dark foreground
         }
+
         if (SystemParameters.HighContrast) {
             foreach (var key in new[] { "Surface", "Sidebar", "Card", "CardHover", "CardLow", "TagBg" }) SetBrush(res, key, SystemColors.WindowColor);
             foreach (var key in new[] { "Text", "Muted", "MutedSubtle", "Border", "BorderHover" }) SetBrush(res, key, SystemColors.WindowTextColor);
