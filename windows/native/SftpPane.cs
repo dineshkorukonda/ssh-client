@@ -27,7 +27,7 @@ public sealed class SftpPane : UserControl, IDisposable
     private readonly ListView transferEntries = new() { MaxHeight = 120 };
     private readonly CheckBox showHidden = new() { Content = "Show hidden files", Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBox filterBox = new() { Width = 150, Margin = new Thickness(8, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center };
-    private readonly TextBlock filterHint = new() { Text = "Filter files...", Foreground = (Brush)Application.Current.Resources["MutedSubtle"], FontSize = 11, Margin = new Thickness(18, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+    private readonly TextBlock filterHint = new() { Text = "Filter files...", FontSize = 11, Margin = new Thickness(18, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
 
     private readonly WrapPanel remoteBreadcrumbs = new() { Margin = new Thickness(0, 0, 0, 6) };
     private readonly WrapPanel localBreadcrumbs = new() { Margin = new Thickness(0, 0, 0, 6) };
@@ -54,6 +54,7 @@ public sealed class SftpPane : UserControl, IDisposable
         System.Windows.Automation.AutomationProperties.SetName(transferEntries, "Transfer queue");
         System.Windows.Automation.AutomationProperties.SetName(filterBox, "Filter files");
 
+        filterHint.SetResourceReference(TextBlock.ForegroundProperty, "MutedSubtle");
         var root = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
 
         // -------------------------------------------------------------
@@ -61,13 +62,13 @@ public sealed class SftpPane : UserControl, IDisposable
         // -------------------------------------------------------------
         var toolbarCard = new Border
         {
-            Background = (Brush)Application.Current.Resources["Card"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 0, 0, 10)
         };
+        toolbarCard.SetResourceReference(Border.BackgroundProperty, "Card");
+        toolbarCard.SetResourceReference(Border.BorderBrushProperty, "Border");
 
         var toolbarDock = new DockPanel();
 
@@ -107,35 +108,37 @@ public sealed class SftpPane : UserControl, IDisposable
         // -------------------------------------------------------------
         var queueCard = new Border
         {
-            Background = (Brush)Application.Current.Resources["Card"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(12, 10, 12, 10),
             Margin = new Thickness(0, 10, 0, 0)
         };
+        queueCard.SetResourceReference(Border.BackgroundProperty, "Card");
+        queueCard.SetResourceReference(Border.BorderBrushProperty, "Border");
 
         var queuePanel = new DockPanel();
         var queueHeaderDock = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
 
         var queueBadge = new Border
         {
-            Background = (Brush)Application.Current.Resources["CardLow"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(6, 2, 6, 2),
             Margin = new Thickness(0, 0, 10, 0),
             VerticalAlignment = VerticalAlignment.Center
         };
-        queueBadge.Child = new TextBlock
+        queueBadge.SetResourceReference(Border.BackgroundProperty, "CardLow");
+        queueBadge.SetResourceReference(Border.BorderBrushProperty, "Border");
+
+        var queueBadgeTitle = new TextBlock
         {
             Text = "TRANSFERS & QUEUE",
-            FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
             FontSize = 10,
-            FontWeight = FontWeights.Bold,
-            Foreground = (Brush)Application.Current.Resources["Accent"]
+            FontWeight = FontWeights.Bold
         };
+        queueBadgeTitle.SetResourceReference(TextBlock.FontFamilyProperty, "MonoFont");
+        queueBadgeTitle.SetResourceReference(TextBlock.ForegroundProperty, "Accent");
+        queueBadge.Child = queueBadgeTitle;
         DockPanel.SetDock(queueBadge, Dock.Left);
         queueHeaderDock.Children.Add(queueBadge);
 
@@ -188,42 +191,44 @@ public sealed class SftpPane : UserControl, IDisposable
         // Left Panel: Local Card
         var localCard = new Border
         {
-            Background = (Brush)Application.Current.Resources["Card"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10)
         };
+        localCard.SetResourceReference(Border.BackgroundProperty, "Card");
+        localCard.SetResourceReference(Border.BorderBrushProperty, "Border");
         var localPanel = new DockPanel();
 
         var localHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var localBadge = new Border
         {
-            Background = (Brush)Application.Current.Resources["CardHover"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(6, 2, 6, 2),
             Margin = new Thickness(0, 0, 8, 0),
             VerticalAlignment = VerticalAlignment.Center
         };
-        localBadge.Child = new TextBlock
+        localBadge.SetResourceReference(Border.BackgroundProperty, "CardHover");
+        localBadge.SetResourceReference(Border.BorderBrushProperty, "Border");
+
+        var localBadgeTitle = new TextBlock
         {
             Text = "LOCAL FILES",
-            FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
             FontSize = 10,
-            FontWeight = FontWeights.Bold,
-            Foreground = (Brush)Application.Current.Resources["Accent"]
+            FontWeight = FontWeights.Bold
         };
+        localBadgeTitle.SetResourceReference(TextBlock.FontFamilyProperty, "MonoFont");
+        localBadgeTitle.SetResourceReference(TextBlock.ForegroundProperty, "Accent");
+        localBadge.Child = localBadgeTitle;
         DockPanel.SetDock(localBadge, Dock.Left);
         localHeader.Children.Add(localBadge);
         var localCaption = new TextBlock
         {
             Text = "This computer",
-            Foreground = (Brush)Application.Current.Resources["Muted"],
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center
         };
+        localCaption.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
         localHeader.Children.Add(localCaption);
         DockPanel.SetDock(localHeader, Dock.Top);
         localPanel.Children.Add(localHeader);
@@ -268,33 +273,35 @@ public sealed class SftpPane : UserControl, IDisposable
         // Right Panel: Remote Card
         var remoteCard = new Border
         {
-            Background = (Brush)Application.Current.Resources["Card"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10)
         };
+        remoteCard.SetResourceReference(Border.BackgroundProperty, "Card");
+        remoteCard.SetResourceReference(Border.BorderBrushProperty, "Border");
         var remotePanel = new DockPanel();
 
         var remoteHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var remoteBadge = new Border
         {
-            Background = (Brush)Application.Current.Resources["CardHover"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(6, 2, 6, 2),
             Margin = new Thickness(0, 0, 8, 0),
             VerticalAlignment = VerticalAlignment.Center
         };
-        remoteBadge.Child = new TextBlock
+        remoteBadge.SetResourceReference(Border.BackgroundProperty, "CardHover");
+        remoteBadge.SetResourceReference(Border.BorderBrushProperty, "Border");
+
+        var remoteBadgeTitle = new TextBlock
         {
             Text = "REMOTE FILES",
-            FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
             FontSize = 10,
-            FontWeight = FontWeights.Bold,
-            Foreground = (Brush)Application.Current.Resources["AccentCyan"]
+            FontWeight = FontWeights.Bold
         };
+        remoteBadgeTitle.SetResourceReference(TextBlock.FontFamilyProperty, "MonoFont");
+        remoteBadgeTitle.SetResourceReference(TextBlock.ForegroundProperty, "AccentCyan");
+        remoteBadge.Child = remoteBadgeTitle;
         DockPanel.SetDock(remoteBadge, Dock.Left);
         remoteHeader.Children.Add(remoteBadge);
 
@@ -303,10 +310,10 @@ public sealed class SftpPane : UserControl, IDisposable
             Text = !string.IsNullOrWhiteSpace(sessionTitle)
                 ? (host != null ? $"{sessionTitle} ({host.Address})" : sessionTitle)
                 : "SSH Filesystem",
-            Foreground = (Brush)Application.Current.Resources["Muted"],
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center
         };
+        remoteInfo.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
         remoteHeader.Children.Add(remoteInfo);
         DockPanel.SetDock(remoteHeader, Dock.Top);
         remotePanel.Children.Add(remoteHeader);

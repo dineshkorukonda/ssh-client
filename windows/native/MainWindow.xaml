@@ -12,10 +12,7 @@
   <Grid Background="{DynamicResource Surface}">
     
     <!-- ===================================================================== -->
-    <!-- 1. AUTHENTICATION / MASTER VAULT UNLOCK (Email + Password)           -->
-    <!-- ===================================================================== -->
-    <!-- ===================================================================== -->
-    <!-- 2. MAIN APPLICATION WORKSPACE                                         -->
+    <!-- MAIN APPLICATION WORKSPACE                                            -->
     <!-- ===================================================================== -->
     <Grid x:Name="MainAppGrid" Visibility="Visible">
       <Grid.RowDefinitions>
@@ -71,7 +68,7 @@
       <Popup x:Name="PalettePopup" PlacementTarget="{Binding ElementName=OmniBar}" Placement="Bottom" StaysOpen="True" AllowsTransparency="True">
         <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="12" CornerRadius="6" MaxWidth="480" Width="420">
           <StackPanel>
-            <TextBlock Text="Hosts and commands" FontWeight="Bold" Margin="0,0,0,8"/>
+            <TextBlock Text="Hosts and commands" FontWeight="Bold" Foreground="{DynamicResource Text}" Margin="0,0,0,8"/>
             <ListBox x:Name="PaletteList" MaxHeight="320" DisplayMemberPath="Label" MouseDoubleClick="PaletteRun_Click" KeyDown="Palette_KeyDown"/>
             <TextBlock Text="Arrow keys to select. Enter to run. Escape to close." Foreground="{DynamicResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap"/>
           </StackPanel>
@@ -112,7 +109,7 @@
 
             <!-- Navigation Items (5 Primary Pages) -->
             <StackPanel>
-              <TextBlock Text="CORE NAVIGATION" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource MutedSubtle}" Margin="8,0,0,10"/>
+              <TextBlock Text="WORKSPACE" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource MutedSubtle}" Margin="8,0,0,10"/>
 
               <!-- 1. Dashboard -->
               <Button x:Name="NavDashboard" Click="NavDashboard_Click" Style="{StaticResource NavButton}">
@@ -120,10 +117,9 @@
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="24"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="&#xE80F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" FontSize="13" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="OVERVIEW" FontWeight="SemiBold" FontSize="11.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                  <TextBlock Grid.Column="1" Text="Overview" FontSize="12.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
                 </Grid>
               </Button>
 
@@ -136,9 +132,9 @@
                     <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="&#xE7F4;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" FontSize="13" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="HOSTS" FontWeight="SemiBold" FontSize="11.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                  <Border Grid.Column="2" Background="{DynamicResource CardLow}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
-                    <TextBlock x:Name="SidebarHostBadge" Text="0" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentCyan}"/>
+                  <TextBlock Grid.Column="1" Text="Hosts" FontSize="12.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                  <Border Grid.Column="2" Background="{DynamicResource TagBg}" CornerRadius="10" Padding="7,1" VerticalAlignment="Center">
+                    <TextBlock x:Name="SidebarHostBadge" Text="0" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource MutedSubtle}"/>
                   </Border>
                 </Grid>
               </Button>
@@ -149,11 +145,9 @@
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="24"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="&#xED25;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" FontSize="13" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="FILES" FontWeight="SemiBold" FontSize="11.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                  <TextBlock Grid.Column="2" Text="↗" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{DynamicResource MutedSubtle}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Text="Files" FontSize="12.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
                 </Grid>
               </Button>
 
@@ -166,9 +160,9 @@
                     <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="&#xE8D7;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" FontSize="13" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="SSH KEYS" FontWeight="SemiBold" FontSize="11.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                  <Border Grid.Column="2" Background="{DynamicResource CardLow}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
-                    <TextBlock x:Name="SidebarKeysBadge" Text="4" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentYellow}"/>
+                  <TextBlock Grid.Column="1" Text="SSH keys" FontSize="12.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                  <Border Grid.Column="2" Background="{DynamicResource TagBg}" CornerRadius="10" Padding="7,1" VerticalAlignment="Center">
+                    <TextBlock x:Name="SidebarKeysBadge" Text="4" FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource MutedSubtle}"/>
                   </Border>
                 </Grid>
               </Button>
@@ -179,10 +173,9 @@
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="24"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" FontSize="13" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="SETTINGS" FontWeight="SemiBold" FontSize="11.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                  <TextBlock Grid.Column="1" Text="Settings" FontSize="12.5" VerticalAlignment="Center" Margin="2,0,0,0"/>
                 </Grid>
               </Button>
             </StackPanel>
@@ -227,7 +220,7 @@
                     <TextBlock x:Name="MetricHostsCount" Text="0" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource Text}" Margin="0,8,0,2"/>
                     <TextBlock Text="Configured endpoints" FontSize="11" Foreground="{DynamicResource MutedSubtle}"/>
                     <Separator Background="{DynamicResource Border}" Margin="0,10,0,8"/>
-                    <TextBlock x:Name="MetricHostsBreakdown" Text="UBNT • DEB • ALP • RHEL" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{DynamicResource AccentCyan}"/>
+                    <TextBlock x:Name="MetricHostsBreakdown" Text="UBNT &#x2022; DEB &#x2022; ALP &#x2022; RHEL" FontFamily="{StaticResource MonoFont}" FontSize="11" Foreground="{DynamicResource AccentCyan}"/>
                   </StackPanel>
                 </Border>
 
@@ -288,7 +281,7 @@
                 <DockPanel>
                   <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                     <TextBlock Text="RECENT &amp; SAVED ENDPOINTS" FontFamily="{StaticResource MonoFont}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
-                    <Button Content="View all hosts →" Click="NavHosts_Click" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Padding="0"/>
+                    <Button Content="View all hosts &#x2192;" Click="NavHosts_Click" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Padding="0"/>
                   </DockPanel>
 
                   <ListBox x:Name="DashboardHostsList" SelectionMode="Single" SelectionChanged="DashboardHosts_SelectionChanged">
@@ -357,7 +350,7 @@
                   </Grid>
                 </DockPanel>
 
-                <TextBlock x:Name="HostsEmpty" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,12" Visibility="Collapsed"/>
+                <TextBlock x:Name="HostsEmpty" DockPanel.Dock="Top" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12" Visibility="Collapsed"/>
                 <ComboBox x:Name="HostSort" DockPanel.Dock="Top" SelectedIndex="0" SelectionChanged="HostSort_Changed" HorizontalAlignment="Left" Margin="0,0,0,8" Width="180" AutomationProperties.Name="Sort hosts">
                   <ComboBoxItem Content="Name" Tag="name"/><ComboBoxItem Content="Recent connections" Tag="recent"/><ComboBoxItem Content="Favorites first" Tag="favorite"/>
                 </ComboBox>
@@ -452,7 +445,7 @@
               <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Border Margin="24,16">
                   <StackPanel>
-                    <Button Content="← Back to hosts" Click="EditorCancel_Click" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,0,0,16"/>
+                    <Button Content="&#x2190; Back to hosts" Click="EditorCancel_Click" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,0,0,16"/>
                     <TextBlock x:Name="EditorHeader" Text="New host" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Text}"/>
                     <TextBlock Text="Enter an address or paste user@host:port. Choose how to sign in." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="12" Margin="0,4,0,16"/>
 
@@ -478,7 +471,7 @@
                         <TextBlock Text="Remote Username" FontSize="12" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                         <TextBox x:Name="EditorUser" AutomationProperties.Name="Remote username" Height="34" Margin="0,0,0,12"/>
 
-                        <TextBlock Text="Authentication method" Margin="0,0,0,4"/>
+                        <TextBlock Text="Authentication method" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                         <ComboBox x:Name="EditorAuth" AutomationProperties.Name="Authentication method" SelectedIndex="0" Margin="0,0,0,12" SelectionChanged="EditorAuth_Changed">
                           <ComboBoxItem Content="SSH key" Tag="key"/>
                           <ComboBoxItem Content="Password" Tag="password"/>
@@ -486,7 +479,7 @@
                         </ComboBox>
                         <TextBlock x:Name="EditorAuthHint" Text="Choose an existing private key. Its contents stay on this computer." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
                         <StackPanel x:Name="EditorKeySection">
-                          <TextBlock Text="Choose a key" Margin="0,0,0,4"/>
+                          <TextBlock Text="Choose a key" Foreground="{DynamicResource Text}" Margin="0,0,0,4"/>
                           <ComboBox x:Name="EditorIdentity" AutomationProperties.Name="SSH key on this computer or saved key" DisplayMemberPath="SelectionLabel" SelectionChanged="EditorIdentity_Changed" Margin="0,0,0,8"/>
                           <TextBox x:Name="EditorKeyPath" AutomationProperties.Name="Private key file" IsReadOnly="True" Visibility="Collapsed"/>
                           <TextBlock x:Name="EditorKeyDetails" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
@@ -641,9 +634,9 @@
                     
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
                       <!-- Dark Terminal Edition -->
-                      <Button Content=" Dark Terminal Edition" Click="SetDarkTheme_Click" Style="{StaticResource OutlineButton}" Height="38" Padding="16,0" Margin="0,0,12,0"/>
+                      <Button Content="Dark Terminal Edition" Click="SetDarkTheme_Click" Style="{StaticResource OutlineButton}" Height="38" Padding="16,0" Margin="0,0,12,0"/>
                       <!-- Light Bauhaus Edition -->
-                      <Button Content=" Light Bauhaus Edition" Click="SetLightTheme_Click" Style="{StaticResource OutlineButton}" Height="38" Padding="16,0"/>
+                      <Button Content="Light Bauhaus Edition" Click="SetLightTheme_Click" Style="{StaticResource OutlineButton}" Height="38" Padding="16,0"/>
                     </StackPanel>
                     <CheckBox x:Name="ReducedMotion" Content="Reduce animations" Margin="0,8"/>
                     <TextBlock x:Name="SettingsError" TextWrapping="Wrap" Foreground="{DynamicResource AccentYellow}"/>
@@ -655,8 +648,8 @@
                 <!-- Terminal Typography Card -->
                 <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                   <StackPanel>
-                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Margin="0,0,0,12"/>
-                    <TextBlock x:Name="UpdateStatus" Text="Connect the local service to check the installed version." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Text="APP UPDATES" FontWeight="Bold" Foreground="{DynamicResource Text}" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="UpdateStatus" Text="Connect the local service to check the installed version." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                     <ProgressBar x:Name="UpdateProgress" AutomationProperties.Name="Update download progress" Height="6" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="0,0,0,12"/>
                     <WrapPanel>
                       <Button x:Name="UpdateCheckButton" Content="Check for updates" Click="CheckUpdate_Click" IsEnabled="False" Margin="0,0,8,0"/>
@@ -688,7 +681,7 @@
 
                 <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="20" Margin="0,0,0,16" CornerRadius="8">
                   <StackPanel>
-                    <TextBlock Text="WORKSPACES AND DATA" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <TextBlock Text="WORKSPACES AND DATA" FontWeight="Bold" Foreground="{DynamicResource Text}" Margin="0,0,0,12"/>
                     <ComboBox x:Name="WorkspaceList" AutomationProperties.Name="Saved workspace" DisplayMemberPath="Name" Margin="0,0,0,12"/>
                     <WrapPanel>
                       <Button Content="Save workspace" Click="SaveWorkspace_Click" Margin="0,0,8,8"/>
@@ -701,16 +694,18 @@
                   </StackPanel>
                 </Border>
                 <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="20" Margin="0,0,0,16" CornerRadius="8">
-                  <StackPanel><TextBlock Text="DIAGNOSTICS" FontWeight="Bold" Margin="0,0,0,12"/><TextBlock x:Name="DaemonStatusText" Text="Checking local service..." TextWrapping="Wrap"/>
-                    <TextBlock x:Name="DaemonUptimeText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                  <StackPanel>
+                    <TextBlock Text="DIAGNOSTICS" FontWeight="Bold" Foreground="{DynamicResource Text}" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="DaemonStatusText" Text="Checking local service..." Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DaemonUptimeText" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     <Button Content="Refresh diagnostics" Click="RefreshDiagnostics_Click" HorizontalAlignment="Left" Margin="0,12,0,0"/>
                   </StackPanel>
                 </Border>
                 <!-- Identity & Lock Vault Card -->
                 <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
                   <StackPanel>
-                    <TextBlock Text="LOCAL SESSION SECURITY" FontWeight="Bold" Margin="0,0,0,12"/>
-                    <TextBlock Text="Passwords and key passphrases are entered for each connection and kept in memory. This app has no cloud account or master vault. Locking Windows protects access to the desktop; SSH sessions continue until disconnected or the app closes." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Text="LOCAL SESSION SECURITY" FontWeight="Bold" Foreground="{DynamicResource Text}" Margin="0,0,0,12"/>
+                    <TextBlock Text="Passwords and key passphrases are entered for each connection and kept in memory. This app has no cloud account or master vault. Locking Windows protects access to the desktop; SSH sessions continue until disconnected or the app closes." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                     <Button Content="Lock Windows" Click="LockVault_Click" Style="{StaticResource OutlineButton}" HorizontalAlignment="Left"/>
                   </StackPanel>
                 </Border>
@@ -726,12 +721,15 @@
       </Grid>
 
       <Border x:Name="RecoveryPanel" Grid.Row="1" VerticalAlignment="Top" Panel.ZIndex="10" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="16" Margin="220,12,20,0" Visibility="Collapsed">
-        <StackPanel><TextBlock x:Name="RecoveryMessage" TextWrapping="Wrap" Margin="0,0,0,10"/><WrapPanel>
-          <Button Content="Retry" Click="RetryOperation_Click" Margin="0,0,8,0"/>
-          <Button Content="Edit host" Click="RecoveryEdit_Click" Margin="0,0,8,0"/>
-          <Button Content="Copy diagnostics" Click="CopyDiagnostics_Click" Margin="0,0,8,0"/>
-          <Button Content="Dismiss" Click="DismissRecovery_Click"/>
-        </WrapPanel></StackPanel>
+        <StackPanel>
+          <TextBlock x:Name="RecoveryMessage" Foreground="{DynamicResource Text}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+          <WrapPanel>
+            <Button Content="Retry" Click="RetryOperation_Click" Margin="0,0,8,0"/>
+            <Button Content="Edit host" Click="RecoveryEdit_Click" Margin="0,0,8,0"/>
+            <Button Content="Copy diagnostics" Click="CopyDiagnostics_Click" Margin="0,0,8,0"/>
+            <Button Content="Dismiss" Click="DismissRecovery_Click"/>
+          </WrapPanel>
+        </StackPanel>
       </Border>
       <!-- Bottom Status Bar -->
       <Grid Grid.Row="2" Background="{DynamicResource CardLow}">

@@ -218,15 +218,19 @@ public partial class MainWindow : Window
         if (btn == null) return;
         if (isActive)
         {
-            btn.Background = (Brush)Application.Current.Resources["NavActiveBg"];
-            btn.BorderBrush = (Brush)Application.Current.Resources["NavActiveBorder"];
-            btn.Foreground = (Brush)Application.Current.Resources["NavActiveFg"];
+            btn.SetResourceReference(Button.BackgroundProperty, "NavActiveBg");
+            btn.BorderBrush = Brushes.Transparent;
+            btn.BorderThickness = new Thickness(0);
+            btn.SetResourceReference(Button.ForegroundProperty, "NavActiveFg");
+            btn.FontWeight = FontWeights.SemiBold;
         }
         else
         {
-            btn.Background = Brushes.Transparent;
-            btn.BorderBrush = Brushes.Transparent;
-            btn.Foreground = (Brush)Application.Current.Resources["Muted"];
+            btn.ClearValue(Button.BackgroundProperty);
+            btn.ClearValue(Button.BorderBrushProperty);
+            btn.BorderThickness = new Thickness(0);
+            btn.SetResourceReference(Button.ForegroundProperty, "Muted");
+            btn.FontWeight = FontWeights.Normal;
         }
     }
 
@@ -589,8 +593,6 @@ public partial class MainWindow : Window
         {
             var emptyBorder = new Border
             {
-                Background = (Brush)Application.Current.Resources["Card"],
-                BorderBrush = (Brush)Application.Current.Resources["Border"],
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(32),
@@ -598,26 +600,32 @@ public partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Center,
                 MaxWidth = 520
             };
+            emptyBorder.SetResourceReference(Border.BackgroundProperty, "Card");
+            emptyBorder.SetResourceReference(Border.BorderBrushProperty, "Border");
+
             var emptyStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            emptyStack.Children.Add(new TextBlock
+            var emptyTitle = new TextBlock
             {
                 Text = "No Connected Session Selected",
                 FontSize = 16,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = (Brush)Application.Current.Resources["Text"],
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 8)
-            });
-            emptyStack.Children.Add(new TextBlock
+            };
+            emptyTitle.SetResourceReference(TextBlock.ForegroundProperty, "Text");
+            emptyStack.Children.Add(emptyTitle);
+
+            var emptyDesc = new TextBlock
             {
                 Text = SftpSessionCombo.SelectedItem is TerminalTabItem pending
                     ? $"Session '{pending.Title}' is currently {pending.State.ToLowerInvariant()}. Once connected, its remote filesystem will be accessible here."
                     : "Select an active connected SSH session from the Target Session dropdown above to browse and transfer files.",
-                Foreground = (Brush)Application.Current.Resources["Muted"],
                 TextWrapping = TextWrapping.Wrap,
                 TextAlignment = TextAlignment.Center,
                 FontSize = 12
-            });
+            };
+            emptyDesc.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+            emptyStack.Children.Add(emptyDesc);
             emptyBorder.Child = emptyStack;
             SftpContent.Content = emptyBorder;
         }
@@ -825,25 +833,25 @@ public partial class MainWindow : Window
 
         var toolBar = new Border
         {
-            Background = (Brush)Application.Current.Resources["Card"],
-            BorderBrush = (Brush)Application.Current.Resources["Border"],
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(12, 6, 12, 6)
         };
+        toolBar.SetResourceReference(Border.BackgroundProperty, "Card");
+        toolBar.SetResourceReference(Border.BorderBrushProperty, "Border");
         var toolDock = new DockPanel();
 
         var rightInfo = new StackPanel { Orientation = Orientation.Horizontal };
         DockPanel.SetDock(rightInfo, Dock.Right);
-        rightInfo.Children.Add(new TextBlock
+        var hostInfo = new TextBlock
         {
             Text = host?.Description ?? title,
-            FontFamily = (FontFamily)Application.Current.Resources["MonoFont"],
-            Foreground = (Brush)Application.Current.Resources["MutedSubtle"],
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center
-        });
+        };
+        hostInfo.SetResourceReference(TextBlock.FontFamilyProperty, "MonoFont");
+        hostInfo.SetResourceReference(TextBlock.ForegroundProperty, "MutedSubtle");
+        rightInfo.Children.Add(hostInfo);
         toolDock.Children.Add(rightInfo);
-        ((TextBlock)rightInfo.Children[0]).SetResourceReference(TextBlock.ForegroundProperty, "Muted");
 
         var leftButtons = new StackPanel { Orientation = Orientation.Horizontal };
         var disconnBtn = new Button { Content = "Disconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
