@@ -73,7 +73,7 @@
     .cmd-block pre {
       background: #0e0e11;
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      border-radius: 0;
       padding: 1rem 3.5rem 1rem 1.25rem;
       font-size: 13px;
       line-height: 1.6;
@@ -90,7 +90,7 @@
       font-size: 11px;
       font-family: 'JetBrains Mono', monospace;
       padding: 4px 10px;
-      border-radius: 6px;
+      border-radius: 0;
       cursor: pointer;
       transition: all .15s ease;
     }
@@ -105,6 +105,7 @@
       background: rgba(52, 211, 153, 0.1);
     }
   </style>
+  <meta name="app-version" content="0.0.74">
 </head>
 <body class="min-h-screen bg-[#09090b] text-zinc-200 antialiased flex flex-col relative selection:bg-sky-500/20 selection:text-sky-300 ">
 
@@ -116,21 +117,20 @@
     <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <a href="../" class="flex items-center gap-2.5 group">
-          <img src="../assets/logo.svg" alt="ssh-client logo" class="w-8 h-8 rounded-lg  group-hover:scale-105 transition-transform" />
+          <img src="../assets/logo.svg" alt="ssh-client logo" class="w-8 h-8 rounded-none  group-hover:scale-105 transition-transform" />
           <span class="text-base font-bold tracking-tight text-white group-hover:text-zinc-200 transition-colors">ssh-client</span>
         </a>
-        <span class="font-mono text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-900/90 px-2 py-0.5 rounded app-version-badge">v0.0.70</span>
       </div>
 
       <nav class="hidden md:flex items-center gap-1 text-sm font-medium text-zinc-400">
-        <a href="../" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.05] transition-all">Overview</a>
-        <a href="./" class="px-3 py-1.5 rounded-lg text-white bg-white/[0.08] transition-all">Install &amp; FAQs</a>
-        <a href="../changelog/" class="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.05] transition-all">Changelog</a>
+        <a href="../" class="px-3 py-1.5 rounded-none hover:text-white hover:bg-white/[0.05] transition-all">Overview</a>
+        <a href="./" class="px-3 py-1.5 rounded-none text-white bg-white/[0.08] transition-all">Install &amp; FAQs</a>
+        <a href="../changelog/" class="px-3 py-1.5 rounded-none hover:text-white hover:bg-white/[0.05] transition-all">Changelog</a>
       </nav>
 
       <div class="flex items-center gap-3">
         <a href="https://github.com/dineshkorukonda/ssh-client" target="_blank" rel="noreferrer"
-           class="inline-flex items-center gap-2 text-xs font-mono font-medium text-zinc-300 border border-white/[0.09] bg-zinc-900/80 hover:bg-zinc-800 hover:text-white px-3.5 py-1.5 rounded-lg transition-all">
+           class="inline-flex items-center gap-2 text-xs font-mono font-medium text-zinc-300 border border-white/[0.09] bg-zinc-900/80 hover:bg-zinc-800 hover:text-white px-3.5 py-1.5 rounded-none transition-all">
           <span>GitHub</span>
           <span class="text-zinc-500">&bull;</span>
           <span class="text-sky-400">&uarr;&rarr;</span>
@@ -167,25 +167,24 @@
       <div class="space-y-6">
 
         <!-- Windows Setup -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 sm:p-8 rounded-lg space-y-4 hover:border-zinc-700 transition-all">
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 sm:p-8 rounded-none space-y-4 hover:border-zinc-700 transition-all">
           <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-3">
             <h3 class="text-lg font-bold text-white">Windows (PowerShell 5.1+ / 7+)</h3>
-            <span class="font-mono text-[10px] text-sky-400 border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 rounded">Windows 10 / 11 64-bit</span>
+            <span class="font-mono text-[10px] text-sky-400 border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 rounded-none">Windows 10 / 11 64-bit</span>
           </div>
           <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal">
             The Windows bundle is a fully self-contained release with an embedded Erlang 27 runtime. It does not require any prerequisite Elixir or Erlang installations, nor does it require OpenSSH-for-Windows.
           </p>
 
           <div class="cmd-block">
-            <pre># Recommended: download and run the .exe installer
-# It installs to Program Files, creates a Start Menu shortcut,
-# and opens your browser to http://localhost:4000 automatically.
-ssh-client-setup-v0.0.70-windows-x64.exe
+            <pre># Recommended: download the installer from the latest published release:
+# https://github.com/dineshkorukonda/ssh-client/releases/latest
+# Run the downloaded .exe to open the native Windows application.
 
 # Alternatively (PowerShell) &mdash; manual zip extract:
-Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
+Invoke-WebRequest -Uri https://github.com/dineshkorukonda/ssh-client/releases/latest/download/ssh-client-windows-x64.zip -OutFile "$env:TEMP\ssh-client.zip"
 Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPDATA\Programs\ssh-client" -Force
-&amp; "$env:LOCALAPPDATA\Programs\ssh-client\bin\ssh_client.bat" start</pre>
+&amp; "$env:LOCALAPPDATA\Programs\ssh-client\ssh-client.exe"</pre>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
 
@@ -196,18 +195,18 @@ Expand-Archive -Path "$env:TEMP\ssh-client.zip" -DestinationPath "$env:LOCALAPPD
         </div>
 
         <!-- Linux Setup -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 sm:p-8 rounded-lg space-y-4 hover:border-zinc-700 transition-all">
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 sm:p-8 rounded-none space-y-4 hover:border-zinc-700 transition-all">
           <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-3">
             <h3 class="text-lg font-bold text-white">Linux (x86_64, glibc 2.31+)</h3>
-            <span class="font-mono text-[10px] text-sky-400 border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 rounded">Ubuntu &bull; Debian &bull; Fedora &bull; Arch</span>
+            <span class="font-mono text-[10px] text-sky-400 border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 rounded-none">Ubuntu &bull; Debian &bull; Fedora &bull; Arch</span>
           </div>
           <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal">
             Linux releases are distributed as a standalone tarball containing OTP release executables and WebKitGTK runtime wrappers.
           </p>
 
           <div class="cmd-block">
-            <pre># Download release tarball (v0.0.70)
-curl -sSL -O https://github.com/dineshkorukonda/ssh-client/releases/download/v0.0.70/ssh-client-linux-x64.tar.gz
+            <pre># Download release tarball (v0.0.74)
+wget https://github.com/dineshkorukonda/ssh-client/releases/latest/download/ssh-client-linux-x64.tar.gz
 
 # Unpack into target destination
 sudo mkdir -p /opt/ssh-client &amp;&amp; sudo tar -xzf ssh-client-linux-x64.tar.gz -C /opt/ssh-client
@@ -224,10 +223,10 @@ sudo mkdir -p /opt/ssh-client &amp;&amp; sudo tar -xzf ssh-client-linux-x64.tar.
         </div>
 
         <!-- Build from Source -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 sm:p-8 rounded-lg space-y-4 hover:border-zinc-700 transition-all">
+        <div class="border border-white/[0.08] bg-[#0e0e11] p-6 sm:p-8 rounded-none space-y-4 hover:border-zinc-700 transition-all">
           <div class="flex items-baseline justify-between border-b border-white/[0.06] pb-3">
             <h3 class="text-lg font-bold text-white">Building from Source</h3>
-            <span class="font-mono text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 rounded">Elixir 1.18+ &bull; Erlang/OTP 27+</span>
+            <span class="font-mono text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 rounded-none">Elixir 1.18+ &bull; Erlang/OTP 27+</span>
           </div>
           <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal">
             If you wish to compile or develop directly against the repository:
@@ -261,7 +260,7 @@ MIX_ENV=prod mix release ssh_client</pre>
       <div class="space-y-4 font-mono text-xs">
 
         <!-- FAQ 1 -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-lg p-5 space-y-2">
+        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-none p-5 space-y-2">
           <div class="font-semibold text-white text-sm font-sans">
             Does ssh-client require OpenSSH to be installed on my machine?
           </div>
@@ -276,7 +275,7 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 2 -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-lg p-5 space-y-2">
+        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-none p-5 space-y-2">
           <div class="font-semibold text-white text-sm font-sans">
             How does the zero-wizard in-place auto-updater work?
           </div>
@@ -294,7 +293,7 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 3 -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-lg p-5 space-y-2">
+        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-none p-5 space-y-2">
           <div class="font-semibold text-white text-sm font-sans">
             How does the Dual-Pane SFTP Explorer and drag-and-drop file transfer work?
           </div>
@@ -309,7 +308,7 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 4 -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-lg p-5 space-y-2">
+        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-none p-5 space-y-2">
           <div class="font-semibold text-white text-sm font-sans">
             How does ssh-client handle private key passphrases without persisting them?
           </div>
@@ -324,7 +323,7 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 5 -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-lg p-5 space-y-2">
+        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-none p-5 space-y-2">
           <div class="font-semibold text-white text-sm font-sans">
             What happens if a remote host's public key fingerprint changes?
           </div>
@@ -339,7 +338,7 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 6 -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-lg p-5 space-y-2">
+        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-none p-5 space-y-2">
           <div class="font-semibold text-white text-sm font-sans">
             How is background CPU and network consumption kept low during monitoring?
           </div>
@@ -355,7 +354,7 @@ MIX_ENV=prod mix release ssh_client</pre>
         </div>
 
         <!-- FAQ 7 -->
-        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-lg p-5 space-y-2">
+        <div class="border border-white/[0.08] bg-[#0e0e11] rounded-none p-5 space-y-2">
           <div class="font-semibold text-white text-sm font-sans">
             Where are imported SSH configurations and host metadata stored?
           </div>
@@ -382,7 +381,7 @@ MIX_ENV=prod mix release ssh_client</pre>
   <footer class="border-t border-white/[0.07] bg-[#06070a] py-12 text-xs text-zinc-500 font-mono">
     <div class="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="flex items-center gap-2">
-        <img src="../assets/logo.svg" alt="ssh-client logo" class="w-5 h-5 rounded" />
+        <img src="../assets/logo.svg" alt="ssh-client logo" class="w-5 h-5 rounded-none" />
         <span class="text-white font-sans font-semibold">ssh-client</span>
         <span class="text-zinc-600">&bull;</span>
         <span>MIT License &bull; Offline &amp; Zero Telemetry</span>

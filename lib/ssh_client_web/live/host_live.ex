@@ -109,15 +109,17 @@ defmodule SSHClientWeb.HostLive do
       raw_query == "" ->
         {:noreply, socket}
 
-      found = Enum.find(socket.assigns.servers, fn s ->
-        s.id == raw_query or
-        String.downcase(s.name || "") == String.downcase(raw_query) or
-        String.downcase(s.host || "") == String.downcase(raw_query)
-      end) ->
+      found =
+          Enum.find(socket.assigns.servers, fn s ->
+            s.id == raw_query or
+              String.downcase(s.name || "") == String.downcase(raw_query) or
+                String.downcase(s.host || "") == String.downcase(raw_query)
+          end) ->
         handle_event("connect", %{"id" => found.id}, socket)
 
       String.contains?(raw_query, "@") ->
         [user, endpoint] = String.split(raw_query, "@", parts: 2)
+
         {host, port} =
           if String.contains?(endpoint, ":") do
             case String.split(endpoint, ":", parts: 2) do
@@ -147,8 +149,9 @@ defmodule SSHClientWeb.HostLive do
           if is_list(socket.assigns[:servers]) do
             Enum.filter(socket.assigns.servers, fn s ->
               q = String.downcase(raw_query)
+
               String.contains?(String.downcase(s.name || ""), q) or
-              String.contains?(String.downcase(s.host || ""), q)
+                String.contains?(String.downcase(s.host || ""), q)
             end)
           else
             []
@@ -1493,14 +1496,15 @@ defmodule SSHClientWeb.HostLive do
   defp normalize_status(status) when is_binary(status), do: status
   defp normalize_status(_), do: "unknown"
 
-  defp format_pct(v), do: "#{:erlang.float_to_binary(v, decimals: 1)}%"
+  defp format_pct(v) when is_number(v), do: "#{:erlang.float_to_binary(v * 1.0, decimals: 1)}%"
+  defp format_pct(_), do: "Unavailable"
 
-  defp bar_color(v) when v >= 90, do: "bg-destructive"
-  defp bar_color(v) when v >= 70, do: "bg-warning"
+  defp bar_color(v) when is_number(v) and v >= 90, do: "bg-destructive"
+  defp bar_color(v) when is_number(v) and v >= 70, do: "bg-warning"
   defp bar_color(_), do: "bg-emerald-500"
 
-  defp metric_color(v) when v >= 90, do: "text-destructive"
-  defp metric_color(v) when v >= 70, do: "text-warning"
+  defp metric_color(v) when is_number(v) and v >= 90, do: "text-destructive"
+  defp metric_color(v) when is_number(v) and v >= 70, do: "text-warning"
   defp metric_color(_), do: "text-muted-foreground"
 
   @doc "Fuzzy-filters and ranks servers by query string."

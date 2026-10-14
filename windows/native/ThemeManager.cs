@@ -18,6 +18,7 @@ public static class ThemeManager
                 Application.Current.Dispatcher.Invoke(() => ApplyTheme(CurrentTheme));
         };
     }
+
     public static AppTheme CurrentTheme { get; private set; } = AppTheme.Dark;
 
     public static void ApplyTheme(AppTheme theme)
@@ -45,9 +46,10 @@ public static class ThemeManager
             SetBrush(res, "TagBg", Color.FromRgb(24, 24, 27));            // #18181b
             SetBrush(res, "Selection", Color.FromRgb(255, 255, 255));
 
-            SetBrush(res, "NavActiveBg", Color.FromRgb(24, 24, 27));      // #18181b (soft subtle pill)
-            SetBrush(res, "NavActiveBorder", Colors.Transparent);         // Seamless borderless nav
-            SetBrush(res, "NavActiveFg", Color.FromRgb(250, 250, 250));   // #fafafa (Pure White)
+            // Clean, seamless active pill navigation (modern borderless style)
+            SetBrush(res, "NavActiveBg", Color.FromArgb(28, 255, 255, 255));   // Soft subtle white pill
+            SetBrush(res, "NavActiveBorder", Colors.Transparent);               // Borderless pill
+            SetBrush(res, "NavActiveFg", Color.FromRgb(255, 255, 255));         // Crisp bright white text
         }
         else
         {
@@ -61,7 +63,7 @@ public static class ThemeManager
             SetBrush(res, "BorderHover", Color.FromRgb(212, 212, 216));   // #d4d4d8
             SetBrush(res, "Text", Color.FromRgb(9, 9, 11));               // #09090b (Dark Text)
             SetBrush(res, "Muted", Color.FromRgb(113, 113, 122));         // #71717a
-            SetBrush(res, "MutedSubtle", Color.FromRgb(105, 105, 115));   // #696973
+            SetBrush(res, "MutedSubtle", Color.FromRgb(105, 105, 115));   // #a1a1aa
             SetBrush(res, "Accent", Color.FromRgb(9, 9, 11));             // #09090b (Black Button)
             SetBrush(res, "AccentFg", Color.FromRgb(255, 255, 255));      // #ffffff (White Button Text)
             SetBrush(res, "AccentCyan", Color.FromRgb(3, 105, 161));      // #0284c7
@@ -69,10 +71,12 @@ public static class ThemeManager
             SetBrush(res, "TagBg", Color.FromRgb(244, 244, 245));         // #f4f4f5
             SetBrush(res, "Selection", Color.FromRgb(9, 9, 11));
 
-            SetBrush(res, "NavActiveBg", Color.FromRgb(235, 236, 240));   // #ebecf0 (soft subtle pill)
-            SetBrush(res, "NavActiveBorder", Colors.Transparent);         // Seamless borderless nav
-            SetBrush(res, "NavActiveFg", Color.FromRgb(9, 9, 11));        // #09090b (Dark Text)
+            // Clean, seamless active pill navigation (modern borderless style)
+            SetBrush(res, "NavActiveBg", Color.FromRgb(230, 232, 236));        // Crisp grey pill
+            SetBrush(res, "NavActiveBorder", Colors.Transparent);               // Borderless pill
+            SetBrush(res, "NavActiveFg", Color.FromRgb(9, 9, 11));              // Dark foreground
         }
+
         if (SystemParameters.HighContrast) {
             foreach (var key in new[] { "Surface", "Sidebar", "Card", "CardHover", "CardLow", "TagBg" }) SetBrush(res, key, SystemColors.WindowColor);
             foreach (var key in new[] { "Text", "Muted", "MutedSubtle", "Border", "BorderHover" }) SetBrush(res, key, SystemColors.WindowTextColor);

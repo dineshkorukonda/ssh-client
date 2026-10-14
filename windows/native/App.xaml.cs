@@ -67,6 +67,10 @@ public partial class App : Application
 
                 // Revert to Dark for dialog check
                 window.SwitchThemeForPreview(AppTheme.Dark);
+                window.ShowConnectionForPreview("Connecting");
+                Capture(window, 1280, 820, Path.Combine(folder, "connection-stage.png"));
+                window.ShowConnectionForPreview("Failed");
+                Capture(window, 1280, 820, Path.Combine(folder, "connection-failed.png"));
                 window.Opacity = 0; window.ShowInTaskbar = false; window.Show();
                 var dialog = new FormDialog(window, "Connect to Production EU", [new("user", "Username", "deploy"), new("password", "Password", Secret: true)], "Connect", "deploy@prod-eu.example.com:22\nCredentials are used for this session only.");
                 if (dialog.Background is not SolidColorBrush background || (background.Color != Color.FromRgb(9, 9, 11) && background.Color != Color.FromRgb(0, 0, 0) && background.Color != Color.FromRgb(17, 20, 24) && background.Color != Color.FromRgb(22, 26, 32) && background.Color != Color.FromRgb(24, 26, 32))) throw new IOException("Derived dialog lost its dark theme.");
@@ -113,6 +117,7 @@ public partial class App : Application
                     await Task.Delay(100);
                 }
                 if (!screen.Contains("echo:native-smoke")) throw new IOException("Native terminal failed to render remote output: " + screen);
+                if (terminal.ConnectionStageVisible) throw new IOException("Connected SSH terminals must dismiss the connection stage.");
                 var local = Path.Combine(Path.GetDirectoryName(report)!, "client-files", "native-upload.txt");
                 Directory.CreateDirectory(Path.GetDirectoryName(local)!);
                 var downloaded = Path.Combine(Path.GetDirectoryName(report)!, "native-download.txt");

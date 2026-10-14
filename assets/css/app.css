@@ -161,3 +161,7 @@ body {
   background-size: 200% 100%;
   animation: beamTravel 1.6s linear infinite;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-ripple, .animate-beam-travel, .animate-pulse { animation: none; }
+}

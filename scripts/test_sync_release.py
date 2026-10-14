@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -53,6 +54,63 @@ class TestSyncRelease(unittest.TestCase):
                 self.assertFalse(sync_release.check_sync())
             finally:
                 sync_release.ROOT_DIR, sync_release.FILES = old_root, old_files
+
+    def test_marketing_downloads_match_published_asset_names(self):
+        version = sync_release.get_current_version()
+        expected = {
+            f"ssh-client-setup-v{version}-windows-x64.exe",
+            "ssh-client-windows-x64.zip",
+            "ssh-client-linux-x64.tar.gz",
+        }
+        for key, path in sync_release.FILES.items():
+            if not key.startswith("web_"):
+                continue
+            with open(path, encoding="utf-8") as source:
+                links = re.findall(
+                    r"https://github\.com/dineshkorukonda/ssh-client/releases/download/([^\s\"'<]+)",
+                    source.read(),
+                )
+            for link in links:
+                with self.subTest(page=key, link=link):
+                    tag, asset = link.split("/", 1)
+                    self.assertEqual(tag, f"v{version}")
+                    self.assertIn(asset, expected)
+
+    def test_site_build_version_does_not_advertise_unpublished_downloads(self):
+        with open(sync_release.FILES["web_index"], encoding="utf-8") as source:
+            page = source.read()
+        self.assertNotIn("Native Release", page)
+        self.assertNotIn("app-version-badge", page)
+        self.assertNotIn("/releases/download/v", page)
+        self.assertIn('data-release-asset="installer"', page)
+        self.assertIn("/releases/latest", page)
+        self.assertIn('name="app-version"', page)
+
+    def test_download_buttons_use_published_assets_and_keep_safe_fallback(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node is required to verify the website download resolver")
+        script = r"""
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+const base = 'https://github.com/dineshkorukonda/ssh-client';
+(async () => {
+  for (const scenario of ['published', 'api-failure', 'missing-assets', 'untrusted-url']) {
+    const links = ['installer', 'portable', 'linux'].map(type => ({dataset: {releaseAsset: type}, href: base + '/releases/latest'}));
+    const names = ['ssh-client-setup-v0.0.71-windows-x64.exe', 'ssh-client-windows-x64.zip', 'ssh-client-linux-x64.tar.gz'];
+    const assets = scenario === 'missing-assets' ? [] : names.map(name => ({name, browser_download_url: (scenario === 'untrusted-url' ? 'https://example.com' : base) + '/releases/download/v0.0.71/' + name}));
+    await vm.runInNewContext(source, {
+      document: {querySelectorAll: () => links},
+      fetch: async () => ({ok: scenario !== 'api-failure', json: async () => ({assets})})
+    });
+    links.forEach((link, index) => assert.strictEqual(link.href, scenario === 'published' ? base + '/releases/download/v0.0.71/' + names[index] : base + '/releases/latest'));
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+        resolver = os.path.join(sync_release.ROOT_DIR, "web", "assets", "releases.js")
+        subprocess.run([node, "-e", script, resolver], check=True, capture_output=True)
 
     def test_get_current_version(self):
         ver = sync_release.get_current_version()
@@ -161,6 +219,7 @@ class TestSyncRelease(unittest.TestCase):
             web_idx_path = os.path.join(tmp_dir, "index.html")
             _write(
                 web_idx_path,
+                '<meta name="app-version" content="0.0.8">\n'
                 '<span class="font-mono text-[10px] text-neutral-500 border border-neutral-800 px-1.5 py-0.5 rounded ml-1">v0.0.8</span>\n'
                 '<span class="app-latest-release">v0.0.8</span>\n'
                 '<a href="https://github.com/dineshkorukonda/ssh-client/releases/tag/v0.0.8">GitHub Release v0.0.8 ↗</a>\n'

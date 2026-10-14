@@ -50,7 +50,7 @@ try {
     $render = Start-Process -FilePath $exe -ArgumentList ('--design-smoke "' + $design + '"') -WindowStyle Hidden -PassThru
     if (-not $render.WaitForExit(15000)) { Stop-Process -Id $render.Id -Force; throw "Native design render timed out." }
     if ($render.ExitCode -ne 0) { throw "Native dialog theme validation failed." }
-    foreach ($screen in @('hosts.png','hosts-compact.png','hosts-minimum.png','hosts-150dpi.png','connection.png','host-editor.png','add-host-page.png','hosts_light.png','sftp_dark.png','keys_dark.png')) { if (-not (Test-Path -LiteralPath (Join-Path $design $screen))) { throw "Missing design screen: $screen" } }
+    foreach ($screen in @('hosts.png','hosts-compact.png','hosts-minimum.png','hosts-150dpi.png','connection.png','connection-stage.png','connection-failed.png','host-editor.png','add-host-page.png','hosts_light.png','sftp_dark.png','keys_dark.png')) { if (-not (Test-Path -LiteralPath (Join-Path $design $screen))) { throw "Missing design screen: $screen" } }
     Write-Output "Native validation passed: backend startup, WebView2 rendering, terminal input/output, SFTP, process cleanup."
     Write-Output "Artifacts: $fixtureRoot"
 } finally {
