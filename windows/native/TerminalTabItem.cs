@@ -19,5 +19,6 @@ public sealed class TerminalTabItem : INotifyPropertyChanged
     public string SelectionLabel => $"{Title} / {Host?.Description} / {ShortId}";
     private string ShortId => SessionId.Length > 8 ? SessionId[^8..] : SessionId;
     public string Summary => $"{Title}\n{Host?.Description}\n{State} / {ShortId}";
+    public override string ToString() => SelectionLabel;
     public event PropertyChangedEventHandler? PropertyChanged;
 }

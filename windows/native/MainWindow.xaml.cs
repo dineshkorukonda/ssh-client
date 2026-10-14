@@ -582,8 +582,45 @@ public partial class MainWindow : Window
     {
         filePane?.Dispose(); filePane = null;
         if (api != null && SftpSessionCombo.SelectedItem is TerminalTabItem item && item.State == "Connected")
-            SftpContent.Content = filePane = new SftpPane(api, item.SessionId, this);
-        else SftpContent.Content = new TextBlock { Text = "Connect this session before browsing remote files.", Margin = new Thickness(16) };
+        {
+            SftpContent.Content = filePane = new SftpPane(api, item.SessionId, this, item.Title, item.Host);
+        }
+        else
+        {
+            var emptyBorder = new Border
+            {
+                Background = (Brush)Application.Current.Resources["Card"],
+                BorderBrush = (Brush)Application.Current.Resources["Border"],
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(32),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 520
+            };
+            var emptyStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            emptyStack.Children.Add(new TextBlock
+            {
+                Text = "No Connected Session Selected",
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)Application.Current.Resources["Text"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+            emptyStack.Children.Add(new TextBlock
+            {
+                Text = SftpSessionCombo.SelectedItem is TerminalTabItem pending
+                    ? $"Session '{pending.Title}' is currently {pending.State.ToLowerInvariant()}. Once connected, its remote filesystem will be accessible here."
+                    : "Select an active connected SSH session from the Target Session dropdown above to browse and transfer files.",
+                Foreground = (Brush)Application.Current.Resources["Muted"],
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 12
+            });
+            emptyBorder.Child = emptyStack;
+            SftpContent.Content = emptyBorder;
+        }
     }
 
     // -------------------------------------------------------------
@@ -691,10 +728,8 @@ public partial class MainWindow : Window
         if (host.DefaultAuthMethod == "password") fields.Add(new("password", "Password", Secret: true));
         else if (host.DefaultAuthMethod == "key" && !string.IsNullOrWhiteSpace(host.IdentityFile))
         {
-            if (File.Exists(host.IdentityFile) && File.ReadAllText(host.IdentityFile).Contains("ENCRYPTED", StringComparison.OrdinalIgnoreCase))
+            if (IsKeyEncrypted(host.IdentityFile))
                 fields.Add(new("passphrase", "Private-key passphrase", Secret: true));
-            else if (File.Exists(host.IdentityFile) && File.ReadAllText(host.IdentityFile).Contains("OPENSSH PRIVATE KEY", StringComparison.Ordinal))
-                fields.Add(new("passphrase", "Key passphrase (leave empty for an unencrypted key)", Secret: true));
         }
 
         if (!string.IsNullOrWhiteSpace(host.ProxyJump))
@@ -707,14 +742,28 @@ public partial class MainWindow : Window
             ]);
         }
 
-        var dialog = new FormDialog(this, "Authenticate Connection: " + host.Name, fields, "Connect", "Zero-persistence security: credentials stored in volatile memory only.");
-        PrepareDialogForSmoke?.Invoke(dialog);
-        if (dialog.ShowDialog() != true) return;
+        var values = new Dictionary<string, string>();
+        bool needsPrompt = PrepareDialogForSmoke != null ||
+                           string.IsNullOrWhiteSpace(host.User) ||
+                           host.DefaultAuthMethod == "password" ||
+                           (host.DefaultAuthMethod == "key" && IsKeyEncrypted(host.IdentityFile)) ||
+                           !string.IsNullOrWhiteSpace(host.ProxyJump);
 
-        var values = dialog.Values;
+        if (needsPrompt)
+        {
+            var dialog = new FormDialog(this, "Authenticate Connection: " + host.Name, fields, "Connect", "Zero-persistence security: credentials stored in volatile memory only.");
+            PrepareDialogForSmoke?.Invoke(dialog);
+            if (dialog.ShowDialog() != true) return;
+            values = dialog.Values;
+        }
+        else
+        {
+            values["user"] = host.User ?? "";
+        }
+
         var attrs = ConnectionRequest.Build(host, values);
         var connectionHost = host.Copy();
-        connectionHost.User = values["user"];
+        connectionHost.User = values.GetValueOrDefault("user", host.User ?? "");
 
         if (api != null)
         {

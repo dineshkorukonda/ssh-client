@@ -400,10 +400,10 @@ defmodule SSHClientWeb.CoreComponents do
     <a
       href={@href}
       class={[
-        "flex items-center gap-3 px-3 py-2 rounded-md transition-all font-medium group",
+        "flex items-center gap-3 px-3 py-2 rounded-lg transition-all font-medium group text-xs",
         if(@active,
-          do: "bg-background text-foreground shadow-sm font-semibold border border-border/80",
-          else: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          do: "bg-sky-500/10 text-sky-400 shadow-xs font-semibold border border-sky-500/30",
+          else: "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent"
         )
       ]}
       title={@label}
@@ -411,13 +411,136 @@ defmodule SSHClientWeb.CoreComponents do
       {render_slot(@icon)}
       <span class="hidden lg:inline truncate">{@label}</span>
       <%= if @count do %>
-        <span class="hidden lg:inline-block ml-auto px-1.5 py-0.2 text-[10px] rounded-full bg-secondary text-secondary-foreground font-mono">
+        <span class={[
+          "hidden lg:inline-block ml-auto px-1.5 py-0.2 text-[10px] rounded-full font-mono transition-colors",
+          if(@active,
+            do: "bg-sky-500/20 text-sky-300",
+            else: "bg-muted text-muted-foreground"
+          )
+        ]}>
           {@count}
         </span>
       <% end %>
     </a>
     """
   end
+
+  @doc "Detects operating system family from server metadata"
+  def detect_os(server) when is_map(server) do
+    tags_str =
+      case Map.get(server, :tags) do
+        tags when is_list(tags) -> Enum.join(tags, " ")
+        _ -> ""
+      end
+
+    text =
+      [
+        Map.get(server, :name),
+        Map.get(server, :host),
+        Map.get(server, :notes),
+        tags_str
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+      |> String.downcase()
+
+    cond do
+      String.contains?(text, "ubuntu") -> :ubuntu
+      String.contains?(text, "debian") -> :debian
+      String.contains?(text, "arch") -> :arch
+      String.contains?(text, "alpine") -> :alpine
+      String.contains?(text, ["centos", "rhel", "redhat", "fedora"]) -> :redhat
+      String.contains?(text, ["win", "windows"]) -> :windows
+      true -> :server
+    end
+  end
+
+  def detect_os(_), do: :server
+
+  @doc "OS Squircle Badge Component with distro brand color and SVG icon"
+  attr :os, :atom, default: :server
+  attr :size, :string, default: "md"
+  attr :class, :string, default: ""
+
+  def os_badge(assigns) do
+    box_size =
+      case assigns.size do
+        "sm" -> "w-8 h-8 rounded-lg"
+        "lg" -> "w-16 h-16 rounded-2xl"
+        _ -> "w-11 h-11 rounded-xl"
+      end
+
+    svg_size =
+      case assigns.size do
+        "sm" -> "w-4 h-4"
+        "lg" -> "w-8 h-8"
+        _ -> "w-5 h-5"
+      end
+
+    assigns =
+      assigns
+      |> assign(:box_size, box_size)
+      |> assign(:svg_size, svg_size)
+
+    ~H"""
+    <div class={[
+      "flex items-center justify-center shrink-0 shadow-sm transition-transform select-none",
+      @box_size,
+      badge_bg(@os),
+      @class
+    ]}>
+      <%= case @os do %>
+        <% :ubuntu -> %>
+          <svg class={@svg_size} viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <circle cx="5.2" cy="12" r="1.5" />
+            <circle cx="15.4" cy="6.2" r="1.5" />
+            <circle cx="15.4" cy="17.8" r="1.5" />
+            <path d="M10 8.5a4 4 0 0 1 4-1.5M10 15.5a4 4 0 0 0 4 1.5M8 12a4 4 0 0 1 0-0.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        <% :debian -> %>
+          <svg class={@svg_size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 3c4.97 0 9 4.03 9 9 0 3.87-2.45 7.17-5.91 8.39-.75.26-1.59-.1-1.85-.85-.26-.75.1-1.59.85-1.85C16.48 16.85 18 14.6 18 12c0-3.31-2.69-6-6-6-2.6 0-4.85 1.52-5.7 3.73-.29.75-1.13 1.13-1.88.84-.75-.29-1.13-1.13-.84-1.88C4.83 5.45 8.13 3 12 3z" />
+            <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+          </svg>
+        <% :arch -> %>
+          <svg class={@svg_size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3L3 20h4l2.5-5h5l2.5 5h4L12 3z" />
+            <path d="M12 9l-2 4h4l-2-4z" />
+          </svg>
+        <% :alpine -> %>
+          <svg class={@svg_size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 19l6-11 5 8 3-5 4 8H3z" />
+          </svg>
+        <% :redhat -> %>
+          <svg class={@svg_size} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 15c2.5-1 5.5-1.5 9-1.5s6.5.5 9 1.5c.5.2.8.7.8 1.2 0 1.5-4.4 2.8-9.8 2.8S2.2 17.7 2.2 16.2c0-.5.3-1 .8-1.2z" />
+            <path d="M7 14c0-4 2.2-8 5-8s5 4 5 8H7z" />
+          </svg>
+        <% :windows -> %>
+          <svg class={@svg_size} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 5.5L10.5 4.5v6.5H3V5.5zm8.5-1.1L21 3v8H11.5V4.4zM3 13h7.5v6.5L3 18.5V13zm8.5 0H21v8l-9.5-1.4V13z" />
+          </svg>
+        <% _ -> %>
+          <svg class={@svg_size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="6" rx="2" />
+            <rect x="3" y="14" width="18" height="6" rx="2" />
+            <circle cx="7" cy="7" r="1" fill="currentColor" />
+            <circle cx="7" cy="17" r="1" fill="currentColor" />
+            <path d="M11 7h6M11 17h6" />
+          </svg>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp badge_bg(:ubuntu), do: "bg-[#e95420] text-white shadow-[#e95420]/20"
+  defp badge_bg(:debian), do: "bg-[#d70a53] text-white shadow-[#d70a53]/20"
+  defp badge_bg(:arch), do: "bg-[#1793d1] text-white shadow-[#1793d1]/20"
+  defp badge_bg(:alpine), do: "bg-[#0d597f] text-white shadow-[#0d597f]/20"
+  defp badge_bg(:redhat), do: "bg-[#cc0000] text-white shadow-[#cc0000]/20"
+  defp badge_bg(:windows), do: "bg-[#0078d4] text-white shadow-[#0078d4]/20"
+  defp badge_bg(_), do: "bg-sky-500/15 text-sky-400 border border-sky-500/30"
 
   @doc "Slide-over side drawer component"
   attr :id, :string, required: true

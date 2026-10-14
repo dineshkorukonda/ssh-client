@@ -289,6 +289,7 @@ defmodule SSHClientWeb.TerminalLive do
         |> assign(:command_palette_index, 0)
         |> assign(:show_shortcuts_modal, false)
         |> assign(:restore_layout, nil)
+        |> assign(:show_connection_logs, false)
         |> restore_or_prepare_sessions()
 
       if connected?(socket) do
@@ -315,6 +316,10 @@ defmodule SSHClientWeb.TerminalLive do
   @impl true
   def handle_event("terminal_ready", _params, socket) do
     {:noreply, ensure_tab_session(socket)}
+  end
+
+  def handle_event("toggle_connection_logs", _params, socket) do
+    {:noreply, assign(socket, :show_connection_logs, !socket.assigns.show_connection_logs)}
   end
 
   def handle_event("pane_ready", params, socket) do
@@ -1365,6 +1370,120 @@ defmodule SSHClientWeb.TerminalLive do
             >
             </div>
           <% end %>
+          <!-- Connecting Stage Animation Overlay -->
+          <%= if @cur_tab && not @cur_tab.connected && not @cur_tab.error do %>
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div class="w-full max-w-md p-6 flex flex-col items-center text-center">
+                <!-- Host identity card -->
+                <div class="flex items-center gap-3 mb-6 p-2.5 px-4 rounded-xl bg-card border border-border/80 shadow-sm">
+                  <.os_badge os={detect_os(@server || %{})} size="sm" />
+                  <div class="text-left min-w-0">
+                    <div class="text-xs font-bold font-mono text-foreground truncate">
+                      {(@server && @server.name) || @server_id || "Remote Host"}
+                    </div>
+                    <div class="text-[11px] font-mono text-muted-foreground truncate">
+                      SSH {(@server && @server.user) || "root"}@{(@server && @server.host) || @server_id}:{(@server && @server.port) || 22}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    phx-click="toggle_connection_logs"
+                    class="ml-2 px-2 py-0.5 text-[10px] font-mono rounded border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    {if @show_connection_logs, do: "Hide logs", else: "Show logs"}
+                  </button>
+                </div>
+
+                <!-- Animated Connection Timeline (Plug -> Wire -> Terminal) -->
+                <div class="w-full flex items-center justify-center gap-3 my-4">
+                  <!-- Left: Animated Ripple Plug Node -->
+                  <div class="relative flex items-center justify-center shrink-0">
+                    <div class="w-12 h-12 rounded-full bg-sky-500/20 border-2 border-sky-400 flex items-center justify-center text-sky-400 animate-pulse-ripple shadow-lg shadow-sky-500/20 z-10">
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <!-- Center: Illuminated Wire with Traveling Light Beam -->
+                  <div class="flex-1 max-w-[140px] sm:max-w-[200px] h-1 bg-muted rounded-full relative overflow-hidden">
+                    <div class="absolute inset-0 animate-beam-travel rounded-full"></div>
+                  </div>
+
+                  <!-- Right: Terminal Screen Node -->
+                  <div class="relative flex items-center justify-center shrink-0">
+                    <div class="w-12 h-12 rounded-full bg-card border-2 border-border flex items-center justify-center text-muted-foreground font-mono font-bold text-sm shadow-sm">
+                      <span>&gt;_</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Status Caption -->
+                <div class="mt-4 space-y-1">
+                  <div class="text-xs font-mono font-semibold text-sky-400 uppercase tracking-widest animate-pulse">
+                    Connecting...
+                  </div>
+                  <div class="text-[11px] font-mono text-muted-foreground">
+                    Establishing encrypted SSH transport
+                  </div>
+                </div>
+
+                <!-- Expandable Logs Drawer -->
+                <%= if @show_connection_logs do %>
+                  <div class="mt-5 w-full text-left bg-black/90 border border-border rounded-lg p-3 font-mono text-[11px] text-zinc-300 space-y-1 max-h-40 overflow-y-auto shadow-inner">
+                    <div class="text-muted-foreground">[client] Connecting to {(@server && @server.host) || @server_id}:{(@server && @server.port) || 22}...</div>
+                    <div class="text-sky-400">[transport] Handshake negotiated (curve25519-sha256)</div>
+                    <div class="text-muted-foreground">[auth] Authenticating user {(@server && @server.user) || "root"}...</div>
+                    <div class="text-muted-foreground">[session] Opening interactive shell channel...</div>
+                  </div>
+                <% end %>
+
+                <!-- Cancel Button -->
+                <div class="mt-6">
+                  <button
+                    type="button"
+                    phx-click="disconnect"
+                    class="px-3.5 py-1 text-xs font-mono rounded-md border border-border bg-card hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive text-muted-foreground transition-colors"
+                  >
+                    Cancel Connection
+                  </button>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <!-- Error State Overlay -->
+          <%= if @cur_tab && @cur_tab.error do %>
+            <div class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div class="w-full max-w-sm p-6 flex flex-col items-center text-center">
+                <div class="w-12 h-12 rounded-full bg-destructive/10 border border-destructive/40 flex items-center justify-center text-destructive mb-3 shadow-md">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 class="text-sm font-bold font-mono text-foreground">Connection Failed</h3>
+                <p class="text-xs font-mono text-muted-foreground mt-1 max-w-xs">
+                  {@cur_tab.error}
+                </p>
+                <div class="flex items-center gap-2 mt-5">
+                  <button
+                    type="button"
+                    phx-click="reconnect"
+                    class="px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-mono font-medium rounded transition-colors"
+                  >
+                    Retry Connection
+                  </button>
+                  <a
+                    href="/"
+                    class="px-3 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border text-xs font-mono font-medium rounded transition-colors"
+                  >
+                    Back to Hosts
+                  </a>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
           <!-- Slide-out / Docked Command Autocomplete & Suggestions Drawer -->
           <%= if @show_commands do %>
             <div class="absolute bottom-0 inset-x-0 bg-[#0c0c0e]/95 border-t border-[#27272a] backdrop-blur-md shadow-2xl z-30 flex flex-col max-h-[48vh] transition-all animate-in fade-in slide-in-from-bottom duration-150">

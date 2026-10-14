@@ -545,12 +545,28 @@
                 <!-- Active Session Selector -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                   <TextBlock Text="Target Session: " Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                  <ComboBox x:Name="SftpSessionCombo" AutomationProperties.Name="File browser SSH session" Width="240" DisplayMemberPath="SelectionLabel" SelectionChanged="SftpSessionCombo_SelectionChanged"/>
+                  <ComboBox x:Name="SftpSessionCombo" AutomationProperties.Name="File browser SSH session" Width="300" SelectionChanged="SftpSessionCombo_SelectionChanged">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                          <Border Width="6" Height="6" CornerRadius="3" Background="{DynamicResource AccentCyan}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text}" VerticalAlignment="Center"/>
+                          <TextBlock Text="  /  " Foreground="{DynamicResource MutedSubtle}" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding Host.Address}" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
                 </StackPanel>
               </DockPanel>
 
               <ContentControl x:Name="SftpContent">
-                <TextBlock Text="Connect a host, then choose its session to browse files." TextWrapping="Wrap" Margin="16"/>
+                <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Padding="32" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
+                  <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="No Connected Session Selected" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource Text}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="Select an active connected SSH session from the Target Session dropdown above to browse and transfer files." Foreground="{DynamicResource Muted}" TextWrapping="Wrap" TextAlignment="Center" FontSize="12"/>
+                  </StackPanel>
+                </Border>
               </ContentControl>
             </DockPanel>
           </Grid>
