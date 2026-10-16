@@ -192,6 +192,11 @@ defmodule SSHClientWeb.DesktopAPI do
 
     if is_integer(attrs["font_size"]) and attrs["font_size"] in 8..32 and
          is_integer(attrs["scrollback"]) and attrs["scrollback"] in 100..100_000 and
+         (is_nil(attrs["font_family"]) or
+            attrs["font_family"] in ["Cascadia Code", "Consolas", "Cascadia Mono"]) and
+         (is_nil(attrs["line_height"]) or
+            (is_number(attrs["line_height"]) and attrs["line_height"] >= 1 and
+               attrs["line_height"] <= 1.6)) and
          (is_nil(attrs["theme"]) or attrs["theme"] in ["dark", "light"]) and
          (is_nil(attrs["reduced_motion"]) or is_boolean(attrs["reduced_motion"])) do
       result(conn, Desktop.save_settings(attrs))

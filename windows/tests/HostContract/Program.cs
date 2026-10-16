@@ -8,7 +8,13 @@ static void Require(bool condition, string message)
 
 // Fresh editor and ad-hoc connection models must use the backend's required field.
 var created = new Host { Address = "created.example", User = "deploy", Port = 2222 };
+var changed = 0;
+created.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(Host.ConnectionStatus)) changed++; };
+created.ConnectionStatus = "Connected"; created.ConnectionStatus = "Connected";
+Require(changed == 1, "Connection state must notify only when it changes.");
 var document = JsonSerializer.SerializeToElement(created, DesktopClient.Json);
+Require(!document.TryGetProperty("connection_status", out _), "Live status must never be persisted as host metadata.");
+Require(created.Copy().ConnectionStatus == "Saved", "Edit copies must not retain a stale connection state.");
 Require(document.TryGetProperty("host", out var address) && address.GetString() == created.Address,
     "New hosts must serialize their address as host.");
 Require(!document.TryGetProperty("address", out _), "Do not send a second address field.");

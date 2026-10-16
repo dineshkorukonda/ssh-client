@@ -21,6 +21,7 @@ public sealed class TerminalView : Grid, IDisposable
     private bool initializing;
     private readonly Queue<string> pendingInput = new();
     private bool sending;
+    private string? reportedState;
     private readonly TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Ready => completion.Task;
     public string SessionId { get; }
@@ -89,6 +90,9 @@ public sealed class TerminalView : Grid, IDisposable
             var message = JsonSerializer.Deserialize<JsonElement>(args.WebMessageAsJson);
             switch (message.GetProperty("type").GetString())
             {
+                case "sidebar":
+                    (owner as MainWindow)?.ToggleSidebarFromTerminal();
+                    break;
                 case "palette":
                     (owner as MainWindow)?.OpenCommandPalette();
                     break;
@@ -134,11 +138,11 @@ public sealed class TerminalView : Grid, IDisposable
                 cursor = snapshot.GetProperty("cursor").GetInt64();
                 var state = snapshot.GetProperty("status").GetString();
                 connectionStage.SetState(state switch { "connected" => "Connected", "connecting" => "Connecting", "disconnected" => "Disconnected", _ => "Failed" }, state == "error" ? snapshot.GetProperty("error").GetString() : null);
-                stateChanged?.Invoke(state switch { "connected" => "Connected", "connecting" => "Connecting", "error" => "Failed", "disconnected" => "Disconnected", _ => state ?? "Unknown" });
+                ReportState(state switch { "connected" => "Connected", "connecting" => "Connecting", "error" => "Failed", "disconnected" => "Disconnected", _ => state ?? "Unknown" });
                 status(state == "error" ? snapshot.GetProperty("error").GetString() ?? "Connection failed" : state ?? "");
                 if (snapshot.TryGetProperty("host_key_prompt", out var prompt) && prompt.ValueKind == JsonValueKind.Object)
                 {
-                    stateChanged?.Invoke("Awaiting host approval");
+                    ReportState("Awaiting host approval");
                     connectionStage.SetState("Awaiting host approval");
                     var details = prompt.GetProperty("details");
                     var changed = prompt.GetProperty("type").GetString() == "host_key_changed";
@@ -151,7 +155,7 @@ public sealed class TerminalView : Grid, IDisposable
                 }
                 if (snapshot.TryGetProperty("auth_prompt", out var auth) && auth.ValueKind == JsonValueKind.Object)
                 {
-                    stateChanged?.Invoke("Awaiting authentication");
+                    ReportState("Awaiting authentication");
                     connectionStage.SetState("Awaiting authentication");
                     var prompts = auth.GetProperty("prompts").EnumerateArray().ToArray();
                     var fields = prompts.Select((p, i) => new Field(i.ToString(), p.GetProperty("text").GetString()!, Secret: !p.GetProperty("echo").GetBoolean()));
@@ -162,9 +166,41 @@ public sealed class TerminalView : Grid, IDisposable
                 }
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception error) { connectionStage.SetState("Backend unavailable", error.Message); stateChanged?.Invoke("Backend unavailable"); status(error.Message); }
+            catch (Exception error) { connectionStage.SetState("Backend unavailable", error.Message); ReportState("Backend unavailable"); status(error.Message); }
             try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { break; }
         }
+    }
+
+    private void ReportState(string state)
+    {
+        if (reportedState == state) return;
+        reportedState = state;
+        stateChanged?.Invoke(state);
+    }
+
+    public void FocusTerminal() { if (ready && !IsDisposed) web.Focus(); }
+
+    internal async Task<Image> CaptureForSmokeAsync()
+    {
+        using var stream = new MemoryStream();
+        await web.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, stream);
+        stream.Position = 0;
+        var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+        bitmap.BeginInit(); bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+        bitmap.StreamSource = stream; bitmap.EndInit(); bitmap.Freeze();
+        var overlay = new Image { Source = bitmap, Stretch = System.Windows.Media.Stretch.Fill };
+        Children.Add(overlay);
+        return overlay;
+    }
+
+    internal void ClearCaptureForSmoke(Image overlay) => Children.Remove(overlay);
+
+    internal async Task VerifyDimensionsForSmokeAsync()
+    {
+        var result = await web.CoreWebView2.ExecuteScriptAsync("({cols:terminal.cols,rows:terminal.rows,scrollback:terminal.options.scrollback,lineHeight:terminal.options.lineHeight,font:terminal.options.fontFamily})");
+        var dimensions = JsonSerializer.Deserialize<JsonElement>(result);
+        if (dimensions.GetProperty("cols").GetInt32() < 2 || dimensions.GetProperty("rows").GetInt32() < 1)
+            throw new IOException("Resizing left a terminal without usable dimensions.");
     }
 
     public void Dispose() { if (IsDisposed) return; IsDisposed = true; stop.Cancel(); completion.TrySetCanceled(); web.Dispose(); }

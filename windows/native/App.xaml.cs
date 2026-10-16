@@ -73,7 +73,7 @@ public partial class App : Application
                 Capture(window, 1280, 820, Path.Combine(folder, "connection-failed.png"));
                 window.Opacity = 0; window.ShowInTaskbar = false; window.Show();
                 var dialog = new FormDialog(window, "Connect to Production EU", [new("user", "Username", "deploy"), new("password", "Password", Secret: true)], "Connect", "deploy@prod-eu.example.com:22\nCredentials are used for this session only.");
-                if (dialog.Background is not SolidColorBrush background || (background.Color != Color.FromRgb(9, 9, 11) && background.Color != Color.FromRgb(0, 0, 0) && background.Color != Color.FromRgb(17, 20, 24) && background.Color != Color.FromRgb(22, 26, 32) && background.Color != Color.FromRgb(24, 26, 32))) throw new IOException("Derived dialog lost its dark theme.");
+                if (dialog.Background is not SolidColorBrush background || background.Color != ((SolidColorBrush)Resources["Surface"]).Color) throw new IOException("Derived dialog lost its theme resource.");
                 Capture(dialog, 480, 390, Path.Combine(folder, "connection.png"));
                 var editor = new FormDialog(window, "SSH host", [new("name", "Name", "Production EU"), new("host", "Server address", "prod-eu.example.com"), new("auth", "Authentication", "key", Options: ["key", "password"]), new("identity", "Private key", "C:\\Users\\deploy\\.ssh\\production", File: true), new("notes", "Notes", "Primary application server", Multiline: true)]);
                 Capture(editor, 480, 630, Path.Combine(folder, "host-editor.png"));
@@ -134,6 +134,8 @@ public partial class App : Application
                 await window.VerifyProductivityForSmokeAsync(connectionHost);
                 File.WriteAllText(report + ".progress", "connection dialog");
                 await window.VerifyConnectionFormForSmokeAsync(connectionHost);
+                File.WriteAllText(report + ".progress", "workbench layout");
+                await window.VerifyWorkbenchForSmokeAsync(Path.Combine(Path.GetDirectoryName(report)!, "workbench"));
                 File.WriteAllText(report + ".progress", "host trust rejection");
                 var untrustedHost = connectionHost.Copy(); untrustedHost.Address = "localhost";
                 var untrustedId = (await api.PostAsync("sessions", untrustedHost)).GetProperty("session_id").GetString()!;
@@ -161,7 +163,7 @@ public partial class App : Application
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "sessions/" + untrustedId);
                 File.WriteAllText(report + ".progress", "completed");
                 await api.RequestAsync(System.Net.Http.HttpMethod.Delete, "hosts/" + host.Id);
-                File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, files_page = true, session_lifecycle = true, host_editor = true, host_key_flow = true, update_controls = true, preferences = true, palette = true, accessible_names = true, connection_dialog = true, host_trust_rejection = true, screen }));
+                File.WriteAllText(report, System.Text.Json.JsonSerializer.Serialize(new { ready = true, terminal = true, sftp = true, files_page = true, workbench_layout = true, session_lifecycle = true, host_editor = true, host_key_flow = true, update_controls = true, preferences = true, palette = true, accessible_names = true, connection_dialog = true, host_trust_rejection = true, screen }));
                 window.Close(); Shutdown(0);
             }
             catch (Exception error) { File.WriteAllText(report, error.ToString()); Shutdown(1); }
@@ -252,7 +254,7 @@ public partial class App : Application
         catch (Exception error) { backend?.Dispose(); starting.Fail(error.Message); }
     }
 
-    private static void Capture(Window window, int width, int height, string path, double dpiScale = 1)
+    internal static void Capture(Window window, int width, int height, string path, double dpiScale = 1)
     {
         (window as MainWindow)?.SetPreviewWidth(width);
         var surface = (FrameworkElement)window.Content;

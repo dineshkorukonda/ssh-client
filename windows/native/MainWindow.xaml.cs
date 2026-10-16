@@ -1,4 +1,3 @@
-using System.Windows.Media.Animation;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http;
@@ -48,6 +47,7 @@ public partial class MainWindow : Window
         SetHostView(true);
         SftpSessionCombo.ItemsSource = openSessions;
         if (SidebarSessionsList != null) SidebarSessionsList.ItemsSource = openSessions;
+        OverviewSessionsList.ItemsSource = openSessions;
 
         if (api != null)
         {
@@ -69,7 +69,7 @@ public partial class MainWindow : Window
             if (StatusText != null) StatusText.Text = "Ready. Select a host to connect.";
         }
 
-        ShowPage("hosts");
+        ShowPage("dashboard");
         Closing += (_, e) => { if (EditorDirty() && MessageBox.Show(this, "Discard unsaved host changes and close?", "Unsaved changes", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) e.Cancel = true; };
         Closed += (_, _) =>
         {
@@ -141,39 +141,6 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     // Page Navigation
     // -------------------------------------------------------------
-    private void AnimatePageIn(UIElement page)
-    {
-        if (isPreview || reducedMotion || !SystemParameters.ClientAreaAnimation)
-        {
-            page.Opacity = 1;
-            page.RenderTransform = null;
-            return;
-        }
-
-        page.Opacity = 0;
-        var translate = new TranslateTransform(0, 8);
-        page.RenderTransform = translate;
-
-        var fadeAnim = new DoubleAnimation
-        {
-            From = 0,
-            To = 1,
-            Duration = TimeSpan.FromMilliseconds(160),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        var slideAnim = new DoubleAnimation
-        {
-            From = 8,
-            To = 0,
-            Duration = TimeSpan.FromMilliseconds(160),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        page.BeginAnimation(UIElement.OpacityProperty, fadeAnim);
-        translate.BeginAnimation(TranslateTransform.YProperty, slideAnim);
-    }
-
     private void ShowPage(string page)
     {
         if (page != "hosts" && EditorDirty() && !ConfirmDiscard()) return;
@@ -196,13 +163,11 @@ public partial class MainWindow : Window
             "session" => SessionTerminalWorkspace,
             _ => null
         };
-        if (target != null)
-        {
-            AnimatePageIn(target);
-        }
+        if (target != null) target.Opacity = 1;
 
         // Visual feedback on nav buttons
         HighlightNavButton(page);
+        FocusSelectedTerminal();
     }
 
     private void HighlightNavButton(string active)
@@ -282,6 +247,11 @@ public partial class MainWindow : Window
     // -------------------------------------------------------------
     private void UpdateDashboardMetrics()
     {
+        foreach (var host in hosts)
+        {
+            var sessions = openSessions.Where(item => item.Host?.Id == host.Id).ToArray();
+            host.ConnectionStatus = sessions.Any(item => item.State == "Connected") ? "Connected" : sessions.FirstOrDefault()?.State ?? "Saved";
+        }
         if (MetricHostsCount != null) MetricHostsCount.Text = hosts.Count.ToString();
         if (SidebarHostBadge != null) SidebarHostBadge.Text = hosts.Count.ToString();
         if (MetricKeysCount != null) MetricKeysCount.Text = keys.Count.ToString();
@@ -293,7 +263,14 @@ public partial class MainWindow : Window
         if (isPreview) { AppVersionLabel.Text = "preview"; BackendReadyText.Text = "Preview"; }
 
         if (DashboardHostsList != null)
-            DashboardHostsList.ItemsSource = hosts.OrderByDescending(h => h.LastConnectedAt).ThenByDescending(h => h.Favorite).Take(6).ToArray();
+        {
+            DashboardHostsList.ItemsSource = hosts.Where(h => !string.IsNullOrEmpty(h.LastConnectedAt)).OrderByDescending(h => h.LastConnectedAt).Take(5).ToArray();
+            FavoriteHostsList.ItemsSource = hosts.Where(h => h.Favorite).OrderBy(h => h.Name).Take(5).ToArray();
+            RecentEmpty.Visibility = DashboardHostsList.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            FavoritesEmpty.Visibility = FavoriteHostsList.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            SessionsEmpty.Visibility = openSessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            KeysEmpty.Visibility = keys.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
     private async void RefreshDashboard_Click(object sender, RoutedEventArgs e)
@@ -589,6 +566,7 @@ public partial class MainWindow : Window
         if (api != null && SftpSessionCombo.SelectedItem is TerminalTabItem item && item.State == "Connected")
         {
             SftpContent.Content = filePane = new SftpPane(api, item.SessionId, this, item.Title, item.Host);
+            FitFileViewport();
         }
         else
         {
@@ -607,7 +585,7 @@ public partial class MainWindow : Window
             var emptyStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             var emptyTitle = new TextBlock
             {
-                Text = "No Connected Session Selected",
+                Text = "Connect a host to browse files",
                 FontSize = 16,
                 FontWeight = FontWeights.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -620,7 +598,7 @@ public partial class MainWindow : Window
             {
                 Text = SftpSessionCombo.SelectedItem is TerminalTabItem pending
                     ? $"Session '{pending.Title}' is currently {pending.State.ToLowerInvariant()}. Once connected, its remote filesystem will be accessible here."
-                    : "Select an active connected SSH session from the Target Session dropdown above to browse and transfer files.",
+                    : "Choose a connected session above. Local and remote folders will open side by side.",
                 TextWrapping = TextWrapping.Wrap,
                 TextAlignment = TextAlignment.Center,
                 FontSize = 12
@@ -810,14 +788,17 @@ public partial class MainWindow : Window
         liveDot.SetResourceReference(Border.BackgroundProperty, "MutedSubtle");
         sessionItem.PropertyChanged += (_, args) => {
             if (args.PropertyName != nameof(TerminalTabItem.State)) return;
-            liveDot.SetResourceReference(Border.BackgroundProperty, sessionItem.State == "Connected" ? "AccentCyan" : "MutedSubtle");
+            liveDot.SetResourceReference(Border.BackgroundProperty, sessionItem.State == "Connected" ? "StatusOnline" : "MutedSubtle");
             liveDot.ToolTip = sessionItem.State;
         };
-        headerPanel.Children.Add(new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center });
+        headerPanel.Children.Add(new TextBlock { Text = title, MaxWidth = 170, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = sessionItem.SelectionLabel, VerticalAlignment = VerticalAlignment.Center });
 
         var closeBtn = new Button
         {
-            Content = "Close",
+            Content = "\uE8BB",
+            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            MinHeight = 20,
+            Height = 20,
             ToolTip = "Close this terminal and disconnect its SSH sessions",
             Style = (Style)Application.Current.Resources["GhostButton"],
             Padding = new Thickness(6, 0, 6, 0),
@@ -839,25 +820,12 @@ public partial class MainWindow : Window
         };
         toolBar.SetResourceReference(Border.BackgroundProperty, "Card");
         toolBar.SetResourceReference(Border.BorderBrushProperty, "Border");
-        var toolDock = new DockPanel();
+        var toolDock = new WrapPanel();
 
-        var rightInfo = new StackPanel { Orientation = Orientation.Horizontal };
-        DockPanel.SetDock(rightInfo, Dock.Right);
-        var hostInfo = new TextBlock
-        {
-            Text = host?.Description ?? title,
-            FontSize = 11,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        hostInfo.SetResourceReference(TextBlock.FontFamilyProperty, "MonoFont");
-        hostInfo.SetResourceReference(TextBlock.ForegroundProperty, "MutedSubtle");
-        rightInfo.Children.Add(hostInfo);
-        toolDock.Children.Add(rightInfo);
-
-        var leftButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        var leftButtons = new WrapPanel { Orientation = Orientation.Horizontal };
         var disconnBtn = new Button { Content = "Disconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
         var reconnBtn = new Button { Content = "Reconnect", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
-        var sftpBtn = new Button { Content = "Files (SFTP)", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
+        var sftpBtn = new Button { Content = "Files", Style = (Style)Application.Current.Resources["GhostButton"], Margin = new Thickness(0, 0, 6, 0) };
         var splitBtn = new Button { Content = "Split right", Style = (Style)Application.Current.Resources["GhostButton"] };
 
         disconnBtn.Click += async (_, _) => await GuardAsync(() => SessionActionAsync(sessionItem, "disconnect"));
@@ -902,7 +870,7 @@ public partial class MainWindow : Window
         }
         var pane = new Grid(); pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); pane.RowDefinitions.Add(new RowDefinition());
         var endpoint = (paneHost ?? item.Host)?.Description;
-        var paneStatus = new TextBlock { Text = endpoint + " / Connecting", Margin = new Thickness(10, 5, 10, 5), TextTrimming = TextTrimming.CharacterEllipsis };
+        var paneStatus = new TextBlock { Visibility = item.PaneIds.Count > 1 ? Visibility.Visible : Visibility.Collapsed, Text = endpoint + " / Connecting", Margin = new Thickness(10, 5, 10, 5), TextTrimming = TextTrimming.CharacterEllipsis };
         paneStatus.SetResourceReference(TextBlock.ForegroundProperty, "Muted"); pane.Children.Add(paneStatus);
         var view = new TerminalView(api, id, this, message => {
             if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem selected } && selected == item) StatusText.Text = message;
@@ -917,7 +885,15 @@ public partial class MainWindow : Window
             }
             UpdateDashboardMetrics();
         }, endpoint);
-        Grid.SetRow(view, 1); pane.Children.Add(view);
+        var frame = new Border { BorderThickness = new Thickness(1), Child = view };
+        frame.SetResourceReference(Border.BorderBrushProperty, "Border");
+        frame.GotKeyboardFocus += (_, _) => {
+            item.ActiveView = view;
+            foreach (var neighbor in grid.Children.OfType<Grid>().SelectMany(p => p.Children.OfType<Border>()))
+                neighbor.SetResourceReference(Border.BorderBrushProperty, "Border");
+            frame.SetResourceReference(Border.BorderBrushProperty, "AccentCyan");
+        };
+        Grid.SetRow(frame, 1); pane.Children.Add(frame);
         Grid.SetColumn(pane, column);
         grid.Children.Add(pane);
         item.Views.Add(view);
@@ -929,10 +905,13 @@ public partial class MainWindow : Window
         var column = grid.ColumnDefinitions.Count;
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
         var splitter = new GridSplitter { Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, ResizeDirection = GridResizeDirection.Columns, ResizeBehavior = GridResizeBehavior.PreviousAndNext };
+        splitter.SetResourceReference(Control.BackgroundProperty, "Border");
         Grid.SetColumn(splitter, column);
         grid.Children.Add(splitter);
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         item.PaneIds.Add(id);
+        foreach (var pane in grid.Children.OfType<Grid>())
+            if (pane.Children.OfType<TextBlock>().FirstOrDefault() is TextBlock heading) heading.Visibility = Visibility.Visible;
         AddSessionView(item, grid, id, column + 1, host);
         ShowPage("session");
     }
@@ -1039,7 +1018,7 @@ public partial class MainWindow : Window
     {
         if (e.Source != SessionTabs) return;
         if (SessionTabs.SelectedItem is TabItem { Tag: TerminalTabItem item })
-        { SidebarSessionsList.SelectedItem = item; StatusText.Text = item.Summary.Replace("\n", " / "); }
+        { SidebarSessionsList.SelectedItem = item; StatusText.Text = item.Summary.Replace("\n", " / "); FocusSelectedTerminal(); }
     }
 
     // -------------------------------------------------------------

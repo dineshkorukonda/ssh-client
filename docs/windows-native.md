@@ -4,12 +4,13 @@ Windows launches a self-contained WPF application, `ssh-client.exe`. The termina
 
 ## Daily workflows
 
-- Start on Hosts, add a host or import an OpenSSH config. Search names, endpoints and tags; sort by name, recent connection or favorites.
+- Start on Overview to quick-connect, resume a session or open a recent/favorite host. Hosts supports grid/list layouts, search by name, endpoint or tags, and sorting by name, recent connection or favorites. Add a host or import an OpenSSH config.
 - Choose private-key, password or keyboard-interactive authentication. Registered private identities are selectable in the editor. Destination and bastion credentials remain separate.
 - Ctrl+K opens hosts and app commands. Quick connect accepts `user@host:port` and `ssh://user@[IPv6]:port`; invalid ports are rejected.
 - Terminal tabs own their pane sessions. Disconnect/reconnect applies to the tab's panes; Split right starts another authenticated session. Each pane shows its backend state. Closing a tab closes its backend sessions and terminal pollers.
 - Files opens the selected connected session's local/remote browser. Uploads and downloads run in the background queue with progress, cancel and retry. Drag and picker uploads share replacement confirmation. Folder uploads and folder deletion are currently unsupported and do not show success.
-- Settings saves terminal font size, scrollback, theme and reduced motion, and applies preferences to open terminals.
+- Ctrl+Shift+B collapses or expands navigation without replacing the terminal workspace. Right-click a session for reconnect, disconnect, Files or close actions.
+- Settings saves terminal font family, font size, line height, scrollback, theme and reduced motion, and applies preferences to open terminals. Its save action remains visible while scrolling.
 - Named workspaces save host references and pane counts. Restore asks before reconnecting and prompts for credentials. Databases can be backed up; host metadata can be exported/imported without overwriting existing host identities.
 
 ## Local security and identities

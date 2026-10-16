@@ -12,12 +12,18 @@ public partial class MainWindow
     private void ApplyCompactLayout(double width)
     {
         if (InspectorColumn == null) return;
+        ApplyWorkbenchLayout(width);
         var visible = inspectorRequested ?? false;
-        InspectorColumn.Width = new GridLength(visible ? Math.Min(300, width * .32) : 0);
+        var overlay = width < 1100;
+        InspectorColumn.Width = new GridLength(visible && !overlay ? 300 : 0);
+        Grid.SetColumn(HostInspector, overlay ? 0 : 1);
+        HostInspector.HorizontalAlignment = overlay ? HorizontalAlignment.Right : HorizontalAlignment.Stretch;
+        HostInspector.Width = overlay ? 300 : double.NaN;
+        Panel.SetZIndex(HostInspector, 2);
         HostInspector.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         PalettePopup.Width = Math.Max(260, Math.Min(420, width - 200));
         DashboardCards.Columns = width < 1100 ? 2 : 4;
-        DashboardCards.Visibility = width < 1000 ? Visibility.Collapsed : Visibility.Visible;
+        DashboardCards.Visibility = Visibility.Visible;
     }
     private void ToggleInspector_Click(object sender, RoutedEventArgs e)
     {

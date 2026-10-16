@@ -24,6 +24,7 @@ public partial class MainWindow
     internal void OpenCommandPalette() { OmniBar.Focus(); OmniBar.SelectAll(); UpdatePalette(); }
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.B && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)) { CollapseSidebar_Click(this, new()); e.Handled = true; }
         if (e.Key == Key.K && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { OpenCommandPalette(); e.Handled = true; }
         if (e.Key == Key.Escape && PalettePopup.IsOpen) { PalettePopup.IsOpen = false; e.Handled = true; }
         if (PalettePopup.IsOpen && e.Key is Key.Down or Key.Up && PaletteList.Items.Count > 0) {
@@ -69,6 +70,9 @@ public partial class MainWindow
         var settings = await api.GetAsync("settings");
         SettingsFontSize.Text = settings.TryGetProperty("font_size", out var font) ? font.ToString() : "13";
         SettingsScrollback.Text = settings.TryGetProperty("scrollback", out var lines) ? lines.ToString() : "5000";
+        var family = settings.TryGetProperty("font_family", out var savedFamily) ? savedFamily.GetString() : "Cascadia Code";
+        SettingsFontFamily.SelectedItem = SettingsFontFamily.Items.Cast<ComboBoxItem>().FirstOrDefault(option => option.Content.ToString() == family) ?? SettingsFontFamily.Items[0];
+        SettingsLineHeight.Text = settings.TryGetProperty("line_height", out var height) ? height.ToString() : "1.15";
         reducedMotion = settings.TryGetProperty("reduced_motion", out var motion) && motion.GetBoolean(); ReducedMotion.IsChecked = reducedMotion;
         ThemeManager.ApplyTheme(settings.TryGetProperty("theme", out var theme) && theme.GetString() == "light" ? AppTheme.Light : AppTheme.Dark);
         ThemeToggleBtn.Content = "Theme"; HighlightNavButton(currentPage);
@@ -79,7 +83,11 @@ public partial class MainWindow
         if (!int.TryParse(SettingsFontSize.Text, out var font) || font is < 8 or > 32 || !int.TryParse(SettingsScrollback.Text, out var lines) || lines is < 100 or > 100000) {
             SettingsError.Text = "Font size must be 8–32 and scrollback must be 100–100000 lines."; return;
         }
-        if (api != null) await api.PostAsync("settings", new { font_size = font, scrollback = lines, theme = ThemeManager.CurrentTheme == AppTheme.Light ? "light" : "dark", reduced_motion = ReducedMotion.IsChecked == true });
+        if (!double.TryParse(SettingsLineHeight.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lineHeight) || !double.IsFinite(lineHeight) || lineHeight is < 1 or > 1.6) {
+            SettingsError.Text = "Line height must be between 1.0 and 1.6."; SettingsLineHeight.Focus(); return;
+        }
+        var fontFamily = (SettingsFontFamily.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Cascadia Code";
+        if (api != null) await api.PostAsync("settings", new { font_family = fontFamily, line_height = lineHeight, font_size = font, scrollback = lines, theme = ThemeManager.CurrentTheme == AppTheme.Light ? "light" : "dark", reduced_motion = ReducedMotion.IsChecked == true });
         reducedMotion = ReducedMotion.IsChecked == true;
         foreach (var terminal in terminals.ToArray()) await terminal.ApplySettingsAsync();
         SettingsError.Text = "Preferences saved and applied to open terminals.";
