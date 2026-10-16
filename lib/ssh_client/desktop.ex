@@ -150,7 +150,7 @@ defmodule SSHClient.Desktop do
       Store.put(
         :preferences,
         "native-desktop",
-        Map.take(attrs, ~w(font_size scrollback theme reduced_motion))
+        Map.take(attrs, ~w(font_size font_family line_height scrollback theme reduced_motion))
       )
 
   def workspace, do: Store.get(:workspaces, "native-desktop") || %{"host_ids" => []}

@@ -10,12 +10,14 @@ public sealed class TerminalTabItem : INotifyPropertyChanged
     public bool Closing { get; set; }
     public List<string> PaneIds { get; } = [];
     public List<TerminalView> Views { get; } = [];
+    public TerminalView? ActiveView { get; set; }
     private string state = "Connecting";
     public string State
     {
         get => state;
         set { if (state == value) return; state = value; PropertyChanged?.Invoke(this, new(nameof(State))); PropertyChanged?.Invoke(this, new(nameof(Summary))); }
     }
+    public string Initial => string.IsNullOrEmpty(Title) ? ">" : Title[..1].ToUpperInvariant();
     public string SelectionLabel => $"{Title} / {Host?.Description} / {ShortId}";
     private string ShortId => SessionId.Length > 8 ? SessionId[^8..] : SessionId;
     public string Summary => $"{Title}\n{Host?.Description}\n{State} / {ShortId}";

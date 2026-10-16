@@ -17,6 +17,9 @@ public sealed class SftpPane : UserControl, IDisposable
     private readonly string? sessionTitle;
     private readonly Host? host;
 
+    private readonly TextBlock remoteEmpty = new() { Text = "Loading remote directory...", TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center };
+    private readonly TextBlock localEmpty = new() { Text = "Loading local directory...", TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center };
+    private readonly TextBlock queueEmpty = new() { Text = "No transfers queued. Upload or download a file to begin.", Margin = new Thickness(0, 8, 0, 8) };
     private readonly TextBox path = new() { Text = ".", Margin = new Thickness(0, 0, 8, 0), VerticalContentAlignment = VerticalAlignment.Center };
     private readonly ListView entries = new();
     private readonly TextBlock status = new() { Text = "Loading files...", FontSize = 11, Margin = new Thickness(0, 6, 0, 0) };
@@ -70,10 +73,10 @@ public sealed class SftpPane : UserControl, IDisposable
         toolbarCard.SetResourceReference(Border.BackgroundProperty, "Card");
         toolbarCard.SetResourceReference(Border.BorderBrushProperty, "Border");
 
-        var toolbarDock = new DockPanel();
+        var toolbarDock = new StackPanel();
 
         // Right side of toolbar: Show hidden + Filter box
-        var toolbarRight = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var toolbarRight = new WrapPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
         toolbarRight.Children.Add(showHidden);
         showHidden.Checked += async (_, _) => await GuardAsync(LoadAsync);
         showHidden.Unchecked += async (_, _) => await GuardAsync(LoadAsync);
@@ -88,7 +91,7 @@ public sealed class SftpPane : UserControl, IDisposable
         };
         toolbarRight.Children.Add(filterContainer);
         DockPanel.SetDock(toolbarRight, Dock.Right);
-        toolbarDock.Children.Add(toolbarRight);
+
 
         // Left side of toolbar: Primary action buttons
         AddButton("Upload", UploadAsync, isPrimary: true);
@@ -99,6 +102,7 @@ public sealed class SftpPane : UserControl, IDisposable
         AddButton("Upload selected local", () => localEntries.SelectedItem is FileEntry { Type: not "directory" } entry ? QueueUploadsAsync([entry.Path]) : Task.CompletedTask);
 
         toolbarDock.Children.Add(toolbar);
+        toolbarDock.Children.Add(toolbarRight);
         toolbarCard.Child = toolbarDock;
         DockPanel.SetDock(toolbarCard, Dock.Top);
         root.Children.Add(toolbarCard);
@@ -132,7 +136,7 @@ public sealed class SftpPane : UserControl, IDisposable
 
         var queueBadgeTitle = new TextBlock
         {
-            Text = "TRANSFERS & QUEUE",
+            Text = "Transfers",
             FontSize = 10,
             FontWeight = FontWeights.Bold
         };
@@ -168,8 +172,16 @@ public sealed class SftpPane : UserControl, IDisposable
         queuePanel.Children.Add(queueHeaderDock);
 
         var txColumns = new GridView();
-        foreach (var field in new[] { "Filename", "Direction", "Status", "Progress", "BytesTransferred", "Error" })
-            txColumns.Columns.Add(new GridViewColumn { Header = field, DisplayMemberBinding = new Binding(field), Width = field == "Filename" ? 220 : (field == "Error" ? 180 : 100) });
+        queueEmpty.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+        DockPanel.SetDock(queueEmpty, Dock.Top);
+        queuePanel.Children.Add(queueEmpty);
+        foreach (var field in new[] { "Filename", "Direction", "Status", "Progress", "Error" })
+        {
+            var column = new GridViewColumn { Header = field, Width = field == "Filename" ? 200 : field == "Error" ? 240 : 110 };
+            if (field == "Progress") column.CellTemplate = TransferProgressTemplate();
+            else column.DisplayMemberBinding = new Binding(field);
+            txColumns.Columns.Add(column);
+        }
         transferEntries.View = txColumns;
 
         DockPanel.SetDock(status, Dock.Bottom);
@@ -187,6 +199,9 @@ public sealed class SftpPane : UserControl, IDisposable
         browsers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         browsers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
         browsers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        browsers.RowDefinitions.Add(new RowDefinition());
+        browsers.RowDefinitions.Add(new RowDefinition { Height = new GridLength(0) });
 
         // Left Panel: Local Card
         var localCard = new Border
@@ -213,7 +228,7 @@ public sealed class SftpPane : UserControl, IDisposable
 
         var localBadgeTitle = new TextBlock
         {
-            Text = "LOCAL FILES",
+            Text = "Local",
             FontSize = 10,
             FontWeight = FontWeights.Bold
         };
@@ -247,12 +262,12 @@ public sealed class SftpPane : UserControl, IDisposable
         localPanel.Children.Add(localBreadcrumbs);
 
         var localColumns = new GridView();
-        localColumns.Columns.Add(new GridViewColumn { Header = "Type", DisplayMemberBinding = new Binding("Icon"), Width = 52 });
+        localColumns.Columns.Add(new GridViewColumn { Header = "", CellTemplate = FileIconTemplate(), Width = 32 });
         localColumns.Columns.Add(new GridViewColumn { Header = "Name", DisplayMemberBinding = new Binding("Name"), Width = 220 });
         localColumns.Columns.Add(new GridViewColumn { Header = "Size", DisplayMemberBinding = new Binding("SizeLabel"), Width = 90 });
         localEntries.View = localColumns;
         localEntries.MouseDoubleClick += (_, _) => GuardLocal(() => { if (localEntries.SelectedItem is FileEntry { Type: "directory" } entry) { localPath.Text = entry.Path; LoadLocal(); } });
-        localPanel.Children.Add(localEntries);
+        localPanel.Children.Add(BrowserBody(localEntries, localEmpty));
         localCard.Child = localPanel;
         Grid.SetColumn(localCard, 0);
         browsers.Children.Add(localCard);
@@ -295,7 +310,7 @@ public sealed class SftpPane : UserControl, IDisposable
 
         var remoteBadgeTitle = new TextBlock
         {
-            Text = "REMOTE FILES",
+            Text = "Remote",
             FontSize = 10,
             FontWeight = FontWeights.Bold
         };
@@ -348,7 +363,7 @@ public sealed class SftpPane : UserControl, IDisposable
         remotePanel.Children.Add(remoteBreadcrumbs);
 
         var columns = new GridView();
-        columns.Columns.Add(new GridViewColumn { Header = "Type", DisplayMemberBinding = new Binding("Icon"), Width = 52 });
+        columns.Columns.Add(new GridViewColumn { Header = "", CellTemplate = FileIconTemplate(), Width = 32 });
         columns.Columns.Add(new GridViewColumn { Header = "Name", DisplayMemberBinding = new Binding("Name"), Width = 220 });
         columns.Columns.Add(new GridViewColumn { Header = "Size", DisplayMemberBinding = new Binding("SizeLabel"), Width = 90 });
         columns.Columns.Add(new GridViewColumn { Header = "Permissions", DisplayMemberBinding = new Binding("Permissions"), Width = 95 });
@@ -369,11 +384,28 @@ public sealed class SftpPane : UserControl, IDisposable
             }
         };
 
-        remotePanel.Children.Add(entries);
+        remotePanel.Children.Add(BrowserBody(entries, remoteEmpty));
         remoteCard.Child = remotePanel;
         Grid.SetColumn(remoteCard, 2);
         browsers.Children.Add(remoteCard);
 
+        SizeChanged += (_, _) => {
+            var stacked = ActualWidth < 760;
+            browsers.ColumnDefinitions[1].Width = new GridLength(stacked ? 0 : 8);
+            browsers.ColumnDefinitions[2].Width = stacked ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+            browsers.RowDefinitions[1].Height = stacked ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+            Grid.SetColumn(remoteCard, stacked ? 0 : 2);
+            Grid.SetRow(remoteCard, stacked ? 1 : 0);
+            remoteCard.Margin = stacked ? new Thickness(0, 8, 0, 0) : new Thickness(0);
+            splitter.Visibility = stacked ? Visibility.Collapsed : Visibility.Visible;
+        };
+        entries.DragEnter += (_, e) => {
+            if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+            remoteCard.SetResourceReference(Border.BorderBrushProperty, "AccentCyan");
+            e.Effects = DragDropEffects.Copy;
+        };
+        entries.DragLeave += (_, _) => remoteCard.SetResourceReference(Border.BorderBrushProperty, "Border");
+        entries.Drop += (_, _) => remoteCard.SetResourceReference(Border.BorderBrushProperty, "Border");
         root.Children.Add(browsers);
 
         timer.Tick += async (_, _) =>
@@ -397,12 +429,52 @@ public sealed class SftpPane : UserControl, IDisposable
         };
     }
 
+    private static Grid BrowserBody(ListView list, TextBlock empty)
+    {
+        var body = new Grid();
+        empty.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+        empty.HorizontalAlignment = HorizontalAlignment.Center;
+        empty.VerticalAlignment = VerticalAlignment.Center;
+        empty.Margin = new Thickness(20);
+        empty.IsHitTestVisible = false;
+        body.Children.Add(list); body.Children.Add(empty);
+        return body;
+    }
+
+    private static void UpdateEmptyState(ListView list, TextBlock label, string message)
+    {
+        label.Text = message;
+        label.Visibility = list.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private static DataTemplate FileIconTemplate()
+    {
+        var icon = new FrameworkElementFactory(typeof(TextBlock));
+        icon.SetValue(TextBlock.FontFamilyProperty, new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"));
+        icon.SetBinding(TextBlock.TextProperty, new Binding("IconGlyph"));
+        icon.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+        return new DataTemplate { VisualTree = icon };
+    }
+
+    private static DataTemplate TransferProgressTemplate()
+    {
+        var panel = new FrameworkElementFactory(typeof(StackPanel));
+        var label = new FrameworkElementFactory(typeof(TextBlock));
+        label.SetBinding(TextBlock.TextProperty, new Binding("Progress") { StringFormat = "{0}%" });
+        var bar = new FrameworkElementFactory(typeof(ProgressBar));
+        bar.SetValue(FrameworkElement.HeightProperty, 3d);
+        bar.SetValue(FrameworkElement.WidthProperty, 80d);
+        bar.SetBinding(System.Windows.Controls.Primitives.RangeBase.ValueProperty, new Binding("Progress"));
+        panel.AppendChild(label); panel.AppendChild(bar);
+        return new DataTemplate { VisualTree = panel };
+    }
+
     private void AddButton(string title, Func<Task> action, bool isPrimary = false)
     {
         var button = new Button
         {
             Content = title,
-            Margin = new Thickness(0, 0, 6, 0),
+            Margin = new Thickness(0, 0, 6, 4),
             Padding = new Thickness(10, 4, 10, 4),
             FontSize = 11
         };
@@ -418,7 +490,7 @@ public sealed class SftpPane : UserControl, IDisposable
         toolbar.IsEnabled = false;
         try { await action(); }
         catch (OperationCanceledException) { }
-        catch (Exception error) { status.Text = error.Message; }
+        catch (Exception error) { status.Text = error.Message; remoteEmpty.Text = "Could not load this folder. Check the path and choose Refresh."; }
         finally { toolbar.IsEnabled = true; }
     }
 
@@ -430,18 +502,18 @@ public sealed class SftpPane : UserControl, IDisposable
             .Where(file => string.IsNullOrEmpty(query) || file.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        if (localAllFiles.Count > 0)
-        {
-            localEntries.ItemsSource = localAllFiles
-                .Where(file => string.IsNullOrEmpty(query) || file.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-        }
+        localEntries.ItemsSource = localAllFiles
+            .Where(file => string.IsNullOrEmpty(query) || file.Name.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+        UpdateEmptyState(entries, remoteEmpty, files.Count == 0 ? "This remote folder is empty." : "No files match this filter.");
+        UpdateEmptyState(localEntries, localEmpty, localAllFiles.Count == 0 ? "This local folder is empty." : "No files match this filter.");
     }
 
     private List<FileEntry> localAllFiles = [];
 
     public async Task LoadAsync()
     {
+        remoteEmpty.Text = "Loading remote directory...";
+        remoteEmpty.Visibility = entries.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var result = await api.PostAsync($"files/{session}/list", new { path = path.Text });
         files = result.Deserialize<List<FileEntry>>(DesktopClient.Json) ?? [];
         ApplyFilter();
@@ -546,6 +618,7 @@ public sealed class SftpPane : UserControl, IDisposable
             .Where(file => string.IsNullOrEmpty(query) || file.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
+        UpdateEmptyState(localEntries, localEmpty, localAllFiles.Count == 0 ? "This local folder is empty." : "No files match this filter.");
         PopulateBreadcrumbs(localBreadcrumbs, DirectoryBreadcrumbs.Local(localPath.Text), destination => { GuardLocal(() => { localPath.Text = destination; LoadLocal(); }); return Task.CompletedTask; });
     }
 
@@ -565,6 +638,8 @@ public sealed class SftpPane : UserControl, IDisposable
         var selected = (transferEntries.SelectedItem as TransferEntry)?.Id;
         var list = (await api.GetAsync("transfers", stop.Token)).Deserialize<List<TransferEntry>>(DesktopClient.Json)?.Where(entry => entry.SessionId == session).ToArray() ?? [];
         transferEntries.ItemsSource = list;
+        queueEmpty.Visibility = list.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        transferEntries.Visibility = list.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         transferEntries.SelectedItem = list.FirstOrDefault(entry => entry.Id == selected);
         var completed = string.Join(',', list.Where(entry => entry.Status == "completed").Select(entry => entry.Id));
         if (completed != completedIds) { completedIds = completed; if (toolbar.IsEnabled) await LoadAsync(); }

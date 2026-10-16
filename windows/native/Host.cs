@@ -3,8 +3,16 @@ using System.Text.Json.Serialization;
 
 namespace SSHClient.Windows;
 
-public sealed class Host
+public sealed class Host : System.ComponentModel.INotifyPropertyChanged
 {
+    private string connectionStatus = "Saved";
+    [JsonIgnore]
+    public string ConnectionStatus
+    {
+        get => connectionStatus;
+        set { if (connectionStatus == value) return; connectionStatus = value; PropertyChanged?.Invoke(this, new(nameof(ConnectionStatus))); }
+    }
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
     [JsonPropertyName("host")]

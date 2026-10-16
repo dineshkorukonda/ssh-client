@@ -150,6 +150,21 @@ defmodule SSHClientWeb.DesktopAPITest do
     assert Jason.decode!(request(:get, "/settings").resp_body) == settings
   end
 
+  test "terminal typography persists and invalid typography cannot replace preferences" do
+    prefs = %{font_size: 14, font_family: "Cascadia Code", line_height: 1.2, scrollback: 5000}
+    assert request(:post, "/settings", prefs).status == 200
+    saved = Jason.decode!(request(:get, "/settings").resp_body)
+    assert saved["font_family"] == "Cascadia Code"
+    assert saved["line_height"] == 1.2
+
+    for invalid <- [%{line_height: 0.5}, %{line_height: "1.2"}, %{font_family: "invalid"}] do
+      assert request(:post, "/settings", Map.merge(prefs, invalid)).status == 422
+      assert Jason.decode!(request(:get, "/settings").resp_body) == saved
+    end
+
+    assert request(:post, "/settings", %{font_size: 13, scrollback: 1000}).status == 200
+  end
+
   test "named workspaces preserve layout without secrets and reject malformed panes" do
     id = "layout-#{System.unique_integer([:positive])}"
     on_exit(fn -> SSHClient.Store.delete(:workspaces, id) end)

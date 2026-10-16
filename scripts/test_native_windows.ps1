@@ -37,7 +37,7 @@ try {
     $result = Get-Content -LiteralPath $report -Raw
     if ($native.ExitCode -ne 0) { throw "Native terminal smoke failed: $result" }
     $decoded = $result | ConvertFrom-Json
-    foreach ($journey in @('ready','terminal','sftp','files_page','session_lifecycle','host_editor','host_key_flow','update_controls','preferences','palette','accessible_names','connection_dialog','host_trust_rejection')) { if (-not $decoded.$journey) { throw "Native journey validation failed: $journey" } }
+    foreach ($journey in @('ready','terminal','sftp','files_page','workbench_layout','session_lifecycle','host_editor','host_key_flow','update_controls','preferences','palette','accessible_names','connection_dialog','host_trust_rejection')) { if (-not $decoded.$journey) { throw "Native journey validation failed: $journey" } }
     Start-Sleep -Milliseconds 500
     $prefix = $ReleaseRoot.TrimEnd('\') + '\'
     $orphans = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) }
@@ -51,6 +51,11 @@ try {
     if (-not $render.WaitForExit(15000)) { Stop-Process -Id $render.Id -Force; throw "Native design render timed out." }
     if ($render.ExitCode -ne 0) { throw "Native dialog theme validation failed." }
     foreach ($screen in @('hosts.png','hosts-compact.png','hosts-minimum.png','hosts-150dpi.png','connection.png','connection-stage.png','connection-failed.png','host-editor.png','add-host-page.png','hosts_light.png','sftp_dark.png','keys_dark.png')) { if (-not (Test-Path -LiteralPath (Join-Path $design $screen))) { throw "Missing design screen: $screen" } }
+    foreach ($width in @(1536,1280,1024,720)) {
+        foreach ($page in @('dashboard','hosts','keys','settings','sftp','session')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot "workbench/$page-$width.png"))) { throw "Missing connected layout capture: $page-$width" }
+        }
+    }
     Write-Output "Native validation passed: backend startup, WebView2 rendering, terminal input/output, SFTP, process cleanup."
     Write-Output "Artifacts: $fixtureRoot"
 } finally {
